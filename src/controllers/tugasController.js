@@ -49,3 +49,49 @@ exports.getTugasByTeknisi = async (req, res) => {
 
   res.json({ tugas: data });
 };
+
+// Teknisi upload foto bukti & selesaikan tugas
+exports.selesaikanTugas = async (req, res) => {
+  const { id } = req.params;
+
+  if (!req.file) {
+    return res.status(400).json({ message: 'File foto wajib diupload' });
+  }
+
+  const fileName = `tugas-${id}-${Date.now()}.${req.file.originalname.split('.').pop()}`;
+
+  const { error: errUpload } = await supabase.storage
+    .from('bukti-foto')
+    .upload(fileName, req.file.buffer, {
+      contentType: req.file.mimetype,
+    });
+
+  if (errUpload) {
+    return res.status(500).json({ message: 'Gagal upload foto', error: errUpload.message });
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('bukti-foto')
+    .getPublicUrl(fileName);
+
+  const fotoUrl = publicUrlData.publicUrl;
+
+  const { data: tugasUpdated, error: errUpdate } = await supabase
+    .from('tugas')
+    .update({
+      foto_bukti: fotoUrl,
+      status: 'Done',
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (errUpdate) {
+    return res.status(500).json({ message: 'Gagal update status tugas', error: errUpdate.message });
+  }
+
+  res.json({
+    message: 'Tugas berhasil diselesaikan',
+    tugas: tugasUpdated,
+  });
+};
