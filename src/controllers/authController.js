@@ -3,7 +3,6 @@ const supabase = require('../config/supabaseClient');
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
-  // cari user berdasarkan email
   const { data: user, error } = await supabase
     .from('users')
     .select('*')
@@ -18,7 +17,6 @@ exports.login = async (req, res) => {
     return res.status(401).json({ message: 'Password salah' });
   }
 
-  // login berhasil, kirim balik data user (tanpa password)
   res.json({
     message: 'Login berhasil',
     user: {
