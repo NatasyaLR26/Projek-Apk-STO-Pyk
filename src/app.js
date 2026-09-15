@@ -3,6 +3,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const tugasRoutes = require('./routes/tugasRoutes');
 const permohonanRoutes = require('./routes/permohonanRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.get('/', (req, res) => {
   res.send('Server STO Telkom Akses jalan!');
 });
 
+app.use('/api/tracking', trackingRoutes);
 app.use('/api/permohonan', permohonanRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tugas', tugasRoutes);
