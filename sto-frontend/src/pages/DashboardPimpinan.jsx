@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import FormTugas from '../components/FormTugas';
+import ApprovalMaterial from '../components/ApprovalMaterial';
 
 const menuItems = [
   { key: 'tracking', label: 'WebGIS Tracking' },
@@ -41,12 +42,7 @@ function DashboardPimpinan() {
 
         {activeMenu === 'tugas' && <FormTugas />}
 
-        {activeMenu === 'approval' && (
-          <div>
-            <h1 className="text-xl font-bold mb-4">Approval Permohonan Material</h1>
-            <p className="text-gray-400">Daftar permohonan pending akan ditampilkan di sini.</p>
-          </div>
-        )}
+        {activeMenu === 'approval' && <ApprovalMaterial />} 
 
         {activeMenu === 'laporan' && (
           <div>
