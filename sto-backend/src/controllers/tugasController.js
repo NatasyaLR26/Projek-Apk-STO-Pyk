@@ -95,3 +95,24 @@ exports.selesaikanTugas = async (req, res) => {
     tugas: tugasUpdated,
   });
 };
+
+// Pimpinan lihat semua tugas yang masih aktif (belum Done) - untuk WebGIS tracking
+exports.getTugasAktif = async (req, res) => {
+  const { data, error } = await supabase
+    .from('tugas')
+    .select(`
+      id,
+      jenis_kerja,
+      lokasi,
+      status,
+      teknisi:teknisi_id ( id, nama_lengkap )
+    `)
+    .neq('status', 'Done')
+    .order('id', { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ message: 'Gagal mengambil data tugas aktif', error: error.message });
+  }
+
+  res.json({ tugas: data });
+};

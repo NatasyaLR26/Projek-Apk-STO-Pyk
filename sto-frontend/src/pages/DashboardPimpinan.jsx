@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import FormTugas from '../components/FormTugas';
 import ApprovalMaterial from '../components/ApprovalMaterial';
 import LaporanAudit from '../components/LaporanAudit';
+import WebGISTracking from '../components/WebGISTracking';
 
 const menuItems = [
   { key: 'tracking', label: 'WebGIS Tracking' },
@@ -34,12 +35,7 @@ function DashboardPimpinan() {
       />
 
       <div className="flex-1 p-6">
-        {activeMenu === 'tracking' && (
-          <div>
-            <h1 className="text-xl font-bold mb-4">Live Tracking Teknisi</h1>
-            <p className="text-gray-400">Peta WebGIS akan ditampilkan di sini.</p>
-          </div>
-        )}
+        {activeMenu === 'tracking' && <WebGISTracking />}
 
         {activeMenu === 'tugas' && <FormTugas />}
 
