@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+:root {
+  --color-telkom-red: #dc2626;
+  --color-bg-dark: #020617;
+  --color-bg-dark-2: #0f172a;
+  --color-success: #10b981;
+  --color-pending: #f59e0b;
+  --color-info: #3b82f6;
+}
+
+body {
+  background-color: var(--color-bg-dark);
+  color: white;
+}
