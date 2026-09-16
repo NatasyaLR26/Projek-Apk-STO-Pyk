@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import FormTugas from '../components/FormTugas';
 
 const menuItems = [
   { key: 'tracking', label: 'WebGIS Tracking' },
@@ -38,12 +39,7 @@ function DashboardPimpinan() {
           </div>
         )}
 
-        {activeMenu === 'tugas' && (
-          <div>
-            <h1 className="text-xl font-bold mb-4">Buat Tiket Tugas</h1>
-            <p className="text-gray-400">Form buat tugas akan ditampilkan di sini.</p>
-          </div>
-        )}
+        {activeMenu === 'tugas' && <FormTugas />}
 
         {activeMenu === 'approval' && (
           <div>

@@ -27,3 +27,17 @@ exports.login = async (req, res) => {
     },
   });
 };
+
+// Ambil daftar user dengan role teknisi (untuk dropdown pilih teknisi)
+exports.getTeknisiList = async (req, res) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, nama_lengkap')
+    .eq('role', 'teknisi');
+
+  if (error) {
+    return res.status(500).json({ message: 'Gagal mengambil daftar teknisi', error: error.message });
+  }
+
+  res.json({ teknisi: data });
+};
