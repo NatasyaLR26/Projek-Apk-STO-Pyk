@@ -1,0 +1,26 @@
+{
+  "name": "sto-telkom-akses-webgis",
+  "version": "1.0.0",
+  "description": "Sistem Informasi Manajemen Teknisi dan Inventaris Gudang Berbasis WebGIS STO Telkom Akses",
+  "scripts": {
+    "server": "npm --prefix server start",
+    "server:dev": "npm --prefix server run dev",
+    "client": "npm --prefix client run dev",
+    "migrate": "npm --prefix server run migrate",
+    "test:server": "npm --prefix server run smoke_test"
+  },
+  "keywords": [
+    "webgis",
+    "telkom-akses",
+    "leaflet",
+    "react",
+    "express",
+    "supabase"
+  ],
+  "author": "Raihan Al Hamidy",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "playwright": "^1.63.0"
+  }
+}
