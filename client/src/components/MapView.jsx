@@ -7,13 +7,13 @@ import {
   Tooltip,
   Circle,
   Polyline,
+  ZoomControl,
   useMap,
   useMapEvents
 } from 'react-leaflet';
 import L from 'leaflet';
 import { showSuccess } from '../utils/toast';
 import {
-  Layers,
   Satellite,
   Moon,
   Map as MapIcon,
@@ -21,7 +21,6 @@ import {
   Minimize2,
   Crosshair,
   Copy,
-  Check,
   ExternalLink,
   Activity,
   X,
@@ -611,9 +610,12 @@ const MapView = ({
       <MapContainer
         center={effectiveCenter}
         zoom={13}
+        zoomControl={false}
         style={{ height: '100%', width: '100%', background: '#020617' }}
         scrollWheelZoom={true}
       >
+        {/* Kontrol Zoom di sudut kanan bawah agar tidak bertumpukan dengan filter di kiri atas */}
+        <ZoomControl position="bottomright" />
         {/* Basemap 1: Esri World Dark Gray Canvas (Default, Bebas Watermark) */}
         {basemap === 'dark' && (
           <>
@@ -928,4 +930,5 @@ const MapView = ({
   );
 };
 
+export { ODP_POINTS };
 export default MapView;

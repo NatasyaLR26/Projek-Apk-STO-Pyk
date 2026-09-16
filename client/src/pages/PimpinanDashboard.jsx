@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import api from '../api/client';
-import MapView from '../components/MapView';
+import MapView, { ODP_POINTS } from '../components/MapView';
 import StatusBadge from '../components/StatusBadge';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -16,6 +16,7 @@ const PimpinanDashboard = ({ activeTab, setActiveTab }) => {
   const [permohonanList, setPermohonanList] = useState([]);
   const [teknisiList, setTeknisiList] = useState([]);
   const [selectedTracking, setSelectedTracking] = useState(null);
+  const [sidebarTab, setSidebarTab] = useState('teknisi'); // 'teknisi' | 'odp'
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [approvingPermohonan, setApprovingPermohonan] = useState(null);
@@ -150,55 +151,119 @@ const PimpinanDashboard = ({ activeTab, setActiveTab }) => {
             />
           </div>
 
-          {/* Sidebar: Active Field Technicians & Tasks */}
+          {/* Sidebar: Active Field Technicians & ODP Infrastructure */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col h-[580px]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-              <h3 className="font-bold text-white text-sm">Teknisi Bertugas ({trackingList.length})</h3>
-              <span className="text-xs text-slate-400">Area Payakumbuh</span>
+            {/* Header Tab Switcher */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4 gap-2">
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('teknisi')}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
+                    sidebarTab === 'teknisi'
+                      ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Teknisi ({trackingList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('odp')}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-all ${
+                    sidebarTab === 'odp'
+                      ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  ODP ({ODP_POINTS.length})
+                </button>
+              </div>
+              <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">Payakumbuh</span>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {trackingList.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-xs">
-                  Tidak ada pergerakan tugas aktif saat ini.
-                </div>
+              {sidebarTab === 'teknisi' ? (
+                trackingList.length === 0 ? (
+                  <div className="text-center py-12 px-4 text-slate-500 text-xs">
+                    <p className="font-semibold text-slate-300 mb-1">Belum Ada Sinyal GPS Aktif</p>
+                    <p className="text-slate-500 text-[11px]">
+                      Teknisi dapat mengaktifkan pelacakan GPS melalui portal lapangan saat bertugas.
+                    </p>
+                  </div>
+                ) : (
+                  trackingList.map((item) => (
+                    <div
+                      key={item.tugas_id}
+                      onClick={() => setSelectedTracking(item)}
+                      className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                        selectedTracking?.tugas_id === item.tugas_id
+                          ? 'bg-red-950/40 border-red-500/50 shadow-md shadow-red-900/20'
+                          : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-red-600/20 text-red-400 flex items-center justify-center font-bold text-xs border border-red-500/30">
+                            {item.nama_teknisi?.charAt(0) || 'T'}
+                          </div>
+                          <div>
+                            <p className="font-bold text-white text-xs">{item.nama_teknisi}</p>
+                            <p className="text-[11px] text-slate-400 font-mono">TGS-{String(item.tugas_id).padStart(3, '0')}</p>
+                          </div>
+                        </div>
+                        <StatusBadge status={item.status_tugas} />
+                      </div>
+
+                      <div className="mt-3 text-[11px] text-slate-300 space-y-1">
+                        <p><span className="text-slate-500">Pekerjaan:</span> <span className="text-white font-medium">{item.jenis_kerja}</span></p>
+                        <p className="line-clamp-1"><span className="text-slate-500">Lokasi:</span> {item.lokasi}</p>
+                        <p className="text-slate-400 font-mono text-[10px]">
+                          📍 {Number(item.latitude).toFixed(4)}, {Number(item.longitude).toFixed(4)}
+                        </p>
+                      </div>
+
+                      <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                        <span>Waktu Update:</span>
+                        <span className="font-mono text-emerald-400">
+                          {item.waktu_update ? new Date(item.waktu_update).toLocaleTimeString('id-ID') : '-'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )
               ) : (
-                trackingList.map((item) => (
+                ODP_POINTS.map((odp) => (
                   <div
-                    key={item.tugas_id}
-                    onClick={() => setSelectedTracking(item)}
+                    key={odp.id}
+                    onClick={() => setSelectedTracking({ latitude: odp.lat, longitude: odp.lng, odpId: odp.id })}
                     className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                      selectedTracking?.tugas_id === item.tugas_id
-                        ? 'bg-red-950/40 border-red-500/50 shadow-md shadow-red-900/20'
+                      selectedTracking?.odpId === odp.id
+                        ? 'bg-cyan-950/50 border-cyan-500/60 shadow-md shadow-cyan-950/40'
                         : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-red-600/20 text-red-400 flex items-center justify-center font-bold text-xs border border-red-500/30">
-                          {item.nama_teknisi?.charAt(0) || 'T'}
-                        </div>
-                        <div>
-                          <p className="font-bold text-white text-xs">{item.nama_teknisi}</p>
-                          <p className="text-[11px] text-slate-400 font-mono">TGS-{String(item.tugas_id).padStart(3, '0')}</p>
-                        </div>
+                      <div>
+                        <span className="text-[10px] font-mono font-bold text-cyan-400 px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/60">
+                          {odp.id}
+                        </span>
+                        <p className="font-bold text-white text-xs mt-1">{odp.nama}</p>
                       </div>
-                      <StatusBadge status={item.status_tugas} />
-                    </div>
-
-                    <div className="mt-3 text-[11px] text-slate-300 space-y-1">
-                      <p><span className="text-slate-500">Pekerjaan:</span> <span className="text-white font-medium">{item.jenis_kerja}</span></p>
-                      <p className="line-clamp-1"><span className="text-slate-500">Lokasi:</span> {item.lokasi}</p>
-                      <p className="text-slate-400 font-mono text-[10px]">
-                        📍 {Number(item.latitude).toFixed(4)}, {Number(item.longitude).toFixed(4)}
-                      </p>
-                    </div>
-
-                    <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-                      <span>Waktu Update:</span>
-                      <span className="font-mono text-emerald-400">
-                        {item.waktu_update ? new Date(item.waktu_update).toLocaleTimeString('id-ID') : '-'}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        odp.status.includes('Penuh')
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      }`}>
+                        {odp.status}
                       </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 mt-2 line-clamp-1">📍 {odp.lokasi}</p>
+
+                    <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px]">
+                      <span className="text-slate-400">Port: <strong className="text-white">{odp.kapasitas}</strong></span>
+                      <span className="font-mono text-cyan-400">Redaman: {odp.redaman}</span>
                     </div>
                   </div>
                 ))
