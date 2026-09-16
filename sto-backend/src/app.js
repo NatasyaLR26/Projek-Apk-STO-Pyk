@@ -5,6 +5,7 @@ const tugasRoutes = require('./routes/tugasRoutes');
 const permohonanRoutes = require('./routes/permohonanRoutes');
 const trackingRoutes = require('./routes/trackingRoutes');
 const laporanRoutes = require('./routes/laporanRoutes');
+const barangRoutes = require('./routes/barangRoutes');
 
 const app = express();
 
@@ -21,5 +22,6 @@ app.use('/api/permohonan', permohonanRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tugas', tugasRoutes);
 app.use('/api/laporan', laporanRoutes);
+app.use('/api/barang', barangRoutes);
 
 module.exports = app;

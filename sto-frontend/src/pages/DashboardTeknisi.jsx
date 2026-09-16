@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosInstance';
+import RequestBarangModal from '../components/RequestBarangModal';
 
 function DashboardTeknisi() {
   const [tugasList, setTugasList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [modalTugasId, setModalTugasId] = useState(null);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -66,7 +68,10 @@ function DashboardTeknisi() {
                 <p className="text-sm text-gray-400 mb-3">Status: {t.status}</p>
 
                 <div className="flex flex-col gap-2">
-                  <button className="bg-slate-800 text-sm py-2 rounded font-medium">
+                  <button
+                    onClick={() => setModalTugasId(t.id)}
+                    className="bg-slate-800 text-sm py-2 rounded font-medium"
+                  >
                     📦 Request Barang ke Gudang
                   </button>
                   <button className="bg-telkom-red text-sm py-2 rounded font-medium">
@@ -76,6 +81,17 @@ function DashboardTeknisi() {
               </div>
             ))}
         </div>
+      )}
+
+      {modalTugasId && (
+        <RequestBarangModal
+          tugasId={modalTugasId}
+          onClose={() => setModalTugasId(null)}
+          onSuccess={() => {
+            setModalTugasId(null);
+            alert('Permohonan berhasil dikirim!');
+          }}
+        />
       )}
     </div>
   );
