@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import FormTugas from '../components/FormTugas';
 import ApprovalMaterial from '../components/ApprovalMaterial';
+import LaporanAudit from '../components/LaporanAudit';
 
 const menuItems = [
   { key: 'tracking', label: 'WebGIS Tracking' },
@@ -44,12 +45,7 @@ function DashboardPimpinan() {
 
         {activeMenu === 'approval' && <ApprovalMaterial />} 
 
-        {activeMenu === 'laporan' && (
-          <div>
-            <h1 className="text-xl font-bold mb-4">Laporan Audit</h1>
-            <p className="text-gray-400">Daftar laporan akan ditampilkan di sini.</p>
-          </div>
-        )}
+        {activeMenu === 'laporan' && <LaporanAudit />}
       </div>
     </div>
   );
