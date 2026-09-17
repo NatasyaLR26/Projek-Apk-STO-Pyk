@@ -1,12 +1,12 @@
 const supabase = require('../config/supabaseClient');
 
-// Pimpinan membuat tugas baru untuk teknisi
+// Pimpinan membuat tugas baru untuk teknisi (Bisa disiarkan ke pool terbuka dengan teknisi_id: null)
 exports.createTugas = async (req, res) => {
-  const { pimpinan_id, teknisi_id, jenis_kerja, lokasi } = req.body;
+  const { pimpinan_id, teknisi_id, jenis_kerja, lokasi, pelanggan_nama, pelanggan_telp, keterangan, catatan, status } = req.body;
 
-  // validasi input dasar
-  if (!pimpinan_id || !teknisi_id || !jenis_kerja || !lokasi) {
-    return res.status(400).json({ message: 'Semua field wajib diisi' });
+  // validasi input dasar (teknisi_id opsional untuk pool terbuka)
+  if (!pimpinan_id || !jenis_kerja || !lokasi) {
+    return res.status(400).json({ message: 'Pimpinan ID, jenis pekerjaan, dan lokasi wajib diisi' });
   }
 
   const { data, error } = await supabase
@@ -14,10 +14,13 @@ exports.createTugas = async (req, res) => {
     .insert([
       {
         pimpinan_id,
-        teknisi_id,
+        teknisi_id: teknisi_id || null,
         jenis_kerja,
         lokasi,
-        status: 'Open', // status awal selalu Open
+        pelanggan_nama: pelanggan_nama || 'Pelanggan STO',
+        pelanggan_telp: pelanggan_telp || '',
+        catatan: keterangan || catatan || '',
+        status: status || 'Open', // status awal selalu Open jika pool terbuka
       },
     ])
     .select() // biar data yang baru dibuat ikut dikembalikan
@@ -28,9 +31,53 @@ exports.createTugas = async (req, res) => {
   }
 
   res.status(201).json({
-    message: 'Tugas berhasil dibuat',
+    message: 'Tugas berhasil dibuat dan disiarkan',
     tugas: data,
   });
+};
+
+// Teknisi mengklaim/mengambil tugas dari pool terbuka
+exports.claimTugas = async (req, res) => {
+  const { id } = req.params; // tugas_id
+  const { teknisi_id } = req.body;
+
+  if (!teknisi_id) {
+    return res.status(400).json({ message: 'Teknisi ID wajib disertakan' });
+  }
+
+  const { data, error } = await supabase
+    .from('tugas')
+    .update({
+      teknisi_id: Number(teknisi_id),
+      status: 'Progress',
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    return res.status(500).json({ message: 'Gagal mengklaim tugas', error: error.message });
+  }
+
+  res.json({
+    message: 'Tugas berhasil diambil oleh teknisi',
+    tugas: data,
+  });
+};
+
+// Ambil daftar tugas yang masih terbuka (belum diambil teknisi)
+exports.getOpenTugas = async (req, res) => {
+  const { data, error } = await supabase
+    .from('tugas')
+    .select('*')
+    .or('teknisi_id.is.null,status.eq.Open')
+    .order('id', { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ message: 'Gagal mengambil data tugas terbuka', error: error.message });
+  }
+
+  res.json({ tugas: data });
 };
 
 // Teknisi melihat daftar tugas miliknya

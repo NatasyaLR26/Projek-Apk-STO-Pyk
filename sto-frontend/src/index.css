@@ -1,15 +1,294 @@
 @import "tailwindcss";
 
-:root {
-  --color-telkom-red: #dc2626;
-  --color-bg-dark: #020617;
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Telkom Indihome Palette: Burgundy, Deep Navy, Modern Slate */
+  --color-burgundy-950: #4c0519;
+  --color-burgundy-900: #881337;
+  --color-burgundy-800: #9f1239;
+  --color-burgundy-700: #be123c;
+  --color-burgundy-600: #e11d48;
+  --color-burgundy-500: #f43f5e;
+  
+  --color-navy-950: #050814;
+  --color-navy-900: #0a0f1d;
+  --color-navy-850: #0f172a;
+  --color-navy-800: #172554;
+  --color-navy-700: #1e293b;
+  --color-navy-600: #2563eb;
+
+  --color-slate-surface-dark: #0f172a;
+  --color-slate-surface-light: #ffffff;
+  --color-slate-border-dark: #1e293b;
+  --color-slate-border-light: #e2e8f0;
+
+  --color-telkom-red: #be123c;
+  --color-bg-dark: #0a0f1d;
   --color-bg-dark-2: #0f172a;
   --color-success: #10b981;
   --color-pending: #f59e0b;
   --color-info: #3b82f6;
 }
 
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+
+/* Light theme root overrides - High Contrast Navy Typography */
+html.light {
+  color-scheme: light;
+}
+
 body {
-  background-color: var(--color-bg-dark);
-  color: white;
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
+}
+
+html.dark body {
+  background-color: #0a0f1d;
+  color: #f8fafc;
+}
+
+html.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* High Contrast Light Mode Font Overrides - Transforms stray white text to Deep Navy */
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6 {
+  color: #0f172a;
+}
+
+/* If text-white is used without a colorful background button/badge, convert it to Deep Navy (#0f172a) in Light Mode */
+html.light .text-white:not(
+  [class*="bg-rose"],
+  [class*="bg-burgundy"],
+  [class*="bg-blue"],
+  [class*="bg-emerald"],
+  [class*="bg-indigo"],
+  [class*="bg-amber"],
+  [class*="bg-teal"],
+  [class*="bg-red"],
+  [class*="bg-green"],
+  [class*="bg-slate-800"],
+  [class*="bg-slate-900"],
+  [class*="bg-slate-950"],
+  [class*="bg-black"],
+  [class*="bg-linear"],
+  [class*="bg-gradient"],
+  button:not([class*="bg-white"]):not([class*="bg-slate-100"]):not([class*="bg-slate-50"]),
+  .badge
+) {
+  color: #0f172a !important; /* Deep Navy */
+}
+
+html.light .text-slate-100,
+html.light .text-slate-200 {
+  color: #1e293b !important;
+}
+html.light .text-slate-300 {
+  color: #1e293b !important; /* Slate-800 */
+}
+html.light .text-slate-400 {
+  color: #475569 !important; /* Slate-600 high contrast */
+}
+html.light .text-slate-500 {
+  color: #334155 !important; /* Slate-700 high contrast */
+}
+html.light .text-gray-400 {
+  color: #4b5563 !important;
+}
+html.light .text-gray-500 {
+  color: #374151 !important;
+}
+html.light input,
+html.light select,
+html.light textarea {
+  color: #0f172a !important;
+}
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* High-Visibility Sonar Radar Pulse for Active GPS Technician in Payakumbuh */
+@keyframes sonar-wave {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+.sonar-beacon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sonar-beacon::before {
+  content: '';
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background-color: rgba(225, 29, 72, 0.75);
+  animation: sonar-wave 1.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  pointer-events: none;
+}
+
+.sonar-beacon::after {
+  content: '';
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background-color: rgba(16, 185, 129, 0.65);
+  animation: sonar-wave 1.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  animation-delay: 0.8s;
+  pointer-events: none;
+}
+
+/* Radar pulse animation for active GPS technician marker */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  80%, 100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.radar-pulse {
+  position: relative;
+}
+.radar-pulse::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
+  background-color: rgba(190, 18, 60, 0.5);
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+/* Glassmorphism Classes */
+.glass-card-dark {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-light {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+/* Leaflet Overrides */
+.leaflet-container {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+html.dark .leaflet-container {
+  background-color: #070c18 !important;
+}
+
+html.dark .leaflet-popup-content-wrapper {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .leaflet-popup-tip {
+  background-color: #0f172a !important;
+}
+
+html.light .leaflet-popup-content-wrapper {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.light .leaflet-popup-tip {
+  background-color: #ffffff !important;
+}
+
+/* Print styling for official STO Audit Report */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-card {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+  .print-text-dark {
+    color: #0f172a !important;
+  }
+  .print-table th, .print-table td {
+    border: 1px solid #94a3b8 !important;
+    color: #0f172a !important;
+    padding: 8px 12px !important;
+  }
+  .print-table th {
+    background-color: #f1f5f9 !important;
+  }
 }
