@@ -1,31 +1,35 @@
 const supabase = require('../config/supabaseClient');
+const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
+  if (!email || !password) {
+    return errorResponse(res, 400, 'Email dan password wajib diisi');
+  }
+
   const { data: user, error } = await supabase
     .from('users')
     .select('*')
-    .eq('email', email)
+    .ilike('email', email.trim())
     .single();
 
   if (error || !user) {
-    return res.status(404).json({ message: 'Email tidak ditemukan' });
+    return errorResponse(res, 404, 'Email tidak ditemukan');
   }
 
   if (user.password !== password) {
-    return res.status(401).json({ message: 'Password salah' });
+    return errorResponse(res, 401, 'Password salah');
   }
 
-  res.json({
-    message: 'Login berhasil',
-    user: {
-      id: user.id,
-      nama_lengkap: user.nama_lengkap,
-      role: user.role,
-      email: user.email,
-    },
-  });
+  const userData = {
+    id: user.id,
+    nama_lengkap: user.nama_lengkap,
+    role: user.role,
+    email: user.email,
+  };
+
+  return successResponse(res, 200, 'Login berhasil', { user: userData }, { user: userData });
 };
 
 // Ambil daftar user dengan role teknisi (untuk dropdown pilih teknisi)
@@ -36,8 +40,8 @@ exports.getTeknisiList = async (req, res) => {
     .eq('role', 'teknisi');
 
   if (error) {
-    return res.status(500).json({ message: 'Gagal mengambil daftar teknisi', error: error.message });
+    return errorResponse(res, 500, 'Gagal mengambil daftar teknisi', error.message);
   }
 
-  res.json({ teknisi: data });
+  return successResponse(res, 200, 'Daftar teknisi berhasil diambil', data, { teknisi: data });
 };

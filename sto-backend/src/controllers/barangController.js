@@ -1,4 +1,5 @@
 const supabase = require('../config/supabaseClient');
+const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 // Ambil semua barang di gudang (untuk dropdown request material)
 exports.getAllBarang = async (req, res) => {
@@ -8,8 +9,8 @@ exports.getAllBarang = async (req, res) => {
     .order('nama_barang', { ascending: true });
 
   if (error) {
-    return res.status(500).json({ message: 'Gagal mengambil data barang', error: error.message });
+    return errorResponse(res, 500, 'Gagal mengambil data barang', error.message);
   }
 
-  res.json({ barang: data });
+  return successResponse(res, 200, 'Data barang berhasil diambil', data, { barang: data });
 };

@@ -1,4 +1,5 @@
 const supabase = require('../config/supabaseClient');
+const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 // Pimpinan membuat tugas baru untuk teknisi (Bisa disiarkan ke pool terbuka dengan teknisi_id: null)
 exports.createTugas = async (req, res) => {
@@ -6,7 +7,7 @@ exports.createTugas = async (req, res) => {
 
   // validasi input dasar (teknisi_id opsional untuk pool terbuka)
   if (!pimpinan_id || !jenis_kerja || !lokasi) {
-    return res.status(400).json({ message: 'Pimpinan ID, jenis pekerjaan, dan lokasi wajib diisi' });
+    return errorResponse(res, 400, 'Pimpinan ID, jenis pekerjaan, dan lokasi wajib diisi');
   }
 
   const { data, error } = await supabase
@@ -14,7 +15,7 @@ exports.createTugas = async (req, res) => {
     .insert([
       {
         pimpinan_id,
-        teknisi_id: teknisi_id || null,
+        teknisi_id: teknisi_id ? parseInt(teknisi_id, 10) : null,
         jenis_kerja,
         lokasi,
         pelanggan_nama: pelanggan_nama || 'Pelanggan STO',
@@ -27,13 +28,10 @@ exports.createTugas = async (req, res) => {
     .single();
 
   if (error) {
-    return res.status(500).json({ message: 'Gagal membuat tugas', error: error.message });
+    return errorResponse(res, 500, 'Gagal membuat tugas', error.message);
   }
 
-  res.status(201).json({
-    message: 'Tugas berhasil dibuat dan disiarkan',
-    tugas: data,
-  });
+  return successResponse(res, 201, 'Tugas berhasil dibuat dan disiarkan', data, { tugas: data });
 };
 
 // Teknisi mengklaim/mengambil tugas dari pool terbuka
@@ -41,28 +39,50 @@ exports.claimTugas = async (req, res) => {
   const { id } = req.params; // tugas_id
   const { teknisi_id } = req.body;
 
-  if (!teknisi_id) {
-    return res.status(400).json({ message: 'Teknisi ID wajib disertakan' });
+  const parsedId = parseInt(id, 10);
+  if (!id || isNaN(parsedId) || parsedId <= 0) {
+    return errorResponse(res, 400, 'ID tugas tidak valid');
+  }
+
+  const parsedTeknisiId = parseInt(teknisi_id, 10);
+  if (!teknisi_id || isNaN(parsedTeknisiId) || parsedTeknisiId <= 0) {
+    return errorResponse(res, 400, 'Teknisi ID wajib disertakan dan harus berupa angka valid');
+  }
+
+  // Cek apakah tugas ada dan statusnya
+  const { data: existingTugas, error: errFind } = await supabase
+    .from('tugas')
+    .select('*')
+    .eq('id', parsedId)
+    .single();
+
+  if (errFind || !existingTugas) {
+    return errorResponse(res, 404, 'Tugas tidak ditemukan');
+  }
+
+  if (existingTugas.status === 'Done') {
+    return errorResponse(res, 400, 'Tugas sudah selesai dikerjakan dan tidak dapat diklaim');
+  }
+
+  if (existingTugas.teknisi_id && existingTugas.teknisi_id !== parsedTeknisiId && existingTugas.status !== 'Open') {
+    return errorResponse(res, 409, 'Tugas sudah diklaim oleh teknisi lain');
   }
 
   const { data, error } = await supabase
     .from('tugas')
     .update({
-      teknisi_id: Number(teknisi_id),
+      teknisi_id: parsedTeknisiId,
       status: 'Progress',
     })
-    .eq('id', id)
+    .eq('id', parsedId)
     .select()
     .single();
 
   if (error) {
-    return res.status(500).json({ message: 'Gagal mengklaim tugas', error: error.message });
+    return errorResponse(res, 500, 'Gagal mengklaim tugas', error.message);
   }
 
-  res.json({
-    message: 'Tugas berhasil diambil oleh teknisi',
-    tugas: data,
-  });
+  return successResponse(res, 200, 'Tugas berhasil diambil oleh teknisi', data, { tugas: data });
 };
 
 // Ambil daftar tugas yang masih terbuka (belum diambil teknisi)
@@ -74,38 +94,50 @@ exports.getOpenTugas = async (req, res) => {
     .order('id', { ascending: false });
 
   if (error) {
-    return res.status(500).json({ message: 'Gagal mengambil data tugas terbuka', error: error.message });
+    return errorResponse(res, 500, 'Gagal mengambil data tugas terbuka', error.message);
   }
 
-  res.json({ tugas: data });
+  return successResponse(res, 200, 'Data tugas terbuka berhasil diambil', data, { tugas: data });
 };
 
 // Teknisi melihat daftar tugas miliknya
 exports.getTugasByTeknisi = async (req, res) => {
   const { id } = req.params; // teknisi_id
 
+  const parsedId = parseInt(id, 10);
+  if (!id || isNaN(parsedId) || parsedId <= 0) {
+    return errorResponse(res, 400, 'ID teknisi tidak valid');
+  }
+
   const { data, error } = await supabase
     .from('tugas')
     .select('*')
-    .eq('teknisi_id', id)
+    .eq('teknisi_id', parsedId)
     .order('id', { ascending: false });
 
   if (error) {
-    return res.status(500).json({ message: 'Gagal mengambil data tugas', error: error.message });
+    return errorResponse(res, 500, 'Gagal mengambil data tugas', error.message);
   }
 
-  res.json({ tugas: data });
+  return successResponse(res, 200, 'Data tugas berhasil diambil', data, { tugas: data });
 };
 
 // Teknisi upload foto bukti & selesaikan tugas
 exports.selesaikanTugas = async (req, res) => {
   const { id } = req.params;
 
-  if (!req.file) {
-    return res.status(400).json({ message: 'File foto wajib diupload' });
+  const parsedId = parseInt(id, 10);
+  if (!id || isNaN(parsedId) || parsedId <= 0) {
+    return errorResponse(res, 400, 'ID tugas tidak valid');
   }
 
-  const fileName = `tugas-${id}-${Date.now()}.${req.file.originalname.split('.').pop()}`;
+  if (!req.file) {
+    return errorResponse(res, 400, 'File foto wajib diupload');
+  }
+
+  const rawExt = req.file.originalname ? req.file.originalname.split('.').pop() : 'jpg';
+  const ext = (rawExt || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const fileName = `tugas-${parsedId}-${Date.now()}.${ext}`;
 
   const { error: errUpload } = await supabase.storage
     .from('bukti-foto')
@@ -114,14 +146,14 @@ exports.selesaikanTugas = async (req, res) => {
     });
 
   if (errUpload) {
-    return res.status(500).json({ message: 'Gagal upload foto', error: errUpload.message });
+    return errorResponse(res, 500, 'Gagal upload foto', errUpload.message);
   }
 
   const { data: publicUrlData } = supabase.storage
     .from('bukti-foto')
     .getPublicUrl(fileName);
 
-  const fotoUrl = publicUrlData.publicUrl;
+  const fotoUrl = publicUrlData ? publicUrlData.publicUrl : '';
 
   const { data: tugasUpdated, error: errUpdate } = await supabase
     .from('tugas')
@@ -129,18 +161,15 @@ exports.selesaikanTugas = async (req, res) => {
       foto_bukti: fotoUrl,
       status: 'Done',
     })
-    .eq('id', id)
+    .eq('id', parsedId)
     .select()
     .single();
 
   if (errUpdate) {
-    return res.status(500).json({ message: 'Gagal update status tugas', error: errUpdate.message });
+    return errorResponse(res, 500, 'Gagal update status tugas', errUpdate.message);
   }
 
-  res.json({
-    message: 'Tugas berhasil diselesaikan',
-    tugas: tugasUpdated,
-  });
+  return successResponse(res, 200, 'Tugas berhasil diselesaikan', tugasUpdated, { tugas: tugasUpdated });
 };
 
 // Pimpinan lihat semua tugas yang masih aktif (belum Done) - untuk WebGIS tracking
@@ -158,8 +187,8 @@ exports.getTugasAktif = async (req, res) => {
     .order('id', { ascending: false });
 
   if (error) {
-    return res.status(500).json({ message: 'Gagal mengambil data tugas aktif', error: error.message });
+    return errorResponse(res, 500, 'Gagal mengambil data tugas aktif', error.message);
   }
 
-  res.json({ tugas: data });
+  return successResponse(res, 200, 'Data tugas aktif berhasil diambil', data, { tugas: data });
 };
