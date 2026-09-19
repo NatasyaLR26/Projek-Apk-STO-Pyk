@@ -10,22 +10,41 @@ exports.createTugas = async (req, res) => {
     return errorResponse(res, 400, 'Pimpinan ID, jenis pekerjaan, dan lokasi wajib diisi');
   }
 
-  const { data, error } = await supabase
+  const parsedPimpinanId = parseInt(pimpinan_id, 10);
+  const parsedTeknisiId = teknisi_id ? parseInt(teknisi_id, 10) : null;
+
+  // Format informasi tambahan pelanggan & catatan ke dalam kolom lokasi sesuai skema tabel tugas
+  const extraInfo = [];
+  if (pelanggan_nama) extraInfo.push(`Pelanggan: ${pelanggan_nama}`);
+  if (pelanggan_telp) extraInfo.push(`Telp: ${pelanggan_telp}`);
+  const note = keterangan || catatan;
+  if (note) extraInfo.push(`Catatan: ${note}`);
+
+  const fullLokasi = extraInfo.length > 0
+    ? `${lokasi} (${extraInfo.join(' | ')})`
+    : lokasi;
+
+  const insertPayload = {
+    pimpinan_id: parsedPimpinanId,
+    teknisi_id: parsedTeknisiId,
+    jenis_kerja,
+    lokasi: fullLokasi,
+    status: status || 'menunggu',
+  };
+
+  let { data, error } = await supabase
     .from('tugas')
-    .insert([
-      {
-        pimpinan_id,
-        teknisi_id: teknisi_id ? parseInt(teknisi_id, 10) : null,
-        jenis_kerja,
-        lokasi,
-        pelanggan_nama: pelanggan_nama || 'Pelanggan STO',
-        pelanggan_telp: pelanggan_telp || '',
-        catatan: keterangan || catatan || '',
-        status: status || 'Open', // status awal selalu Open jika pool terbuka
-      },
-    ])
-    .select() // biar data yang baru dibuat ikut dikembalikan
+    .insert([insertPayload])
+    .select()
     .single();
+
+  // Fallback jika schema lama memiliki constraint NOT NULL pada teknisi_id
+  if (error && error.message && error.message.toLowerCase().includes('not-null')) {
+    insertPayload.teknisi_id = parsedTeknisiId || 2;
+    const retry = await supabase.from('tugas').insert([insertPayload]).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     return errorResponse(res, 500, 'Gagal membuat tugas', error.message);
