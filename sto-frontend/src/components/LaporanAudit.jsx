@@ -2,7 +2,7 @@
  * ============================================================================
  * KOMPONEN: LaporanAudit (Rekapitulasi Audit & Berita Acara Pekerjaan Lapangan)
  * ============================================================================
- * Penjelasan Pemula / Mahasiswa:
+ * Penjelasan Fungsi Operasional Manajemen STO Telkom Akses:
  * Komponen ini digunakan oleh Pimpinan STO untuk mengawasi seluruh riwayat penugasan:
  * 1. Melihat status pekerjaan apakah masih Open, Progress, atau Done.
  * 2. Mengetahui teknisi yang menangani dan waktu penyelesaian.

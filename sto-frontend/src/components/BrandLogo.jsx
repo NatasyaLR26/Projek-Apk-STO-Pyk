@@ -1,8 +1,8 @@
 /**
  * ============================================================================
- * KOMPONEN: BrandLogo (Logo Resmi Aplikasi Telkom Akses STO)
+ * KOMPONEN: BrandLogo (Logo Resmi Aplikasi Telkom Akses STO Payakumbuh)
  * ============================================================================
- * Penjelasan Pemula / Mahasiswa:
+ * Penjelasan Teknis:
  * Komponen ini menampilkan logo identitas Telkom Akses pada Sidebar dan Header.
  * 
  * CARA MENGGANTI LOGO APLIKASI:
@@ -15,8 +15,8 @@
 
 import React, { useState } from 'react';
 
-// Link placeholder default (bisa Anda ganti dengan link URL logo Telkom / kampus / logo pilihan Anda)
-const DEFAULT_PLACEHOLDER_LOGO = ""; // Kosongkan atau isi misal "https://images.unsplash.com/photo-..."
+// Link placeholder default (bisa Anda ganti dengan link URL logo resmi Telkom Akses / STO pilihan Anda)
+const DEFAULT_PLACEHOLDER_LOGO = ""; // Kosongkan atau isi misal link gambar logo Telkom Akses
 
 export default function BrandLogo({
   logoUrl = DEFAULT_PLACEHOLDER_LOGO,

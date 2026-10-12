@@ -1,8 +1,8 @@
 /**
  * ============================================================================
- * SERVER UTAMA (BACKEND API TELKOM AKSES STO)
+ * SERVER UTAMA (BACKEND API TELKOM AKSES STO PAYAKUMBUH)
  * ============================================================================
- * Penjelasan Pemula / Mahasiswa:
+ * Penjelasan Teknis Operasional:
  * File ini adalah titik awal (entry point) untuk menjalankan server backend Node.js.
  * 
  * CARA KERJA:

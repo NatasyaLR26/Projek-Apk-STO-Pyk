@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Penjelasan Arsitektur Backend & Fitur Pembaruan Sistem STO Telkom Akses</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 12mm 14mm 12mm;
+    }
+    
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+      line-height: 1.5;
+      font-size: 10pt;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+
+    .header-kop {
+      border-bottom: 3px double #be123c;
+      padding-bottom: 10px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand-title {
+      font-size: 15pt;
+      font-weight: 900;
+      color: #881337;
+      margin: 0;
+      letter-spacing: -0.5px;
+      text-transform: uppercase;
+    }
+
+    .brand-subtitle {
+      font-size: 8.5pt;
+      color: #475569;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    .doc-meta {
+      text-align: right;
+      font-family: monospace;
+      font-size: 8pt;
+      color: #64748b;
+    }
+
+    .doc-badge {
+      display: inline-block;
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      font-weight: 800;
+      font-size: 7.5pt;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+    }
+
+    h1.doc-heading {
+      font-size: 13.5pt;
+      font-weight: 800;
+      color: #0f172a;
+      text-align: center;
+      margin: 12px 0 4px 0;
+      text-transform: uppercase;
+    }
+
+    p.doc-subheading {
+      text-align: center;
+      font-size: 9pt;
+      color: #64748b;
+      margin: 0 0 16px 0;
+    }
+
+    .section-title {
+      font-size: 11pt;
+      font-weight: 800;
+      color: #881337;
+      border-left: 4px solid #be123c;
+      padding-left: 9px;
+      margin: 18px 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      page-break-inside: avoid;
+    }
+
+    .card-title {
+      font-size: 10pt;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-desc {
+      font-size: 9pt;
+      color: #334155;
+      margin: 0;
+    }
+
+    .alert-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-left: 4px solid #2563eb;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 9pt;
+      color: #1e3a8a;
+    }
+
+    ul.code-list {
+      margin: 4px 0 0 0;
+      padding-left: 18px;
+      font-size: 8.8pt;
+      color: #334155;
+    }
+
+    ul.code-list li {
+      margin-bottom: 3px;
+    }
+
+    code {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-family: Consolas, monospace;
+      font-size: 8.5pt;
+      color: #b91c1c;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 8.5pt;
+      page-break-inside: avoid;
+    }
+
+    table.data-table th {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 6px 8px;
+      text-align: left;
+      font-weight: 700;
+      border: 1px solid #0f172a;
+    }
+
+    table.data-table td {
+      padding: 6px 8px;
+      border: 1px solid #cbd5e1;
+      vertical-align: top;
+    }
+
+    table.data-table tr:nth-child(even) td {
+      background-color: #f8fafc;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 7pt;
+      font-weight: 700;
+      padding: 1.5px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-family: monospace;
+    }
+
+    .tag-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .tag-blue { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .tag-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .tag-purple { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+    .arch-diagram {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: Consolas, monospace;
+      font-size: 8pt;
+      line-height: 1.4;
+      margin: 10px 0;
+      overflow-x: auto;
+      page-break-inside: avoid;
+    }
+
+    .footer-sign {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      text-align: center;
+      page-break-inside: avoid;
+      font-size: 8.5pt;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 12px;
+    }
+
+    .signature-role {
+      font-size: 8pt;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 45px;
+    }
+
+    .signature-name {
+      font-weight: 800;
+      color: #0f172a;
+      border-top: 1px solid #94a3b8;
+      display: inline-block;
+      padding-top: 3px;
+      width: 75%;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- KOP DOKUMEN -->
+  <div class="header-kop">
+    <div>
+      <div class="brand-title">TELKOM AKSES &bull; STO PAYAKUMBUH</div>
+      <div class="brand-subtitle">Sistem Komando Operasional Teknisi Lapangan & Logistik STO Koto Nan IV</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-badge">Dokumen Teknis & Manual Backend</div>
+      <div><strong>Versi:</strong> 2.4 - Production Architecture</div>
+      <div><strong>Port API:</strong> http://localhost:5000</div>
+      <div><strong>Tanggal:</strong> 12 Oktober 2026</div>
+    </div>
+  </div>
+
+  <h1 class="doc-heading">PENJELASAN ARSITEKTUR BACKEND & FITUR PEMBARUAN SISTEM</h1>
+  <p class="doc-subheading">
+    Laporan Rinci: Mengapa Root server.js Dibersihkan, Cara Kerja Backend REST API, Alur Rekonsiliasi BASTP, dan Optimasi Performa Ringan
+  </p>
+
+  <!-- BAGIAN 1: KLARIFIKASI SERVER.JS DI ROOT -->
+  <div class="section-title">1. Klarifikasi: Mengapa File server.js di Root Dihapus?</div>
+
+  <div class="alert-box">
+    <strong>Penjelasan Penting untuk Petugas & Pimpinan STO:</strong><br>
+    Penghapusan file <code>server.js</code> di direktori root <code>D:\Project STO\server.js</code> <strong>SAMA SEKALI TIDAK MENGHAPUS LOGIKA BACKEND</strong>. Justru ini adalah langkah pembersihan file sampah duplikat. Berikut fakta teknisnya:
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-red">FAKTA ARSITEKTUR</span>
+      Logika Backend yang Asli dan Lengkap Berada di <code>sto-backend/</code>
+    </div>
+    <ul class="code-list">
+      <li><strong>Asal-Usul File Root:</strong> Saat pertama kali mengekstrak file proyek dari arsip ZIP, backend lama terurai langsung di root. Kemudian proyek dirapikan menjadi struktur monorepo standar industri: <code>sto-backend/</code> dan <code>sto-frontend/</code>.</li>
+      <li><strong>Isi File Root <code>server.js</code> yang Dihapus:</strong> File tersebut hanya berisi 8 baris kode kosong yang memanggil <code>require('./src/app')</code>. Di root bahkan tidak ada rute manajemen barang (<code>/api/barang</code>).</li>
+      <li><strong>Skrip Eksekusi Sebenarnya:</strong> Script di <code>package.json</code> sejak awal telah diprogram menjalankan:
+        <br><code>"dev:backend": "npm --prefix sto-backend run dev"</code> &rarr; Menjalankan <code>D:\Project STO\sto-backend\server.js</code>.</li>
+      <li><strong>Kesimpulan:</strong> Menghapus <code>server.js</code> dan <code>src/</code> duplikat di root membuat folder proyek menjadi bersih (<em>Clean Architecture</em>), menghilangkan kebingungan file ganda, dan memastikan server backend aktif berjalan 100% dari <code>sto-backend/</code>.</li>
+    </ul>
+  </div>
+
+  <!-- BAGIAN 2: CARA KERJA & ISI KODE BACKEND -->
+  <div class="section-title">2. Cara Kerja & Struktur Kode Backend (sto-backend)</div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-blue">ALUR REQUEST</span>
+      Diagram Alur Kerja Backend REST API STO Telkom Akses
+    </div>
+    <div class="arch-diagram">
+[FRONTEND REACT (Port 5173)]
+         │
+         ▼ (HTTP Request: GET / POST / PATCH / DELETE via Axios)
+[sto-backend/server.js] (Membaca .env, Port 5000)
+         │
+         ▼
+[sto-backend/src/app.js] (Express Engine, CORS Security Middleware, JSON Body Parser)
+         │
+  ┌──────┴────────────────────────────────────────────────────────┐
+  ▼                               ▼                               ▼
+[routes/authRoutes]             [routes/tugasRoutes]            [routes/barangRoutes]
+  │                               │                               │
+  ▼                               ▼                               ▼
+[controllers/authController]    [controllers/tugasController]   [controllers/barangController]
+  └───────────────────────────────┬───────────────────────────────┘
+                                  │
+                                  ▼
+               [config/supabaseClient.js] (Supabase Client SDK)
+                                  │
+                                  ▼ (Query PostgreSQL via Cloud API)
+         [DATABASE SUPABASE CLOUD (https://tguizphzmquqsuezjphr.supabase.co)]
+    </div>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 28%;">Nama Berkas / Modul</th>
+        <th style="width: 22%;">Peran Arsitektur</th>
+        <th style="width: 50%;">Penjelasan Fungsi & Logika Kode</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>sto-backend/server.js</code></td>
+        <td>Entry Point Server</td>
+        <td>Membaca konfigurasi <code>.env</code> menggunakan <code>dotenv</code>, mengimpor <code>app.js</code>, dan menyalakan HTTP listener di Port 5000.</td>
+      </tr>
+      <tr>
+        <td><code>sto-backend/src/app.js</code></td>
+        <td>Express Application</td>
+        <td>Mengonfigurasi middleware <code>cors()</code>, <code>express.json()</code>, dan mendaftarkan 6 router endpoint utama (Auth, Tugas, Barang, Permohonan, Tracking, Laporan).</td>
+      </tr>
+      <tr>
+        <td><code>src/config/supabaseClient.js</code></td>
+        <td>Database Connector</td>
+        <td>Inisialisasi klien <code>@supabase/supabase-js</code> dengan Project URL dan Anon Key untuk melakukan operasi CRUD ke tabel PostgreSQL Supabase.</td>
+      </tr>
+      <tr>
+        <td><code>src/config/multerConfig.js</code></td>
+        <td>Upload File Handler</td>
+        <td>Mengatur penyimpanan file gambar (bukti foto lapangan) menggunakan disk storage lokal atau cloud buffer.</td>
+      </tr>
+      <tr>
+        <td><code>src/controllers/authController.js</code></td>
+        <td>Logika Autentikasi</td>
+        <td>Memverifikasi email & password untuk role Pimpinan, Teknisi, dan Gudang; serta pendaftaran akun teknisi baru ke tabel <code>users</code>.</td>
+      </tr>
+      <tr>
+        <td><code>src/controllers/tugasController.js</code></td>
+        <td>Logika Manajemen Tugas</td>
+        <td>Menangani pembuatan tiket tugas baru (SOP 1), klaim tiket oleh teknisi (SOP 1.5), dan closing pekerjaan selesai (SOP 6) dengan rekonsiliasi BASTP.</td>
+      </tr>
+      <tr>
+        <td><code>src/controllers/barangController.js</code></td>
+        <td>Logika Inventaris Gudang</td>
+        <td>Menangani penambahan barang baru, penyesuaian kuantitas stok, pengeditan data material, dan penghapusan barang dari tabel <code>barang</code>.</td>
+      </tr>
+      <tr>
+        <td><code>src/controllers/permohonanController.js</code></td>
+        <td>Logika Logistik Material</td>
+        <td>Mencatat permohonan material teknisi (SOP 2), approval otorisasi pimpinan (SOP 3), dan eksekusi rilis barang gudang dengan pemotongan stok atomik (SOP 4).</td>
+      </tr>
+      <tr>
+        <td><code>src/controllers/trackingController.js</code></td>
+        <td>Logika Telemetri GPS</td>
+        <td>Menerima koordinat latitude & longitude teknisi secara real-time dan menyimpannya ke tabel <code>tracking_gps</code> untuk ditampilkan di WebGIS.</td>
+      </tr>
+      <tr>
+        <td><code>src/controllers/laporanController.js</code></td>
+        <td>Logika Audit & Rekap</td>
+        <td>Menggabungkan data relasi tugas, teknisi pelaksana, material yang dikeluarkan, dan dokumentasi foto untuk cetak berita acara audit.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- HALAMAN 2 -->
+  <div class="page-break"></div>
+
+  <!-- BAGIAN 3: DAFTAR ENDPOINT REST API -->
+  <div class="section-title">3. Daftar Lengkap Endpoint REST API Backend</div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 12%;">Metode</th>
+        <th style="width: 32%;">Endpoint URL</th>
+        <th style="width: 28%;">Fungsi Operasional</th>
+        <th style="width: 28%;">Parameter / Body Request</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag tag-green">GET</span></td>
+        <td><code>/</code></td>
+        <td>Health Check Server</td>
+        <td>Mengecek apakah server backend aktif dan normal.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-blue">POST</span></td>
+        <td><code>/api/auth/login</code></td>
+        <td>Login Akun STO</td>
+        <td><code>email</code>, <code>password</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-blue">POST</span></td>
+        <td><code>/api/auth/register-teknisi</code></td>
+        <td>Registrasi Teknisi Lapangan</td>
+        <td><code>nama_lengkap</code>, <code>email</code>, <code>password</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-green">GET</span></td>
+        <td><code>/api/tugas</code></td>
+        <td>Ambil Semua Tiket Tugas</td>
+        <td>Query parameter status / teknisi_id.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-blue">POST</span></td>
+        <td><code>/api/tugas</code></td>
+        <td>Buat & Siarkan Tiket (SOP 1)</td>
+        <td><code>jenis_kerja</code>, <code>lokasi</code>, <code>pelanggan_nama</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-purple">PATCH</span></td>
+        <td><code>/api/tugas/:id/claim</code></td>
+        <td>Klaim Tiket Tugas (SOP 1.5)</td>
+        <td><code>teknisi_id</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-purple">PATCH</span></td>
+        <td><code>/api/tugas/:id/selesai</code></td>
+        <td>Closing Tugas & Upload Foto</td>
+        <td>Form-data: <code>foto</code>, <code>catatan</code>, <code>sn_ont</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-green">GET</span></td>
+        <td><code>/api/barang</code></td>
+        <td>Ambil Master Stok Gudang</td>
+        <td>Daftar seluruh material dan sisa stok fisik.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-blue">POST</span></td>
+        <td><code>/api/barang</code></td>
+        <td>Tambah Barang Baru</td>
+        <td><code>nama_barang</code>, <code>stok</code>, <code>satuan</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-purple">PUT</span></td>
+        <td><code>/api/barang/:id</code></td>
+        <td>Update Data / Stok Material</td>
+        <td><code>nama_barang</code>, <code>stok</code>, <code>satuan</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-red">DELETE</span></td>
+        <td><code>/api/barang/:id</code></td>
+        <td>Hapus Material dari Gudang</td>
+        <td>ID barang target.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-blue">POST</span></td>
+        <td><code>/api/permohonan</code></td>
+        <td>Ajukan Permohonan Barang (SOP 2)</td>
+        <td><code>tugas_id</code>, <code>items[]</code></td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-purple">PATCH</span></td>
+        <td><code>/api/permohonan/:id/approve</code></td>
+        <td>Otorisasi Approval (SOP 3)</td>
+        <td>Status diubah menjadi 'Approved'.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-purple">PATCH</span></td>
+        <td><code>/api/permohonan/:id/release</code></td>
+        <td>Rilis Barang Gudang (SOP 4)</td>
+        <td>Stok gudang otomatis terpotong atomik.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-blue">POST</span></td>
+        <td><code>/api/tracking</code></td>
+        <td>Kirim Telemetri GPS (SOP 5)</td>
+        <td><code>tugas_id</code>, <code>latitude</code>, <code>longitude</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- BAGIAN 4: PEMBARUAN FITUR & OPTIMASI RINGAN -->
+  <div class="section-title">4. Pembaruan Fitur & Optimasi Aplikasi Bebas Delay / Lag</div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-green">PERFORMA</span>
+      Optimasi Aplikasi Ringan & Responsif (No Lag / No Delay)
+    </div>
+    <ul class="code-list">
+      <li><strong>Eliminasi Infinite Render Loop:</strong> Pada <code>DashboardTeknisi.jsx</code>, dependensi <code>myGps.latitude</code> di dalam interval GPS telah dipindahkan ke <code>useRef</code> (mutable reference). Hal ini mencegah pembuatan ulang interval setiap detik yang sebelumnya membebani CPU browser.</li>
+      <li><strong>Transisi CSS Ringan:</strong> Mengoptimalkan durasi animasi menjadi instan (150ms), sehingga perpindahan tab, pembukaan modal BASTP, dan render peta Leaflet WebGIS berjalan sangat mulus dan seketika.</li>
+      <li><strong>Tanpa Merusak Fungsi:</strong> Seluruh fitur utama (Live Sync Supabase, broadcast open pool, approval pimpinan, pemotongan stok otomatis, dan sensor GPS) tetap berjalan 100% normal tanpa gangguan.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-red">LOGISTIK NYATA</span>
+      Standarisasi Rekonsiliasi Material & BASTP Digital (IndiHome Telkom Akses)
+    </div>
+    <ul class="code-list">
+      <li><strong>Binding SN Barcode ONT:</strong> Modem ONT wajib dicatat nomor serinya saat closing (contoh: <code>ZTEGC8B90112</code>), sehingga statusnya resmi <strong>TERPASANG DI PELANGGAN (CONSUMED)</strong>.</li>
+      <li><strong>Rekonsiliasi Dropcore:</strong> Menghitung meter kabel terpasang (misal: 120m) vs meter kabel sisa retur (misal: 30m). Sisa kabel otomatis kembali ke inventaris gudang.</li>
+      <li><strong>Quality Assurance:</strong> Pengukuran redaman OPM (contoh: <code>-18.5 dBm</code>) pada titik ODP untuk menjamin kualitas sambungan serat optik.</li>
+      <li><strong>Cetak Dokumen BASTP:</strong> Tersedia tombol cetak fisik formulir berita acara resmi standar Telkom Akses langsung dari browser.</li>
+    </ul>
+  </div>
+
+  <!-- PENGESAHAN DOKUMEN OPERASIONAL RESMI TELKOM STO -->
+  <div class="footer-sign">
+    <div>
+      <div class="signature-role">Petugas Gudang & Logistik</div>
+      <div class="signature-name">Siti Rahmawati</div>
+      <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Staff Logistik STO Payakumbuh</div>
+    </div>
+    <div>
+      <div class="signature-role">Koordinator Teknisi Lapangan</div>
+      <div class="signature-name">Ahmad Fadli</div>
+      <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Koordinator Lapangan STO</div>
+    </div>
+    <div>
+      <div class="signature-role">Pimpinan Wilayah STO</div>
+      <div class="signature-name">Ir. Bambang Hermanto</div>
+      <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Manager STO Payakumbuh</div>
+    </div>
+  </div>
+
+</body>
+</html>

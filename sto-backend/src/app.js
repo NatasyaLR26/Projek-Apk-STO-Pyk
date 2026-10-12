@@ -2,7 +2,7 @@
  * ============================================================================
  * KONFIGURASI APLIKASI EXPRESS (sto-backend/src/app.js)
  * ============================================================================
- * Penjelasan Pemula / Mahasiswa:
+ * Penjelasan Teknis Operasional:
  * File ini mengatur alur request HTTP, middleware keamanan/CORS, dan rute-rute API.
  * 
  * DAFTAR ENDPOINT API:

@@ -2,13 +2,13 @@
  * ============================================================================
  * KOMPONEN: ModalBASTP (Berita Acara Serah Terima Pekerjaan & Rekonsiliasi Material)
  * ============================================================================
- * Penjelasan Pemula / Mahasiswa:
+ * Penjelasan Teknis Operasional STO Telkom Akses:
  * Dokumen BASTP ini adalah bukti digital resmi standar Telkom Akses yang membuktikan:
  * 1. Pekerjaan lapangan telah selesai dikerjakan dengan kualitas redaman teruji.
  * 2. Perangkat hardware (Modem ONT dengan Serial Number terdata) telah terpasang di rumah pelanggan.
  * 3. Rekonsiliasi material membuktikan kabel Dropcore dan material lain benar-benar
  *    "TERPASANG DI PELANGGAN (CONSUMED)" dan bukan hilang tanpa jejak.
- * 4. Dapat dicetak langsung (Print/PDF) untuk keperluan arsip administrasi.
+ * 4. Dapat dicetak langsung (Print/PDF) untuk keperluan arsip administrasi resmi perusahaan.
  * ============================================================================
  */
 

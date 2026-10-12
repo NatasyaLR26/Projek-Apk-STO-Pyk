@@ -2,7 +2,7 @@
  * ============================================================================
  * KOMPONEN: WebGISMap (Peta Geospasial WebGIS Payakumbuh Koto Nan IV)
  * ============================================================================
- * Penjelasan Pemula / Mahasiswa:
+ * Penjelasan Teknis Operasional STO Telkom Akses:
  * Komponen ini menampilkan peta interaktif menggunakan pustaka Leaflet.js:
  * 1. Peta terpusat di Kantor STO Telkom Payakumbuh (Koto Nan IV).
  * 2. Menampilkan penanda armada teknisi bergerak dengan animasi kedip (Pulse) real-time.

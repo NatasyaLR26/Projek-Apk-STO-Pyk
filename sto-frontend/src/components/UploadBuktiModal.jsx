@@ -2,8 +2,8 @@
  * ============================================================================
  * KOMPONEN: UploadBuktiModal (Formulir Closing & Rekonsiliasi Material Real)
  * ============================================================================
- * Penjelasan Mahasiswa / Pemula (Alur Nyata IndiHome / Telkom Akses WFM):
- * Pada pekerjaan lapangan fiber optik (Pasang Baru PSB / Gangguan):
+ * Standar Operasional Prosedur (SOP IndiHome / Telkom Akses WFM):
+ * Pada pekerjaan lapangan fiber optik (Pasang Baru PSB / Penanganan Gangguan):
  * 1. Teknisi tidak bisa sekadar klik "Selesai" dan upload 1 foto.
  * 2. Teknisi WAJIB melakukan validasi teknis:
  *    - ODP ID & Port ODP (titik distribusi kabel tiang Telkom).

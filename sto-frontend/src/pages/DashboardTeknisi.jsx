@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ModernSidebar from '../components/ModernSidebar';
 import RequestBarangModal from '../components/RequestBarangModal';
@@ -22,6 +22,19 @@ import {
   FileText
 } from 'lucide-react';
 
+/**
+ * ============================================================================
+ * PORTAL TEKNISI LAPANGAN STO TELKOM AKSES (PAYAKUMBUH KOTO NAN IV)
+ * ============================================================================
+ * Fitur Utama Teknisi:
+ * 1. Mengambil / mengklaim tiket penugasan dari siaran terbuka (Open Pool).
+ * 2. Mengajukan surat permohonan material barang ke bagian logistik gudang.
+ * 3. Mencetak fisik surat permohonan pengambilan barang.
+ * 4. Memantau status persetujuan (Approval) Pimpinan STO.
+ * 5. Pelacakan GPS lapangan & pengiriman koordinat real-time ke WebGIS Pimpinan.
+ * 6. Closing pekerjaan: validasi ODP, redaman dBm, SN ONT, rekonsiliasi material & cetak BASTP.
+ * ============================================================================
+ */
 export default function DashboardTeknisi() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
@@ -37,6 +50,7 @@ export default function DashboardTeknisi() {
     showToast
   } = useApp();
 
+  // Sesi akun teknisi aktif
   const user = JSON.parse(localStorage.getItem('user')) || { id: 2, nama_lengkap: 'Ahmad Fadli', role: 'teknisi' };
 
   const [activeMenu, setActiveMenu] = useState('tiket');
@@ -45,25 +59,25 @@ export default function DashboardTeknisi() {
   const [bastpModalTask, setBastpModalTask] = useState(null);
   const [isBroadcastingGps, setIsBroadcastingGps] = useState(false);
 
-  // Filter tasks:
-  // 1. Open pool tasks (broadcasted by Pimpinan, not yet claimed by any technician)
+  // Filter daftar tugas:
+  // 1. Tiket terbuka yang disiarkan Pimpinan (belum diambil teknisi mana pun)
   const openTasks = tugas.filter(t => !t.teknisi_id && (t.status === 'Open' || !t.status));
 
-  // 2. Tasks claimed / assigned to this technician
+  // 2. Tiket yang diambil oleh teknisi ini
   const myTasks = tugas.filter(t => t.teknisi_id === user.id);
   const myActiveTasks = myTasks.filter(t => t.status !== 'Done');
   const myDoneTasks = myTasks.filter(t => t.status === 'Done');
 
-  // Active tasks for GPS & processing
+  // Tiket aktif untuk navigasi pengerjaan
   const activeTasks = myActiveTasks.length > 0 ? myActiveTasks : (myTasks.length > 0 ? myTasks : []);
 
-  // Technician's requests
+  // Permohonan material yang diajukan oleh teknisi ini
   const myRequests = permohonan.filter(p => {
     const parent = tugas.find(t => t.id === p.tugas_id);
     return parent?.teknisi_id === user.id;
   });
 
-  // GPS for this technician
+  // Data koordinat GPS teknisi ini
   const myGps = trackingGps.find(g => g.teknisi_id === user.id) || {
     latitude: -0.2285,
     longitude: 100.6335,
@@ -73,28 +87,35 @@ export default function DashboardTeknisi() {
     is_active: true
   };
 
+  // Referensi mutable untuk performa tinggi tanpa memicu re-render berulang
+  const myGpsRef = useRef(myGps);
+  myGpsRef.current = myGps;
+  const activeTasksRef = useRef(activeTasks);
+  activeTasksRef.current = activeTasks;
+
+  // Proteksi hak akses sesi teknisi
   useEffect(() => {
     if (!user || user.role !== 'teknisi') {
       navigate('/');
     }
   }, [navigate]);
 
-  // Auto-beacon simulator & Real-time GPS broadcasting
+  // Siaran GPS Otomatis Ringan (Interval 5 detik bebas lag/delay)
   useEffect(() => {
     let interval = null;
     if (isBroadcastingGps) {
-      // Mark as active immediately
-      updateGpsLocation(user.id, myGps.latitude, myGps.longitude, {
+      // Perbarui status aktif awal
+      updateGpsLocation(user.id, myGpsRef.current.latitude, myGpsRef.current.longitude, {
         is_active: true,
         kecepatan: '34 km/jam (Menuju Lokasi Pelanggan Koto Nan IV)'
       });
 
       interval = setInterval(() => {
-        const activeTask = activeTasks.find(t => t.status !== 'Done');
+        const activeTask = activeTasksRef.current.find(t => t.status !== 'Done');
         if (activeTask && activeTask.target_lat && activeTask.target_lng) {
           simulateTechnicianStep(user.id, activeTask.target_lat, activeTask.target_lng);
         } else {
-          updateGpsLocation(user.id, myGps.latitude + 0.0001, myGps.longitude + 0.0001, {
+          updateGpsLocation(user.id, myGpsRef.current.latitude + 0.0001, myGpsRef.current.longitude + 0.0001, {
             kecepatan: '34 km/jam (Menuju Pelanggan)',
             is_active: true
           });
@@ -104,7 +125,7 @@ export default function DashboardTeknisi() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isBroadcastingGps, user.id, activeTasks, myGps.latitude, myGps.longitude, simulateTechnicianStep, updateGpsLocation]);
+  }, [isBroadcastingGps, user.id, simulateTechnicianStep, updateGpsLocation]);
 
   const handleSendGpsNow = () => {
     if (navigator.geolocation) {

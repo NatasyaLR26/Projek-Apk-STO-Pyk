@@ -2,7 +2,7 @@
  * ============================================================================
  * STATE MANAGEMENT & DATA SYNC (sto-frontend/src/context/AppContext.jsx)
  * ============================================================================
- * Penjelasan Pemula / Mahasiswa (Alur Kerja Lengkap 6 SOP Telkom Akses):
+ * Standar Operasional Prosedur (Alur Kerja Lengkap 6 SOP Telkom Akses STO):
  * 
  * 1. SOP 1 (Pimpinan):
  *    Pimpinan membuat tiket penugasan (Pasang Baru IndiHome / Perbaikan Gangguan).
