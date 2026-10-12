@@ -169,10 +169,38 @@ export function AppProvider({ children }) {
 
       if (resUsers.data && resUsers.data.length > 0) setUsers(resUsers.data);
       if (resBarang.data && resBarang.data.length > 0) setBarang(resBarang.data);
-      if (resTugas.data && resTugas.data.length > 0) setTugas(resTugas.data);
+      if (resTugas.data && resTugas.data.length > 0) {
+        // Pastikan setiap tugas memiliki target_lat & target_lng untuk lokasi pemasangan/perbaikan di peta WebGIS
+        const mappedTugas = resTugas.data.map((t, idx) => {
+          const offsetLat = (((Number(t.id || idx) * 7) % 30) - 15) * 0.0012;
+          const offsetLng = (((Number(t.id || idx) * 11) % 30) - 15) * 0.0012;
+          return {
+            ...t,
+            target_lat: t.target_lat || (STO_COORDINATES.lat + offsetLat),
+            target_lng: t.target_lng || (STO_COORDINATES.lng + offsetLng),
+            pelanggan_nama: t.pelanggan_nama || (t.lokasi ? t.lokasi.split('-')[0].trim() : `Pelanggan #${t.id}`),
+            keterangan: t.keterangan || `Pekerjaan ${t.jenis_kerja} di ${t.lokasi}`
+          };
+        });
+        setTugas(mappedTugas);
+      }
       if (resPermohonan.data && resPermohonan.data.length > 0) setPermohonan(resPermohonan.data);
       if (resDetail.data && resDetail.data.length > 0) setDetailPermohonan(resDetail.data);
-      if (resGps.data && resGps.data.length > 0) setTrackingGps(resGps.data);
+      if (resGps.data && resGps.data.length > 0) {
+        // Tautkan teknisi_id dari tugas jika skema Supabase tracking_gps hanya menyimpan tugas_id
+        const mappedGps = resGps.data.map(g => {
+          const matchedTask = resTugas.data?.find(t => Number(t.id) === Number(g.tugas_id));
+          return {
+            ...g,
+            teknisi_id: g.teknisi_id || (matchedTask ? Number(matchedTask.teknisi_id) : 2),
+            akurasi: g.akurasi || '3 meter',
+            kecepatan: g.kecepatan || 'Bergerak di Payakumbuh',
+            baterai: g.baterai || 85,
+            is_active: g.is_active !== false
+          };
+        });
+        setTrackingGps(mappedGps);
+      }
 
       const timestamp = new Date().toISOString();
       setLastSyncedAt(timestamp);
@@ -405,6 +433,34 @@ export function AppProvider({ children }) {
       return t;
     }));
 
+    // Tautkan GPS teknisi secara langsung ke tugas yang baru diambil
+    setTrackingGps(prev => {
+      const idx = prev.findIndex(g => Number(g.teknisi_id) === parsedTeknisiId);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          tugas_id: parsedTugasId,
+          is_active: true,
+          kecepatan: 'Bergerak Menuju Lokasi Pemasangan/Perbaikan'
+        };
+        return copy;
+      } else {
+        return [...prev, {
+          id: prev.length + 1,
+          tugas_id: parsedTugasId,
+          teknisi_id: parsedTeknisiId,
+          latitude: STO_COORDINATES.lat,
+          longitude: STO_COORDINATES.lng,
+          waktu_update: new Date().toLocaleTimeString(),
+          akurasi: '3 meter',
+          kecepatan: 'Bergerak Menuju Lokasi Pelanggan',
+          baterai: 90,
+          is_active: true
+        }];
+      }
+    });
+
     // 3. Sinkronisasi langsung ke Supabase jika terkonfigurasi
     if (isSupabaseConfigured()) {
       try {
@@ -587,16 +643,20 @@ export function AppProvider({ children }) {
 
     setTrackingGps(prev => {
       const idx = prev.findIndex(g => Number(g.teknisi_id) === parsedTeknisiId);
+      const activeTask = tugas.find(t => Number(t.teknisi_id) === parsedTeknisiId && t.status !== 'Done');
+      const assignedTaskId = extra.tugas_id || (activeTask ? activeTask.id : (idx >= 0 ? prev[idx].tugas_id : null));
+
       const entry = {
         id: idx >= 0 ? prev[idx].id : prev.length + 1,
-        tugas_id: extra.tugas_id || (idx >= 0 ? prev[idx].tugas_id : null),
+        tugas_id: assignedTaskId,
         teknisi_id: parsedTeknisiId,
         latitude: parsedLat,
         longitude: parsedLng,
         waktu_update: formattedDate,
         akurasi: extra.akurasi || "3 meter",
-        kecepatan: extra.kecepatan || "Bergerak ke lokasi",
-        baterai: extra.baterai || 85
+        kecepatan: extra.kecepatan || (activeTask ? `Menuju Lokasi #${activeTask.id} (${activeTask.jenis_kerja})` : "Bergerak di Payakumbuh"),
+        baterai: extra.baterai || 85,
+        is_active: extra.is_active !== false
       };
 
       if (idx >= 0) {

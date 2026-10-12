@@ -125,9 +125,10 @@ function FormTugas() {
               }`}
             >
               <option value="Pasang Baru">Pasang Baru (PSB IndiHome)</option>
-              <option value="Gangguan">Gangguan (Assurance / Repair)</option>
+              <option value="Perbaikan">Perbaikan (Maintenance / OPM Redaman)</option>
+              <option value="Gangguan">Gangguan (LOS / Trouble Ticket)</option>
+              <option value="Kabel Putus">Kabel Putus (Fiber Cut / Tertimpa Pohon)</option>
               <option value="ODP">ODP (Maintenance Tiang / Splitter)</option>
-              <option value="Perbaikan Jaringan">Perbaikan Jaringan (Kabel Putus / Redaman)</option>
             </select>
           </div>
 

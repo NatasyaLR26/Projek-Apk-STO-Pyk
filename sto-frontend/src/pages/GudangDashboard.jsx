@@ -20,7 +20,9 @@ import {
   ShieldCheck,
   Barcode,
   Radio,
-  Package
+  Package,
+  PlusCircle,
+  Plus
 } from 'lucide-react';
 
 export default function GudangDashboard() {
@@ -40,7 +42,7 @@ export default function GudangDashboard() {
 
   const user = JSON.parse(localStorage.getItem('user')) || { id: 4, nama_lengkap: 'Siti Rahmawati', role: 'gudang' };
 
-  const [activeMenu, setActiveMenu] = useState('output-barang'); // 'input-barang' | 'output-barang' | 'laporan-detail' | 'cetak-surat-jalan'
+  const [activeMenu, setActiveMenu] = useState('daftar-barang'); // 'daftar-barang' | 'output-barang' | 'input-barang' | 'cetak-surat-jalan'
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
@@ -146,6 +148,14 @@ export default function GudangDashboard() {
     showToast('Barang berhasil dirilis & stok gudang otomatis terpotong!', 'success');
   };
 
+  const handleQuickAddStock = (item, amount) => {
+    updateBarang(item.id, {
+      ...item,
+      stok: Number(item.stok) + amount
+    });
+    showToast(`Stok ${item.nama_barang} bertambah +${amount} ${item.satuan}!`, 'success');
+  };
+
   return (
     <div className={`min-h-screen flex ${
       isDark ? 'bg-[#0a0f1d] text-white' : 'bg-slate-50 text-slate-900'
@@ -170,8 +180,9 @@ export default function GudangDashboard() {
                 <span className="text-xs text-slate-400 font-mono">Petugas: {user.nama_lengkap}</span>
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeMenu === 'input-barang' && 'Input Barang (Pengadaan & Registrasi Masuk)'}
+                {activeMenu === 'daftar-barang' && 'Daftar Stok & Master Inventaris Material Gudang STO'}
                 {activeMenu === 'output-barang' && 'Output Barang (Rilis & Serah Terima ke Teknisi)'}
+                {activeMenu === 'input-barang' && 'Input Barang (Pengadaan & Registrasi Masuk)'}
                 {activeMenu === 'laporan-detail' && 'Laporan Barang Detail & Katalog Master Stok'}
                 {activeMenu === 'cetak-surat-jalan' && 'Cetak Surat Jalan & Bukti Serah Terima Material'}
               </h1>
@@ -429,79 +440,142 @@ export default function GudangDashboard() {
             </div>
           )}
 
-          {/* TAB 3: LAPORAN BARANG DETAIL & MASTER STOK (CRUD) */}
-          {activeMenu === 'laporan-detail' && (
+          {/* TAB 1: DAFTAR TABEL BARANG APA SAJA DI GUDANG (MASTER INVENTARIS) */}
+          {(activeMenu === 'daftar-barang' || activeMenu === 'laporan-detail') && (
             <div className="space-y-4 animate-in fade-in duration-200">
               
-              {/* Search & Filter Toolbar */}
-              <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} p-3 rounded-2xl border`}>
-                <div className="relative w-full sm:w-80">
-                  <Search className={`w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'} absolute left-3 top-1/2 -translate-y-1/2`} />
-                  <input
-                    type="text"
-                    placeholder="Cari nama barang atau kode SKU material..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className={`w-full pl-9 pr-3 py-2 ${isDark ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500 focus:border-burgundy-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-burgundy-500'} border rounded-xl text-xs focus:outline-none`}
-                  />
+              {/* Toolbar Pencarian, Filter Kategori & Tombol Input Material Baru */}
+              <div className={`flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} p-4 rounded-3xl border`}>
+                <div className="flex flex-col sm:flex-row items-center gap-3 flex-1">
+                  <div className="relative w-full sm:w-80">
+                    <Search className={`w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'} absolute left-3 top-1/2 -translate-y-1/2`} />
+                    <input
+                      type="text"
+                      placeholder="Cari nama barang atau kode material..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className={`w-full pl-9 pr-3 py-2 ${isDark ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500 focus:border-emerald-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-emerald-500'} border rounded-xl text-xs focus:outline-none`}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                    {categories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setCategoryFilter(cat)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                          categoryFilter === cat
+                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                            : isDark ? 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800' : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200'
+                        }`}
+                      >
+                        {cat === 'all' ? 'Semua Kategori' : cat}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-                  {categories.map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => setCategoryFilter(cat)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                        categoryFilter === cat
-                          ? 'bg-burgundy-600 text-white'
-                          : isDark ? 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800' : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200'
-                      }`}
-                    >
-                      {cat === 'all' ? 'Semua Kategori' : cat}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMenu('input-barang')}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition cursor-pointer whitespace-nowrap"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>+ Registrasi Material Baru</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Table of Inventory */}
-              <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-2xl overflow-hidden shadow-xl`}>
+              {/* Tabel Lengkap Master Barang di Gudang */}
+              <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl overflow-hidden shadow-xl`}>
+                <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
+                  <div>
+                    <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Daftar Tabel Seluruh Material yang Ada di Gudang STO
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Total material terdata: <strong>{filteredBarang.length} item</strong> ({lowStockItems} berstatus kritis).
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Live Supabase
+                  </span>
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     <thead className={`${isDark ? 'bg-slate-950/80 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
                       <tr>
-                        <th className="px-4 py-3">ID Material</th>
+                        <th className="px-4 py-3">ID SKU</th>
                         <th className="px-4 py-3">Nama Material</th>
-                        <th className="px-4 py-3 text-right">Stok Fisik</th>
+                        <th className="px-4 py-3">Kategori</th>
+                        <th className="px-4 py-3 text-right">Stok Fisik Gudang</th>
                         <th className="px-4 py-3">Satuan</th>
-                        <th className="px-4 py-3 text-center">Status</th>
-                        <th className="px-4 py-3 text-right">Aksi</th>
+                        <th className="px-4 py-3 text-center">Status Ketersediaan</th>
+                        <th className="px-4 py-3 text-right">Aksi & Quick Input</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
                       {filteredBarang.map(item => {
                         const isCritical = item.stok <= 10;
+                        const isLow = item.stok > 10 && item.stok <= 20;
+
                         return (
                           <tr key={item.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
-                            <td className={`px-4 py-3 font-mono text-xs font-bold text-slate-400`}>#{item.id}</td>
-                            <td className={`px-4 py-3 font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.nama_barang}</td>
-                            <td className="px-4 py-3 text-right font-bold text-sm">
-                              <span className={isCritical ? 'text-burgundy-500' : 'text-emerald-500'}>
+                            <td className="px-4 py-3 font-mono text-xs font-bold text-slate-400">
+                              #{item.id}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                {item.nama_barang}
+                              </div>
+                              {item.kode && (
+                                <span className="font-mono text-[10px] text-slate-400">{item.kode}</span>
+                              )}
+                            </td>
+                            <td className={`px-4 py-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              {item.kategori || 'Umum'}
+                            </td>
+                            <td className="px-4 py-3 text-right font-black text-sm">
+                              <span className={isCritical ? 'text-rose-500 font-mono' : isLow ? 'text-amber-500 font-mono' : 'text-emerald-500 font-mono'}>
                                 {item.stok.toLocaleString()}
                               </span>
                             </td>
-                            <td className={`px-4 py-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.satuan}</td>
+                            <td className={`px-4 py-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              {item.satuan}
+                            </td>
                             <td className="px-4 py-3 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                                 isCritical
-                                  ? 'bg-burgundy-500/20 text-burgundy-500 border border-burgundy-500/30'
-                                  : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
+                                  ? 'bg-rose-500/20 text-rose-500 border-rose-500/30'
+                                  : isLow
+                                  ? 'bg-amber-500/20 text-amber-500 border-amber-500/30'
+                                  : 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
                               }`}>
-                                {isCritical ? 'Stok Kritis' : 'Tersedia'}
+                                {isCritical ? 'Kritis (≤ 10)' : isLow ? 'Menipis (≤ 20)' : 'Tersedia Aman'}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-1.5">
                                 <button
+                                  type="button"
+                                  onClick={() => handleQuickAddStock(item, 10)}
+                                  className={`px-2 py-1 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400' : 'bg-slate-100 hover:bg-slate-200 text-emerald-600'} text-[10px] font-bold transition cursor-pointer`}
+                                  title="Tambah stok cepat +10"
+                                >
+                                  +10
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickAddStock(item, 50)}
+                                  className={`px-2 py-1 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400' : 'bg-slate-100 hover:bg-slate-200 text-emerald-600'} text-[10px] font-bold transition cursor-pointer`}
+                                  title="Tambah stok cepat +50"
+                                >
+                                  +50
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => startEdit(item)}
                                   className={`p-1.5 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-100 hover:bg-slate-200'} text-blue-500 transition cursor-pointer`}
                                   title="Edit Data Barang"
@@ -509,8 +583,9 @@ export default function GudangDashboard() {
                                   <Edit2 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => deleteBarang(item.id)}
-                                  className={`p-1.5 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-burgundy-950/50' : 'bg-slate-100 hover:bg-burgundy-50'} text-burgundy-500 transition cursor-pointer`}
+                                  className={`p-1.5 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-rose-950/50' : 'bg-slate-100 hover:bg-rose-50'} text-rose-500 transition cursor-pointer`}
                                   title="Hapus Barang"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />

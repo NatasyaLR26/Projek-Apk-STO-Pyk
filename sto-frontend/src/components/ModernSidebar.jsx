@@ -83,9 +83,11 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
       case 'gudang':
         return [
           {
-            key: 'input-barang',
-            label: 'Input Barang (Pengadaan)',
-            icon: PlusCircle
+            key: 'daftar-barang',
+            label: 'Daftar Stok Barang Gudang',
+            icon: Boxes,
+            badge: barang.length > 0 ? `${barang.length} Item` : null,
+            badgeColor: 'bg-emerald-500 text-white'
           },
           {
             key: 'output-barang',
@@ -95,11 +97,9 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
             badgeColor: 'bg-amber-500 text-white'
           },
           {
-            key: 'laporan-detail',
-            label: 'Laporan Barang & Master Stok',
-            icon: Boxes,
-            badge: lowStockCount > 0 ? `${lowStockCount} Kritis` : null,
-            badgeColor: 'bg-burgundy-500 text-white'
+            key: 'input-barang',
+            label: 'Input Barang (Pengadaan Masuk)',
+            icon: PlusCircle
           },
           {
             key: 'cetak-surat-jalan',

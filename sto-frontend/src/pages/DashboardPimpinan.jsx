@@ -18,13 +18,16 @@ import {
   Package,
   MapPin,
   ArrowRight,
-  FileText
+  FileText,
+  Navigation
 } from 'lucide-react';
+import { getTaskTypeConfig } from '../components/WebGISMap';
 
 function DashboardPimpinan() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [bastpModalTask, setBastpModalTask] = useState(null);
+  const [selectedTrackingTaskId, setSelectedTrackingTaskId] = useState(null);
 
   const navigate = useNavigate();
   const { isDark } = useTheme();
@@ -177,29 +180,61 @@ function DashboardPimpinan() {
 
                   <div className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'} mt-3`}>
                     {trackingGps.map(gps => {
-                      const tech = users.find(u => u.id === gps.teknisi_id);
-                      const currentTask = tugas.find(t => t.id === gps.tugas_id);
+                      const tech = users.find(u => Number(u.id) === Number(gps.teknisi_id));
+                      const currentTask = tugas.find(t =>
+                        (Number(t.id) === Number(gps.tugas_id) || Number(t.teknisi_id) === Number(gps.teknisi_id)) &&
+                        t.status !== 'Done'
+                      );
+                      const taskCfg = getTaskTypeConfig(currentTask?.jenis_kerja || 'Siaga');
+
                       return (
-                        <div key={gps.id} className="py-3 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center font-bold">
+                        <div key={gps.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center font-bold shrink-0 mt-0.5">
                               {tech?.nama_lengkap?.charAt(0) || 'T'}
                             </div>
                             <div>
-                              <div className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tech?.nama_lengkap}</div>
-                              <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                Sedang mengerjakan: <span className={isDark ? 'text-slate-200' : 'text-slate-900 font-semibold'}>#{gps.tugas_id} - {currentTask?.jenis_kerja || 'Tugas'}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tech?.nama_lengkap || 'Teknisi'}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${taskCfg.badgeBg}`}>
+                                  {taskCfg.badgeText}
+                                </span>
                               </div>
+                              {currentTask ? (
+                                <div className="mt-1 space-y-0.5">
+                                  <div className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                    Tiket <strong>#{currentTask.id}</strong>: {currentTask.pelanggan_nama}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 truncate max-w-sm">
+                                    Lokasi Pasang/Perbaikan: {currentTask.lokasi}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-[11px] text-slate-400 italic mt-0.5">
+                                  Siaga di Wilayah STO Payakumbuh
+                                </div>
+                              )}
                             </div>
                           </div>
 
-                          <div className="text-right">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                              {gps.kecepatan}
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1.5 shrink-0">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 beacon-soft"></span>
+                              <span>{gps.kecepatan}</span>
                             </span>
-                            <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-1 font-mono`}>
-                              Akurasi: {gps.akurasi}
-                            </div>
+                            {currentTask && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTrackingTaskId(currentTask.id);
+                                  setActiveMenu('tracking');
+                                }}
+                                className="px-2.5 py-1 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-500 border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                              >
+                                <Navigation className="w-3 h-3" />
+                                <span>Pantau di WebGIS</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -349,7 +384,7 @@ function DashboardPimpinan() {
           {/* TAB 2: PUSAT KENDALI WEBGIS */}
           {activeMenu === 'tracking' && (
             <div className="animate-in fade-in duration-200">
-              <WebGISTracking />
+              <WebGISTracking initialSelectedTaskId={selectedTrackingTaskId} />
             </div>
           )}
 
