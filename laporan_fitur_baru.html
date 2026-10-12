@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Laporan Fitur Terbaru & Pembaruan Sistem STO Telkom Akses</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 16mm 14mm;
+    }
+    
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      line-height: 1.5;
+      font-size: 11pt;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+
+    .header-kop {
+      border-bottom: 3px double #991b1b;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand-title {
+      font-size: 16pt;
+      font-weight: 900;
+      color: #881337;
+      letter-spacing: -0.5px;
+      margin: 0;
+      text-transform: uppercase;
+    }
+
+    .brand-subtitle {
+      font-size: 9pt;
+      color: #475569;
+      margin-top: 3px;
+      font-weight: 600;
+    }
+
+    .doc-meta {
+      text-align: right;
+      font-family: monospace;
+      font-size: 8.5pt;
+      color: #64748b;
+    }
+
+    .doc-badge {
+      display: inline-block;
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      font-weight: 800;
+      font-size: 8pt;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    h1.doc-heading {
+      font-size: 15pt;
+      font-weight: 800;
+      color: #0f172a;
+      text-align: center;
+      margin: 16px 0 6px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    p.doc-subheading {
+      text-align: center;
+      font-size: 9.5pt;
+      color: #64748b;
+      margin: 0 0 20px 0;
+    }
+
+    .section-title {
+      font-size: 11.5pt;
+      font-weight: 800;
+      color: #881337;
+      border-left: 4px solid #be123c;
+      padding-left: 10px;
+      margin: 22px 0 10px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      page-break-inside: avoid;
+    }
+
+    .card-title {
+      font-size: 10.5pt;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-desc {
+      font-size: 9.5pt;
+      color: #334155;
+      margin: 0;
+    }
+
+    ul.feature-list {
+      margin: 6px 0 0 0;
+      padding-left: 20px;
+      font-size: 9.5pt;
+      color: #334155;
+    }
+
+    ul.feature-list li {
+      margin-bottom: 4px;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 9pt;
+      page-break-inside: avoid;
+    }
+
+    table.data-table th {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 10px;
+      text-align: left;
+      font-weight: 700;
+      border: 1px solid #0f172a;
+    }
+
+    table.data-table td {
+      padding: 7px 10px;
+      border: 1px solid #cbd5e1;
+      vertical-align: top;
+    }
+
+    table.data-table tr:nth-child(even) td {
+      background-color: #f8fafc;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 7.5pt;
+      font-weight: 700;
+      padding: 1.5px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-family: monospace;
+    }
+
+    .tag-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .tag-blue { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .tag-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .tag-purple { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+    .sop-flow {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 12px 0;
+      page-break-inside: avoid;
+    }
+
+    .sop-step {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .sop-number {
+      font-size: 8pt;
+      font-weight: 900;
+      color: #be123c;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sop-title {
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 2px 0 4px 0;
+    }
+
+    .sop-desc {
+      font-size: 8.5pt;
+      color: #64748b;
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .footer-sign {
+      margin-top: 25px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      text-align: center;
+      page-break-inside: avoid;
+      font-size: 9pt;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 15px;
+    }
+
+    .signature-role {
+      font-size: 8.5pt;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 50px;
+    }
+
+    .signature-name {
+      font-weight: 800;
+      color: #0f172a;
+      border-top: 1px solid #94a3b8;
+      display: inline-block;
+      padding-top: 4px;
+      width: 75%;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- KOP DOKUMEN -->
+  <div class="header-kop">
+    <div>
+      <div class="brand-title">TELKOM AKSES &bull; STO PAYAKUMBUH</div>
+      <div class="brand-subtitle">Sistem Manajemen Teknisi & Logistik Lapangan Berbasis WebGIS | Koto Nan IV</div>
+    </div>
+    <div class="doc-meta">
+      <div class="doc-badge">Dokumen Resmi Rilis</div>
+      <div><strong>Versi:</strong> 2.4 - Production Real</div>
+      <div><strong>Branch:</strong> <code>aii0808</code></div>
+      <div><strong>Tanggal:</strong> 12 Oktober 2026</div>
+    </div>
+  </div>
+
+  <!-- JUDUL DOKUMEN -->
+  <h1 class="doc-heading">RINGKASAN PEMBARUAN & FITUR TERBARU SISTEM</h1>
+  <p class="doc-subheading">
+    Laporan Teknis Komprehensif: Standarisasi WFM IndiHome, Rekonsiliasi Material BASTP, Custom Logo, Pembersihan Folder, & Live Supabase Sync
+  </p>
+
+  <!-- SECTION 1: DAFTAR FITUR BARU -->
+  <div class="section-title">1. Daftar Fitur Baru & Peningkatan Sistem (What's New)</div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-red">FITUR UTAMA</span>
+      1. Rekonsiliasi Material Lapangan Nyata (Standar Telkom Akses / IndiHome WFM)
+    </div>
+    <p class="card-desc">
+      Mengatasi kelemahan sistem lama di mana barang hanya terpotong di rak gudang tanpa pencatatan fisik di lapangan. Pada alur baru:
+    </p>
+    <ul class="feature-list">
+      <li><strong>Serial Number (SN Barcode) ONT Binding:</strong> Teknisi wajib menginput nomor seri modem pelanggan (misal: <code>ZTEGC8B90112</code>). Status modem resmi beralih dari <em>Dipegang Teknisi</em> menjadi <strong>TERPASANG AKTIF DI PELANGGAN (CPE CONSUMED)</strong> dan keluar permanen dari inventaris aktif.</li>
+      <li><strong>Rekonsiliasi Dropcore (Terpasang vs Sisa Retur):</strong> Dari 150 meter kabel yang diambil, teknisi mencatat 120 meter <strong>Terpasang</strong> di tiang/rumah dan 30 meter <strong>Sisa Retur</strong>. Sisa kabel dapat otomatis masuk kembali ke stok gudang.</li>
+      <li><strong>Validasi Mutu Sinyal (OPM & ODP):</strong> Wajib menginput ID ODP (<code>ODP-PYK-FA/014</code>), Port ODP (<code>03</code>), dan nilai Redaman Optik (misal: <code>-18.5 dBm</code>) dengan indikator kepatuhan QC Telkom (-16 s/d -24 dBm).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-green">AUDIT & DOKUMEN</span>
+      2. Penerbitan Berita Acara Serah Terima Pekerjaan (BASTP) Digital
+    </div>
+    <p class="card-desc">
+      Sistem secara otomatis mengenerate dokumen digital <strong>BASTP</strong> (komponen <code>ModalBASTP.jsx</code>) yang membuktikan pekerjaan telah tuntas dan material resmi terpakai.
+    </p>
+    <ul class="feature-list">
+      <li>Memuat nomor surat resmi standar Telkom (contoh: <code>BASTP/TA-PYK/2026/0101</code>).</li>
+      <li>Menampilkan tabel perbandingan: Barang Diambil, Terpasang di Pelanggan, dan Sisa Retur.</li>
+      <li>Dapat dilihat dan dicetak (Print/PDF) oleh <strong>Teknisi</strong>, <strong>Pimpinan</strong>, dan <strong>Gudang</strong>.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-blue">LOGISTIK</span>
+      3. Panel Audit Rekonsiliasi di Dashboard Gudang
+    </div>
+    <p class="card-desc">
+      Petugas gudang memiliki modul <strong>Audit Rekonsiliasi Material Lapangan</strong> untuk memastikan bahwa setiap kabel, modem, dan roset yang dikeluarkan dari gudang benar-benar telah terpasang di rumah pelanggan dengan nomor seri terdata (mencegah penyelewengan material).
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-purple">KUSTOMISASI</span>
+      4. Kustomisasi Logo Aplikasi (Placeholder & Link URL)
+    </div>
+    <p class="card-desc">
+      Komponen <code>BrandLogo.jsx</code> kini dapat diubah logonya secara instan melalui prop <code>logoUrl</code> atau mengisi variabel <code>DEFAULT_PLACEHOLDER_LOGO</code>. Jika gambar tidak diisi atau gagal dimuat, sistem otomatis menampilkan emblem vektor SVG modern Telkom Akses.
+    </p>
+  </div>
+
+  <!-- HALAMAN KEDUA -->
+  <div class="page-break"></div>
+
+  <div class="section-title">2. Pembersihan Struktur Folder & Komentar Edukatif Bahasa Indonesia</div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-green">MODE BERSIH</span>
+      Pembersihan Root Direktori Monorepo
+    </div>
+    <p class="card-desc">
+      Folder lama <code>src/</code> dan <code>server.js</code> di root yang merupakan salinan lama telah dihapus sepenuhnya dari git. Struktur proyek saat ini sangat bersih dan modular:
+    </p>
+    <ul class="feature-list">
+      <li><code>sto-backend/</code> &mdash; Server Express.js, REST API, dan koneksi Supabase Cloud.</li>
+      <li><code>sto-frontend/</code> &mdash; Frontend React Vite, Tailwind CSS, Leaflet WebGIS, dan modul dashboard.</li>
+      <li><code>supabase_schema.sql</code> &mdash; Skema SQL 6 tabel inti database Supabase.</li>
+      <li><code>README.md</code> &mdash; Panduan instalasi dan dokumentasi SOP lengkap.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-blue">EDUKATIF</span>
+      Komentar Kode dalam Bahasa Indonesia yang Mudah Dipahami
+    </div>
+    <p class="card-desc">
+      Semua berkas inti (<code>AppContext.jsx</code>, <code>server.js</code>, <code>app.js</code>, <code>DashboardTeknisi.jsx</code>, <code>WebGISMap.jsx</code>, <code>BrandLogo.jsx</code>) telah dilengkapi komentar dalam bahasa Indonesia yang ramah pemula, menjelaskan:
+    </p>
+    <ul class="feature-list">
+      <li>Alur 6 tahapan SOP Telkom Akses step-by-step.</li>
+      <li>Fungsi setiap state React, context provider, dan sinkronisasi realtime database.</li>
+      <li>Penjelasan parameter teknis telekomunikasi (OPM, ODP, ONT, dBm) untuk bahan presentasi dosen.</li>
+    </ul>
+  </div>
+
+  <!-- SECTION 3: TABEL KOMPARASI SEBELUM VS SESUDAH -->
+  <div class="section-title">3. Tabel Perbandingan Sistem (Sebelum vs Sesudah Pembaruan)</div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 25%;">Aspek Sistem</th>
+        <th style="width: 37%;">Sebelum Pembaruan</th>
+        <th style="width: 38%;">Sesudah Pembaruan (Terbaru)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Alur Material</strong></td>
+        <td>Hanya potong stok saat keluar gudang. Tidak ada data apakah barang benar-benar terpasang atau hilang.</td>
+        <td><strong>Rekonsiliasi Real:</strong> SN Modem ONT dicatat, Dropcore dihitung meter terpasang vs sisa retur. Status barang: <em>TERPASANG DI PELANGGAN</em>.</td>
+      </tr>
+      <tr>
+        <td><strong>Penutupan Pekerjaan</strong></td>
+        <td>Cukup upload 1 foto sembarang dan klik selesai.</td>
+        <td><strong>Closing SOP 6 Lengkap:</strong> Input ODP, Port ODP, Redaman OPM dBm, SN ONT, rekonsiliasi material, dan penerbitan <strong>BASTP Digital</strong>.</td>
+      </tr>
+      <tr>
+        <td><strong>Dokumen BASTP</strong></td>
+        <td>Belum ada berita acara serah terima resmi.</td>
+        <td>Tersedia formulir digital BASTP berstandar Telkom Akses yang dapat dicetak (Print/PDF) dari semua role.</td>
+      </tr>
+      <tr>
+        <td><strong>Kustomisasi Logo</strong></td>
+        <td>Logo terkunci secara hardcoded dalam SVG.</td>
+        <td>Fleksibel, bisa diisi link placeholder / URL gambar eksternal dengan fallback SVG.</td>
+      </tr>
+      <tr>
+        <td><strong>Struktur Direktori</strong></td>
+        <td>Terdapat file duplikat lama di root (<code>src/</code> & <code>server.js</code>) yang membingungkan.</td>
+        <td><strong>Mode Bersih:</strong> File duplikat dibersihkan, hanya tersisa <code>sto-backend/</code> dan <code>sto-frontend/</code> yang terstruktur.</td>
+      </tr>
+      <tr>
+        <td><strong>Komentar Kode</strong></td>
+        <td>Komentar bahasa Inggris atau minim penjelasan.</td>
+        <td>Dilengkapi komentar bahasa Indonesia pemula di setiap alur SOP agar siap saat sidang.</td>
+      </tr>
+      <tr>
+        <td><strong>Konektivitas Data</strong></td>
+        <td>Data dummy statis.</td>
+        <td>Terhubung ke real Supabase Cloud (<code>https://tguizphzmquqsuezjphr.supabase.co</code>) dengan dual-sync cache offline.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECTION 4: KREDENSIAL TESTING & PENGESAHAN -->
+  <div class="section-title">4. Akun Pengguna Real Supabase</div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Role Pengguna</th>
+        <th>Email Akun</th>
+        <th>Password</th>
+        <th>Hak Akses Operasional</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Pimpinan STO</strong></td>
+        <td><code>pimpinan@sto.co.id</code></td>
+        <td><code>123456</code></td>
+        <td>Command Center, Siarkan Tiket, Otorisasi Approval, WebGIS Payakumbuh, Verifikasi BASTP</td>
+      </tr>
+      <tr>
+        <td><strong>Teknisi Lapangan</strong></td>
+        <td><code>teknisi@sto.co.id</code></td>
+        <td><code>123456</code></td>
+        <td>Ambil Tiket Pool, Permohonan Barang, Cetak Form, Lacak GPS, Closing & BASTP Material</td>
+      </tr>
+      <tr>
+        <td><strong>Petugas Gudang</strong></td>
+        <td><code>gudang@sto.co.id</code></td>
+        <td><code>123456</code></td>
+        <td>Rilis Barang Fisik, Master Stok Material, Audit Material Terpasang di Pelanggan, Cetak Surat Jalan</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- PENGESAHAN DOKUMEN -->
+  <div class="footer-sign">
+    <div>
+      <div class="signature-role">Perwakilan Tim Pengembang</div>
+      <div class="signature-name">Natasya Lutfyah Ramadhan</div>
+      <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Mahasiswa STT Payakumbuh</div>
+    </div>
+    <div>
+      <div class="signature-role">Penanggung Jawab Teknis</div>
+      <div class="signature-name">Ahmad Fadli</div>
+      <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Koordinator Teknisi STO</div>
+    </div>
+    <div>
+      <div class="signature-role">Pimpinan Wilayah STO</div>
+      <div class="signature-name">Ir. Bambang Hermanto</div>
+      <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Manager STO Payakumbuh</div>
+    </div>
+  </div>
+
+</body>
+</html>
