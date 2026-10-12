@@ -1,3 +1,16 @@
+/**
+ * ============================================================================
+ * KOMPONEN: WebGISMap (Peta Geospasial WebGIS Payakumbuh Koto Nan IV)
+ * ============================================================================
+ * Penjelasan Pemula / Mahasiswa:
+ * Komponen ini menampilkan peta interaktif menggunakan pustaka Leaflet.js:
+ * 1. Peta terpusat di Kantor STO Telkom Payakumbuh (Koto Nan IV).
+ * 2. Menampilkan penanda armada teknisi bergerak dengan animasi kedip (Pulse) real-time.
+ * 3. Menampilkan titik lokasi pelanggan yang sedang dikerjakan.
+ * 4. Mendukung pergantian tampilan peta (Layer Switcher): Satelit Hybrid, Jalan (OSM), Mode Gelap, dan Topografi.
+ * ============================================================================
+ */
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import { useApp } from '../context/AppContext';
@@ -8,7 +21,7 @@ import {
   Check
 } from 'lucide-react';
 
-// Tile Layer Definitions for Google Maps-like Switcher with Labels on all layers
+// Definisi layer peta yang dapat dipilih (Satelit, Street, Dark Matter, Topografi)
 const MAP_LAYERS = {
   satellite: {
     id: 'satellite',

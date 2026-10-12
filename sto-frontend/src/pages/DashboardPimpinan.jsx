@@ -6,6 +6,7 @@ import ApprovalMaterial from '../components/ApprovalMaterial';
 import LaporanAudit from '../components/LaporanAudit';
 import WebGISTracking from '../components/WebGISTracking';
 import KelolaPegawai from '../components/KelolaPegawai';
+import ModalBASTP from '../components/ModalBASTP';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import {
@@ -16,12 +17,14 @@ import {
   PlusCircle,
   Package,
   MapPin,
-  ArrowRight
+  ArrowRight,
+  FileText
 } from 'lucide-react';
 
 function DashboardPimpinan() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [bastpModalTask, setBastpModalTask] = useState(null);
 
   const navigate = useNavigate();
   const { isDark } = useTheme();
@@ -309,13 +312,29 @@ function DashboardPimpinan() {
                               )}
                             </td>
                             <td className="px-3 py-2.5 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                t.status === 'Done' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                                t.status === 'Progress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                              }`}>
-                                {t.status}
-                              </span>
+                              {t.status === 'Done' ? (
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                    Done
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setBastpModalTask(t)}
+                                    className="px-2 py-0.5 rounded-lg bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
+                                    title="Lihat BASTP & Material Terpasang"
+                                  >
+                                    <FileText className="w-2.5 h-2.5" />
+                                    <span>BASTP</span>
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  t.status === 'Progress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                                  'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                }`}>
+                                  {t.status}
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -449,6 +468,14 @@ function DashboardPimpinan() {
             <FormTugas onCreated={() => setShowCreateTaskModal(false)} />
           </div>
         </div>
+      )}
+
+      {/* Modal BASTP & Rekonsiliasi Material Digital */}
+      {bastpModalTask && (
+        <ModalBASTP
+          task={bastpModalTask}
+          onClose={() => setBastpModalTask(null)}
+        />
       )}
 
     </div>

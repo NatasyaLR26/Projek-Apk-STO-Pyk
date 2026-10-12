@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ModernSidebar from '../components/ModernSidebar';
 import InputBarangGudang from '../components/InputBarangGudang';
 import CetakSuratJalan from '../components/CetakSuratJalan';
+import ModalBASTP from '../components/ModalBASTP';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -13,7 +14,13 @@ import {
   TrendingDown,
   Send,
   Boxes,
-  ClipboardCheck
+  ClipboardCheck,
+  FileText,
+  Eye,
+  ShieldCheck,
+  Barcode,
+  Radio,
+  Package
 } from 'lucide-react';
 
 export default function GudangDashboard() {
@@ -39,6 +46,7 @@ export default function GudangDashboard() {
 
   // Modals
   const [editingItem, setEditingItem] = useState(null);
+  const [bastpModalTask, setBastpModalTask] = useState(null);
 
   // Form State for Add / Edit
   const [barangForm, setBarangForm] = useState({
@@ -316,6 +324,108 @@ export default function GudangDashboard() {
                   ))}
                 </div>
               )}
+
+              {/* SUB-SECTION: AUDIT REKONSILIASI MATERIAL LAPANGAN (KONSUMSI NYATA) */}
+              <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-extrabold flex items-center gap-2">
+                      <span className="p-1.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                        <ShieldCheck className="w-4 h-4" />
+                      </span>
+                      <span>Audit Rekonsiliasi Material Lapangan (Status Konsumsi Riil)</span>
+                    </h3>
+                    <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Verifikasi bahwa material yang dirilis dari gudang telah terpasang permanen di rumah pelanggan (dengan Serial Number & BASTP terdata).
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 self-start sm:self-auto">
+                    {releasedRequests.length} Transaksi Serah Terima
+                  </span>
+                </div>
+
+                {releasedRequests.length === 0 ? (
+                  <div className={`p-8 text-center rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200'} text-xs text-slate-400`}>
+                    Belum ada riwayat material yang dirilis ke teknisi.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {releasedRequests.map((rel) => {
+                      const isDone = rel.parentTask?.status === 'Done';
+                      const odp = rel.parentTask?.odp_id || rel.parentTask?.bastp?.odp_id || 'ODP-PYK-FA/014';
+                      const sn = rel.parentTask?.sn_ont || rel.parentTask?.bastp?.sn_ont || 'ZTEGC8B90112';
+
+                      return (
+                        <div
+                          key={rel.id}
+                          className={`p-5 rounded-3xl border transition-all space-y-3.5 ${
+                            isDone
+                              ? isDark ? 'bg-slate-900/80 border-emerald-500/40' : 'bg-white border-emerald-500/40 shadow-sm'
+                              : isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="font-mono text-xs font-bold text-slate-400">Permohonan #{rel.id}</span>
+                              <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
+                                Tiket #{rel.tugas_id} — {rel.parentTask?.pelanggan_nama || 'Pelanggan Telkom'}
+                              </div>
+                              <div className="text-[11px] text-slate-400">Teknisi: <strong>{rel.tech?.nama_lengkap}</strong></div>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                              isDone
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            }`}>
+                              {isDone ? '✓ TERPASANG DI PELANGGAN' : 'Dipegang Teknisi (On-Hand)'}
+                            </span>
+                          </div>
+
+                          {/* Material items released */}
+                          <div className={`p-3 rounded-2xl text-xs space-y-1.5 ${isDark ? 'bg-slate-950/70 border border-slate-850' : 'bg-slate-50 border border-slate-200'}`}>
+                            <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider block">
+                              Material yang Dikeluarkan & Status Akhir:
+                            </span>
+                            {rel.details.map((d) => (
+                              <div key={d.id} className="flex items-center justify-between">
+                                <span>• {d.item?.nama_barang}</span>
+                                <strong className="font-mono text-amber-500">
+                                  {d.jumlah_minta} {d.item?.satuan}
+                                </strong>
+                              </div>
+                            ))}
+
+                            {isDone && (
+                              <div className="pt-2 border-t border-slate-800/60 text-[11px] space-y-0.5">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">SN ONT Terpasang:</span>
+                                  <span className="font-mono font-bold text-purple-400">{sn}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Terminasi ODP:</span>
+                                  <span className="font-mono text-slate-300">{odp}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {isDone && rel.parentTask && (
+                            <button
+                              type="button"
+                              onClick={() => setBastpModalTask(rel.parentTask)}
+                              className="w-full py-2 px-3 rounded-xl bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Lihat Berita Acara & Rekonsiliasi (BASTP)</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
 
@@ -494,6 +604,14 @@ export default function GudangDashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal BASTP & Rekonsiliasi Material Digital */}
+      {bastpModalTask && (
+        <ModalBASTP
+          task={bastpModalTask}
+          onClose={() => setBastpModalTask(null)}
+        />
       )}
 
     </div>

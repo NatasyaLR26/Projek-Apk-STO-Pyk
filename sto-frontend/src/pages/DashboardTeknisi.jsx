@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ModernSidebar from '../components/ModernSidebar';
 import RequestBarangModal from '../components/RequestBarangModal';
 import UploadBuktiModal from '../components/UploadBuktiModal';
+import ModalBASTP from '../components/ModalBASTP';
 import CetakSuratPermohonan from '../components/CetakSuratPermohonan';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -17,7 +18,8 @@ import {
   Phone,
   CheckCircle2,
   FilePlus2,
-  Printer
+  Printer,
+  FileText
 } from 'lucide-react';
 
 export default function DashboardTeknisi() {
@@ -40,6 +42,7 @@ export default function DashboardTeknisi() {
   const [activeMenu, setActiveMenu] = useState('tiket');
   const [modalTugasId, setModalTugasId] = useState(null);
   const [uploadTugasId, setUploadTugasId] = useState(null);
+  const [bastpModalTask, setBastpModalTask] = useState(null);
   const [isBroadcastingGps, setIsBroadcastingGps] = useState(false);
 
   // Filter tasks:
@@ -417,29 +420,39 @@ export default function DashboardTeknisi() {
                         key={t.id}
                         className={`p-4 rounded-3xl border ${
                           isDark ? 'bg-slate-900/60 border-emerald-500/30' : 'bg-white border-emerald-200 shadow-sm'
-                        } flex items-center justify-between gap-4`}
+                        } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
                       >
-                        <div>
+                        <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-xs font-bold text-slate-400">#{t.id}</span>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400">
-                              ✓ Selesai
+                              ✓ Selesai & Terpasang
                             </span>
                           </div>
-                          <div className={`font-bold text-sm mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
                             {t.pelanggan_nama}
                           </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">{t.lokasi}</div>
+                          <div className="text-[11px] text-slate-400">{t.lokasi}</div>
                           {t.waktu_selesai && (
-                            <div className="text-[10px] text-emerald-400 mt-1 font-mono">Tuntas: {t.waktu_selesai}</div>
+                            <div className="text-[10px] text-emerald-400 font-mono">Closing: {t.waktu_selesai}</div>
                           )}
+
+                          <button
+                            type="button"
+                            onClick={() => setBastpModalTask(t)}
+                            className="mt-2 py-1.5 px-3 rounded-xl bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Lihat BASTP & Material Terpasang</span>
+                          </button>
                         </div>
 
                         {t.foto_bukti && (
                           <img
                             src={t.foto_bukti}
                             alt="Bukti Foto"
-                            className="w-16 h-16 rounded-xl object-cover border border-emerald-500/40 shrink-0"
+                            className="w-16 h-16 rounded-xl object-cover border border-emerald-500/40 shrink-0 cursor-pointer hover:opacity-90"
+                            onClick={() => setBastpModalTask(t)}
                           />
                         )}
                       </div>
@@ -711,8 +724,17 @@ export default function DashboardTeknisi() {
 
                         <div>
                           {isDone ? (
-                            <div className="py-2.5 px-4 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold text-xs text-center border border-emerald-500/30">
-                              ✓ Pekerjaan Telah Diverifikasi Selesai
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <div className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold text-xs text-center border border-emerald-500/30 flex items-center justify-center">
+                                ✓ Pekerjaan Selesai & Terverifikasi
+                              </div>
+                              <button
+                                onClick={() => setBastpModalTask(t)}
+                                className="py-2 px-3.5 rounded-xl bg-burgundy-600 hover:bg-burgundy-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md active:scale-95 whitespace-nowrap"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Lihat BASTP</span>
+                              </button>
                             </div>
                           ) : (
                             <button
@@ -757,6 +779,14 @@ export default function DashboardTeknisi() {
             setUploadTugasId(null);
             showToast('Pekerjaan selesai! Berita acara berhasil diperbarui.', 'success');
           }}
+        />
+      )}
+
+      {/* Modal: Dokumen BASTP & Rekonsiliasi Material Digital */}
+      {bastpModalTask && (
+        <ModalBASTP
+          task={bastpModalTask}
+          onClose={() => setBastpModalTask(null)}
         />
       )}
 

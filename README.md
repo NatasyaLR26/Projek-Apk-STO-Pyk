@@ -118,9 +118,29 @@ sequenceDiagram
 | **9** | **Kirim Titik GPS** | Teknisi Lapangan | Perangkat teknisi secara periodik menyiarkan telemetri koordinat GPS latitude & longitude saat bergerak ke lokasi. |
 | **10** | **Perekaman Telemetri** | Server API | Server menyimpan histori jejak pergerakan teknisi ke tabel `tracking_gps`. |
 | **11** | **Live Tracking WebGIS** | Pimpinan STO | Pimpinan memantau pergerakan armada teknisi secara real-time di atas peta interaktif WebGIS berbasis Leaflet.js. |
-| **12** | **Upload Bukti & Selesai** | Teknisi Lapangan | Teknisi menyelesaikan perbaikan/instalasi di rumah pelanggan, mengambil foto dokumentasi pekerjaan, dan menandai status tiket `Done`. |
-| **13** | **Simpan Bukti Pekerjaan** | Server API | File foto disimpan ke Supabase Storage (`bukti-foto`) dan status tiket diupdate menjadi `Done` bersama tautan URL foto bukti. |
-| **14** | **Cetak Laporan Audit Resmi** | Pimpinan STO | Pimpinan mencetak Berita Acara Pekerjaan & Laporan Audit resmi (format cetak dokumen standar STO Telkom Akses) untuk pertanggungjawaban operasional. |
+| **12** | **Closing & Rekonsiliasi Material** | Teknisi Lapangan | Teknisi mengisi formulir closing: Serial Number (SN ONT), ODP ID, Port, Redaman optik (OPM dBm), serta menghitung Dropcore terpasang vs sisa retur. Material resmi berstatus **TERPASANG DI PELANGGAN (CONSUMED)**. |
+| **13** | **Penerbitan BASTP Digital** | Sistem & Supabase | Sistem menerbitkan Dokumen Berita Acara Serah Terima Pekerjaan (BASTP) digital resmi lengkap dengan kop Telkom Akses, parameter teknis QC, dan tanda tangan digital. |
+| **14** | **Cetak Laporan Audit Resmi** | Pimpinan & Gudang | Pimpinan dan Bagian Gudang dapat memverifikasi audit material terpasang di lapangan dan mencetak BASTP untuk pertanggungjawaban operasional. |
+
+---
+
+## Fitur Unggulan Terbaru
+
+1. **Rekonsiliasi Material Lapangan Nyata (Standar IndiHome / Telkom Akses WFM)**:
+   - Barang tidak hanya terpotong saat keluar dari rak gudang.
+   - Saat teknisi closing pekerjaan, perangkat Modem ONT (Serial Number/Barcode) dan kabel Dropcore secara resmi dinyatakan **TERPASANG DI PELANGGAN (CONSUMED)** sehingga hilang/berkurang permanen dari inventaris aktif perusahaan karena menjadi CPE pelanggan.
+   - Sisa kabel yang tidak terpakai (retur) otomatis dikembalikan ke inventaris gudang.
+   - Dilengkapi pengukuran kualitas sinyal optik (Redaman dBm standar Telkom: -16 s/d -24 dBm).
+
+2. **Kustomisasi Logo Aplikasi**:
+   - Logo Telkom Akses dapat disesuaikan dengan mudah.
+   - Buka file `sto-frontend/src/components/BrandLogo.jsx`, isi variabel `DEFAULT_PLACEHOLDER_LOGO = "URL_LOGO_ANDA"` atau masukkan prop `logoUrl="URL_LOGO"`.
+   - Jika kosong atau gambar gagal dimuat, sistem otomatis menampilkan lambang vektor SVG Hexagon Fiber Shield Telkom Akses berteknologi tinggi.
+
+3. **Struktur Folder Bersih & Rapi**:
+   - `sto-backend/` : Server API Express.js & koneksi Supabase PostgreSQL.
+   - `sto-frontend/` : Aplikasi web React Vite, Tailwind CSS, Leaflet WebGIS.
+   - Bebas file duplikat / file dummy tidak terpakai.
 
 ---
 
@@ -128,19 +148,20 @@ sequenceDiagram
 
 - **Backend:** Node.js, Express.js, Supabase (PostgreSQL)
 - **Frontend:** React, Vite, Tailwind CSS, React Router, Axios
-- **WebGIS:** Leaflet.js + OpenStreetMap
-- **Storage:** Supabase Storage (upload foto bukti kerja)
+- **WebGIS:** Leaflet.js + OpenStreetMap (Payakumbuh Koto Nan IV)
+- **Database:** Supabase Cloud PostgreSQL Real-Time
 
 ## Role Pengguna
 
-- **Pimpinan** — buat tugas, approve permohonan material, lihat live tracking & laporan audit
-- **Teknisi** — terima tugas, ajukan permohonan material, upload bukti foto selesai
-- **Gudang** — kelola inventaris material
+- **Pimpinan** — Buat & siarkan tiket tugas, approve permohonan material, pantau live tracking WebGIS, audit laporan BASTP
+- **Teknisi** — Ambil/klaim tiket dari pool terbuka, ajukan material, lacak GPS lapangan, closing pekerjaan, rekonsiliasi material & terbitkan BASTP
+- **Gudang** — Kelola inventaris master barang, rilis barang fisik ke teknisi (potong stok otomatis), audit material terpasang di pelanggan
 
-## Akun Testing
+## Akun Login Real di Supabase
 
 | Role | Email | Password |
 |---|---|---|
 | Pimpinan | pimpinan@sto.co.id | 123456 |
 | Teknisi | teknisi@sto.co.id | 123456 |
 | Gudang | gudang@sto.co.id | 123456 |
+

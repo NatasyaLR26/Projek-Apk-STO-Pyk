@@ -1,3 +1,38 @@
+/**
+ * ============================================================================
+ * STATE MANAGEMENT & DATA SYNC (sto-frontend/src/context/AppContext.jsx)
+ * ============================================================================
+ * Penjelasan Pemula / Mahasiswa (Alur Kerja Lengkap 6 SOP Telkom Akses):
+ * 
+ * 1. SOP 1 (Pimpinan):
+ *    Pimpinan membuat tiket penugasan (Pasang Baru IndiHome / Perbaikan Gangguan).
+ *    Tiket disiarkan secara terbuka (Broadcast Open Pool) ke seluruh teknisi lapangan.
+ * 
+ * 2. SOP 1.5 (Teknisi):
+ *    Teknisi melihat daftar siaran terbuka dan mengambil (Klaim) tiket pekerjaan.
+ * 
+ * 3. SOP 2 (Teknisi):
+ *    Teknisi mengajukan permohonan material ke gudang (Dropcore, ONT Modem, Roset, dll).
+ * 
+ * 4. SOP 3 (Pimpinan):
+ *    Pimpinan meninjau dan memberikan persetujuan (Approval) terhadap permohonan barang.
+ * 
+ * 5. SOP 4 (Gudang):
+ *    Petugas gudang merilis barang fisik ke teknisi. Stok gudang otomatis terpotong
+ *    dan tersinkronisasi ke database Supabase Cloud.
+ * 
+ * 6. SOP 5 (Teknisi & WebGIS):
+ *    Teknisi bergerak menuju lokasi pelanggan di Payakumbuh. Sensor GPS menyiarkan
+ *    koordinat realtime ke peta WebGIS yang dipantau Pimpinan di Command Center.
+ * 
+ * 7. SOP 6 (Closing Pekerjaan & Rekonsiliasi Material):
+ *    Teknisi menyelesaikan instalasi: mengukur redaman optik (OPM dBm), menginput
+ *    Serial Number (SN Barcode ONT), dan merekonsiliasi pemakaian material.
+ *    Material resmi berstatus "TERPASANG DI PELANGGAN (CONSUMED)", sisa kabel diretur,
+ *    dan Dokumen Digital BASTP resmi diterbitkan.
+ * ============================================================================
+ */
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
 import api from '../api/axiosInstance';
@@ -606,39 +641,123 @@ export function AppProvider({ children }) {
     showToast("GPS Teknisi terkirim ke WebGIS Pimpinan!", "info");
   };
 
-  // SOP 6: Teknisi mengunggah foto bukti selesai & ubah status ke Done
-  const finishTugas = async (tugasId, fotoBuktiUrl, catatanHasil = "") => {
+  /**
+   * ==========================================================================
+   * SOP 6: TEKNISI KLOSING PEKERJAAN & REKONSILIASI MATERIAL REAL (STANDAR TELKOM AKSES)
+   * ==========================================================================
+   * Fungsi ini menangani penutupan tiket (Closing Work Order) sesuai SOP IndiHome / Telkom Akses:
+   * 1. Mencatat SN ONT Modem yang terpasang di rumah pelanggan.
+   * 2. Mencatat ID ODP, Port ODP, dan Redaman Optik (dBm) untuk Quality Assurance.
+   * 3. Rekonsiliasi Material: Barang terpasang resmi menjadi 'TERPASANG DI PELANGGAN (CONSUMED)',
+   *    sedangkan material sisa dapat diretur kembali ke inventaris gudang.
+   * 4. Menerbitkan Dokumen Digital BASTP (Berita Acara Serah Terima Pekerjaan).
+   */
+  const finishTugas = async (tugasId, argPhotoOrPayload, catatanHasil = "") => {
     const parsedTugasId = parseInt(tugasId, 10);
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const proof = fotoBuktiUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80";
 
+    // Cek apakah argumen kedua berupa objek payload lengkap atau sekadar string URL foto
+    const isPayloadObject = typeof argPhotoOrPayload === 'object' && argPhotoOrPayload !== null;
+
+    const proof = isPayloadObject
+      ? (argPhotoOrPayload.foto_bukti || argPhotoOrPayload.fotoBuktiUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80")
+      : (argPhotoOrPayload || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80");
+
+    const userNote = isPayloadObject ? (argPhotoOrPayload.catatan || "") : catatanHasil;
+    const odpId = isPayloadObject ? (argPhotoOrPayload.odp_id || "ODP-PYK-FA/014") : "ODP-PYK-FA/014";
+    const portOdp = isPayloadObject ? (argPhotoOrPayload.port_odp || "03") : "03";
+    const redamanDbm = isPayloadObject ? (argPhotoOrPayload.redaman_dbm || "-18.5") : "-18.5";
+    const snOnt = isPayloadObject ? (argPhotoOrPayload.sn_ont || "ZTEGC8B90112") : "ZTEGC8B90112";
+    const pelangganNama = isPayloadObject ? (argPhotoOrPayload.pelanggan_nama || "") : "";
+    const reconciliation = isPayloadObject ? (argPhotoOrPayload.reconciliation || []) : [];
+    const bastpNumber = isPayloadObject
+      ? (argPhotoOrPayload.bastp_number || `BASTP/TA-PYK/${now.getFullYear()}/${String(parsedTugasId).padStart(4, '0')}`)
+      : `BASTP/TA-PYK/${now.getFullYear()}/${String(parsedTugasId).padStart(4, '0')}`;
+
+    // Buat ringkasan teks untuk kolom catatan di tabel Supabase
+    const materialSummaryText = reconciliation.length > 0
+      ? reconciliation.map(m => `${m.nama_barang}: ${m.jumlah_terpakai} ${m.satuan} [TERPASANG]`).join(', ')
+      : `ONT SN: ${snOnt}, Dropcore: Terpasang`;
+
+    const summaryNoteForDb = `[BASTP: ${bastpNumber}] ODP: ${odpId} (Port ${portOdp}) | Redaman: ${redamanDbm} dBm | SN: ${snOnt} | Terpasang: ${materialSummaryText} | Catatan: ${userNote}`;
+
+    // Struktur BASTP Lengkap untuk Dokumen Digital & Audit
+    const bastpData = {
+      nomor_bastp: bastpNumber,
+      odp_id: odpId,
+      port_odp: portOdp,
+      redaman_dbm: redamanDbm,
+      sn_ont: snOnt,
+      pelanggan_nama: pelangganNama,
+      waktu_closing: formattedDate,
+      catatan_teknisi: userNote,
+      reconciliation: reconciliation.map(r => ({
+        ...r,
+        status: 'TERPASANG DI PELANGGAN (CONSUMED)'
+      }))
+    };
+
+    // 1. Perbarui state lokal tugas dengan metadata closing & BASTP
     setTugas(prev => prev.map(t => {
       if (Number(t.id) === parsedTugasId) {
         return {
           ...t,
           status: "Done",
           foto_bukti: proof,
-          catatan_selesai: catatanHasil,
-          waktu_selesai: formattedDate
+          catatan_selesai: userNote,
+          waktu_selesai: formattedDate,
+          odp_id: odpId,
+          port_odp: portOdp,
+          redaman_dbm: redamanDbm,
+          sn_ont: snOnt,
+          bastp: bastpData
         };
       }
       return t;
     }));
 
+    // 2. Jika teknisi meretur sisa kabel/barang kembali ke gudang, kembalikan ke stok gudang
+    if (isPayloadObject && argPhotoOrPayload.retur_ke_gudang && Array.isArray(reconciliation)) {
+      reconciliation.forEach(async (item) => {
+        const sisa = Number(item.jumlah_sisa) || 0;
+        if (sisa > 0 && item.barang_id) {
+          setBarang(prev => prev.map(b => {
+            if (Number(b.id) === Number(item.barang_id)) {
+              return { ...b, stok: Number(b.stok) + sisa };
+            }
+            return b;
+          }));
+
+          // Sinkronisasi update stok sisa retur ke Supabase
+          if (isSupabaseConfigured()) {
+            try {
+              const currentB = barang.find(x => Number(x.id) === Number(item.barang_id));
+              const updatedStok = (Number(currentB?.stok) || 0) + sisa;
+              await supabase.from('barang').update({ stok: updatedStok }).eq('id', Number(item.barang_id));
+            } catch (err) {
+              console.warn('[finishTugas Retur] Gagal sync stok retur ke Supabase:', err);
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Sinkronisasi status selesai ke Supabase
     if (isSupabaseConfigured()) {
       try {
         await supabase.from('tugas').update({
           status: 'Done',
           foto_bukti: proof,
-          catatan: catatanHasil
+          catatan: summaryNoteForDb
         }).eq('id', parsedTugasId);
       } catch (err) {
         console.warn('Supabase finish task error:', err);
       }
     }
 
-    showToast(`Tugas #${parsedTugasId} dinyatakan SELESAI. Foto bukti berhasil diunggah!`, "success");
+    showToast(`Tiket #${parsedTugasId} berhasil di-closing! Material resmi berstatus TERPASANG DI PELANGGAN & BASTP diterbitkan.`, "success");
+    return bastpData;
   };
 
   // CRUD Gudang (Barang)
