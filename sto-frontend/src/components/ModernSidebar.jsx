@@ -25,7 +25,8 @@ import {
   LogOut,
   Users,
   Menu,
-  X
+  X,
+  Network
 } from 'lucide-react';
 
 export default function ModernSidebar({ activeTab, onTabChange }) {
@@ -118,8 +119,18 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
           },
           {
             key: 'tracking',
-            label: 'Pusat Kendali WebGIS',
+            label: 'WebGIS Pemetaan ODP',
             icon: MapPin
+          },
+          {
+            key: 'tabel-odp',
+            label: 'Tabel ODP, Tiang & ODC',
+            icon: Network
+          },
+          {
+            key: 'kelola-tugas',
+            label: 'Manajemen Tiket Tugas',
+            icon: ClipboardList
           },
           {
             key: 'approval',

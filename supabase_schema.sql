@@ -83,18 +83,18 @@ CREATE TABLE IF NOT EXISTS detail_permohonan (
 );
 
 
--- 6. TABEL TRACKING GPS (TELEMETRI KOORDINAT LAPANGAN)
-CREATE TABLE IF NOT EXISTS tracking_gps (
+-- 6. TABEL ODP (OPTICAL DISTRIBUTION POINT - INFRASTRUKTUR WEBGIS FIBER OPTIC)
+CREATE TABLE IF NOT EXISTS odp (
     id BIGSERIAL PRIMARY KEY,
-    tugas_id BIGINT NOT NULL,
+    kode_odp VARCHAR(50) UNIQUE NOT NULL,
+    nama_lokasi TEXT NOT NULL,
     latitude DECIMAL(10, 8) NOT NULL,
     longitude DECIMAL(11, 8) NOT NULL,
-    waktu_update TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    CONSTRAINT fk_tracking_tugas
-        FOREIGN KEY (tugas_id)
-        REFERENCES tugas(id)
-        ON DELETE CASCADE
+    kapasitas_port INTEGER NOT NULL DEFAULT 8,
+    port_terpakai INTEGER NOT NULL DEFAULT 0,
+    redaman_dbm DECIMAL(5, 2) DEFAULT -18.50,
+    status VARCHAR(30) NOT NULL DEFAULT 'Tersedia', -- 'Tersedia', 'Penuh', 'Maintenance'
+    keterangan TEXT
 );
 
 
@@ -119,3 +119,14 @@ INSERT INTO barang (nama_barang, stok, satuan) VALUES
 ('Splitter PLC 1:8 SC/UPC', 15, 'pcs'),
 ('Protection Sleeve 60mm', 200, 'pcs')
 ON CONFLICT DO NOTHING;
+
+-- Data ODP Awal (Infrastruktur Jaringan Fiber Optic STO Payakumbuh):
+INSERT INTO odp (kode_odp, nama_lokasi, latitude, longitude, kapasitas_port, port_terpakai, redaman_dbm, status, keterangan) VALUES
+('ODP-PYK-FA/001', 'Jl. Soekarno Hatta No. 14, Koto Nan IV (Depan STO)', -0.2285, 100.6335, 8, 6, -17.80, 'Tersedia', 'Distribusi feeder utama jalur STO - Kantor Pemerintahan'),
+('ODP-PYK-FA/002', 'Balai Nan Duo, Payakumbuh Barat (Tiang FO 04)', -0.2310, 100.6355, 8, 8, -19.40, 'Penuh', 'Kawasan pemukiman padat penduduk - Port penuh terisi pelanggan'),
+('ODP-PYK-FA/003', 'Jl. Jenderal Sudirman, Labuh Basilang (Kawasan Ruko)', -0.2245, 100.6380, 16, 11, -18.25, 'Tersedia', 'Splitter 1:16 melayani pelanggan IndiHome Bisnis dan Cafe'),
+('ODP-PYK-FA/004', 'Kawasan Pasar Ibuh, Payakumbuh Barat', -0.2260, 100.6362, 8, 5, -18.90, 'Tersedia', 'Tiang distribusi sentra pertokoan pasar'),
+('ODP-PYK-FA/005', 'Simpang Benteng, Payolansek, Payakumbuh', -0.2215, 100.6305, 8, 3, -17.20, 'Tersedia', 'Kondisi redaman sangat bagus, port cadangan memadai'),
+('ODP-PYK-FA/006', 'Kelurahan Tiakar, Payakumbuh Timur', -0.2335, 100.6410, 8, 7, -26.50, 'Maintenance', 'Redaman tinggi (> -24 dBm), dijadwalkan perbaikan adapter ODP')
+ON CONFLICT (kode_odp) DO NOTHING;
+

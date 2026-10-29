@@ -16,8 +16,9 @@
  * ============================================================================
  */
 
-// 1. Memuat variabel lingkungan dari file .env (seperti URL Supabase, API Key, PORT)
-require('dotenv').config();
+// 1. Memuat variabel lingkungan dari file .env (seperti URL Supabase, API Key, PORT, Telegram)
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // 2. Mengimpor konfigurasi rute dan middleware dari file app.js
 const app = require('./src/app');

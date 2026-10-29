@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   FilePlus2,
   Printer,
-  FileText
+  FileText,
+  Lock
 } from 'lucide-react';
 
 /**
@@ -41,6 +42,7 @@ export default function DashboardTeknisi() {
   const {
     tugas,
     claimTugas,
+    checkInTugas,
     permohonan,
     detailPermohonan,
     barang,
@@ -49,6 +51,30 @@ export default function DashboardTeknisi() {
     simulateTechnicianStep,
     showToast
   } = useApp();
+
+  const handleDoCheckIn = (targetTask) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          checkInTugas(targetTask.id, {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude
+          });
+        },
+        () => {
+          checkInTugas(targetTask.id, {
+            latitude: targetTask.target_lat || -0.2285,
+            longitude: targetTask.target_lng || 100.6335
+          });
+        }
+      );
+    } else {
+      checkInTugas(targetTask.id, {
+        latitude: targetTask.target_lat || -0.2285,
+        longitude: targetTask.target_lng || 100.6335
+      });
+    }
+  };
 
   // Sesi akun teknisi aktif
   const user = JSON.parse(localStorage.getItem('user')) || { id: 2, nama_lengkap: 'Ahmad Fadli', role: 'teknisi' };
@@ -100,57 +126,7 @@ export default function DashboardTeknisi() {
     }
   }, [navigate]);
 
-  // Siaran GPS Otomatis Ringan (Interval 5 detik bebas lag/delay)
-  useEffect(() => {
-    let interval = null;
-    if (isBroadcastingGps) {
-      // Perbarui status aktif awal
-      updateGpsLocation(user.id, myGpsRef.current.latitude, myGpsRef.current.longitude, {
-        is_active: true,
-        kecepatan: '34 km/jam (Menuju Lokasi Pelanggan Koto Nan IV)'
-      });
 
-      interval = setInterval(() => {
-        const activeTask = activeTasksRef.current.find(t => t.status !== 'Done');
-        if (activeTask && activeTask.target_lat && activeTask.target_lng) {
-          simulateTechnicianStep(user.id, activeTask.target_lat, activeTask.target_lng);
-        } else {
-          updateGpsLocation(user.id, myGpsRef.current.latitude + 0.0001, myGpsRef.current.longitude + 0.0001, {
-            kecepatan: '34 km/jam (Menuju Pelanggan)',
-            is_active: true
-          });
-        }
-      }, 5000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isBroadcastingGps, user.id, simulateTechnicianStep, updateGpsLocation]);
-
-  const handleSendGpsNow = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          updateGpsLocation(user.id, pos.coords.latitude, pos.coords.longitude, {
-            akurasi: `${Math.round(pos.coords.accuracy)} meter`,
-            kecepatan: 'Aktif (Sensor Handphone GPS Real-Time)',
-            is_active: true
-          });
-          showToast('Koordinat GPS sensor live Payakumbuh disiarkan ke WebGIS Pimpinan!', 'success');
-        },
-        () => {
-          const activeTask = activeTasks.find(t => t.status !== 'Done');
-          if (activeTask) {
-            simulateTechnicianStep(user.id, activeTask.target_lat || -0.2272, activeTask.target_lng || 100.6318);
-          }
-          showToast('Koordinat GPS lapangan disiarkan ke WebGIS Pimpinan!', 'info');
-        },
-        { timeout: 4000 }
-      );
-    } else {
-      showToast('Sensor GPS disiarkan!', 'info');
-    }
-  };
 
   return (
     <div className={`min-h-screen flex ${
@@ -180,34 +156,19 @@ export default function DashboardTeknisi() {
                 {activeMenu === 'surat-permohonan' && 'Form Pembuatan Surat Permohonan Barang'}
                 {activeMenu === 'cetak-surat' && 'Cetak Fisik Surat Permohonan Pengambilan Barang'}
                 {activeMenu === 'status-approval' && 'Status Persetujuan Pimpinan & Pengambilan Gudang'}
-                {activeMenu === 'pengerjaan' && 'Pelacakan GPS Lapangan & Upload Bukti Selesai'}
+                {activeMenu === 'pengerjaan' && 'Pengerjaan Lapangan, Pengukuran OPM & BASTP'}
               </h1>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
                 Petugas: <strong>{user.nama_lengkap}</strong> | Unit: Fiber Optic Maintenance & Provisioning.
               </p>
             </div>
 
-            {/* GPS Beacon Trigger */}
+            {/* Quick Status Info */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsBroadcastingGps(!isBroadcastingGps)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition shadow cursor-pointer active:scale-95 ${
-                  isBroadcastingGps
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse'
-                    : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                }`}
-              >
-                <Radio className="w-4 h-4" />
-                <span>{isBroadcastingGps ? 'Auto-GPS: ON' : 'Auto-GPS: OFF'}</span>
-              </button>
-
-              <button
-                onClick={handleSendGpsNow}
-                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition cursor-pointer active:scale-95"
-              >
-                <Navigation className="w-4 h-4" />
-                <span>Kirim GPS</span>
-              </button>
+              <span className="px-3.5 py-2 rounded-2xl bg-blue-600/10 border border-blue-500/30 text-blue-400 font-bold text-xs flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                <span>{myActiveTasks.length} Tiket Aktif Dikerjakan</span>
+              </span>
             </div>
           </div>
 
@@ -388,35 +349,53 @@ export default function DashboardTeknisi() {
                             className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow transition active:scale-95 cursor-pointer"
                           >
                             <Package className="w-3.5 h-3.5" />
-                            <span>1. Ajukan Barang</span>
+                            <span>1. Ajukan Material</span>
                           </button>
 
                           <button
                             onClick={() => setActiveMenu('cetak-surat')}
-                            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs shadow transition active:scale-95 cursor-pointer"
+                            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs shadow transition active:scale-95 cursor-pointer"
+                            title="Opsional: Tidak wajib dicetak untuk melanjutkan pekerjaan"
                           >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span>2. Cetak Fisik</span>
+                            <Printer className="w-3.5 h-3.5 text-slate-400" />
+                            <span>2. Cetak Fisik (Opsional)</span>
                           </button>
 
-                          <button
-                            onClick={() => {
-                              setActiveMenu('pengerjaan');
-                              showToast(`Membuka panel GPS & pengerjaan untuk Tiket #${t.id}`, 'info');
-                            }}
-                            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow transition active:scale-95 cursor-pointer"
-                          >
-                            <Navigation className="w-3.5 h-3.5" />
-                            <span>3. Lacak GPS</span>
-                          </button>
+                          {/* 3. Check-In di Lokasi Pelanggan (Mandatory) */}
+                          {t.checkin?.verified ? (
+                            <div className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-xs">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>✓ Checked-In ({t.checkin?.time || 'Di Lokasi'})</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleDoCheckIn(t)}
+                              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow transition active:scale-95 cursor-pointer"
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                              <span>3. Check-In di Lokasi</span>
+                            </button>
+                          )}
 
-                          <button
-                            onClick={() => setUploadTugasId(t.id)}
-                            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition active:scale-95 cursor-pointer"
-                          >
-                            <Camera className="w-3.5 h-3.5" />
-                            <span>4. Upload Bukti</span>
-                          </button>
+                          {/* 4. Upload Bukti & Closing (Wajib Check-In dulu) */}
+                          {t.checkin?.verified ? (
+                            <button
+                              onClick={() => setUploadTugasId(t.id)}
+                              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition active:scale-95 cursor-pointer"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>4. Closing & BASTP</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => showToast('Wajib tekan "Check-In di Lokasi" terlebih dahulu sebelum melakukan closing!', 'warning')}
+                              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs border border-slate-700 cursor-not-allowed opacity-80"
+                              title="Wajib Check-In di Lokasi terlebih dahulu"
+                            >
+                              <Lock className="w-3.5 h-3.5 text-amber-400" />
+                              <span>4. Closing (Wajib Check-In)</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -645,50 +624,26 @@ export default function DashboardTeknisi() {
           {/* TAB 5: PENGERJAAN LAPANGAN & UPLOAD BUKTI SELESAI */}
           {activeMenu === 'pengerjaan' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              {/* GPS Live Broadcaster Card */}
+              {/* SOP 6 Closing & QA Standard Banner */}
               <div className={`p-6 rounded-3xl border ${
                 isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-              } space-y-4`}>
+              } space-y-3`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Navigation className="w-5 h-5 text-blue-500" />
+                    <span className="p-1.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                      <Camera className="w-5 h-5" />
+                    </span>
                     <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Pelacakan Posisi GPS Lapangan (SOP 5)
+                      Prosedur Closing & Serah Terima Hasil Pekerjaan (SOP 6)
                     </h2>
                   </div>
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    GPS Aktif
+                    Standar Telkom Akses
                   </span>
                 </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                    <span className="text-slate-400 text-[10px]">Latitude</span>
-                    <div className="font-mono font-bold text-white mt-0.5">{myGps.latitude.toFixed(5)}</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                    <span className="text-slate-400 text-[10px]">Longitude</span>
-                    <div className="font-mono font-bold text-white mt-0.5">{myGps.longitude.toFixed(5)}</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                    <span className="text-slate-400 text-[10px]">Status Pergerakan</span>
-                    <div className="font-bold text-blue-400 mt-0.5">{myGps.kecepatan}</div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                    <span className="text-slate-400 text-[10px]">Update Terakhir</span>
-                    <div className="font-mono text-slate-300 mt-0.5">{myGps.waktu_update}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    onClick={handleSendGpsNow}
-                    className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition cursor-pointer active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <Navigation className="w-4 h-4" />
-                    <span>Perbarui Koordinat GPS Saya ke Peta WebGIS</span>
-                  </button>
-                </div>
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Pastikan setiap penutupan tiket telah melalui pengukuran redaman kabel optik (OPM dBm), pencatatan Serial Number ONT modem, dan upload foto bukti lapangan untuk penerbitan dokumen BASTP resmi.
+                </p>
               </div>
 
               {/* Work Orders to Finish */}
@@ -757,13 +712,27 @@ export default function DashboardTeknisi() {
                                 <span>Lihat BASTP</span>
                               </button>
                             </div>
+                          ) : !t.checkin?.verified ? (
+                            <div className="space-y-2">
+                              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center gap-2">
+                                <Lock className="w-4 h-4 shrink-0 text-amber-400" />
+                                <span>Wajib tekan Check-In di Lokasi terlebih dahulu sebagai bukti kehadiran Anda.</span>
+                              </div>
+                              <button
+                                onClick={() => handleDoCheckIn(t)}
+                                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                              >
+                                <MapPin className="w-4 h-4 text-amber-300 animate-pulse" />
+                                <span>📍 Check-In di Lokasi Pelanggan Sekarang</span>
+                              </button>
+                            </div>
                           ) : (
                             <button
                               onClick={() => setUploadTugasId(t.id)}
                               className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                             >
                               <Camera className="w-4 h-4" />
-                              <span>Unggah Foto Bukti & Selesaikan</span>
+                              <span>Unggah Foto Bukti & Selesaikan (Closing BASTP)</span>
                             </button>
                           )}
                         </div>

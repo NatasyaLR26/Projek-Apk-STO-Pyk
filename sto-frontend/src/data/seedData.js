@@ -72,54 +72,94 @@ export const initialUsers = [
 export const initialBarang = [
   {
     id: 1,
-    nama_barang: "Kabel FO Drop Core 1 Core",
+    nama_barang: "Kabel FO Drop Core 1-Core 150M Pre-Conn",
     stok: 1250,
     satuan: "meter",
-    kode: "MAT-DC-01",
+    kode: "MAT-DC-1C-150",
     kategori: "Kabel & Serat Optik"
   },
   {
     id: 2,
-    nama_barang: "Modem ONT ZTE F609 GPON",
-    stok: 48,
-    satuan: "pcs",
-    kode: "EQP-ONT-ZTE",
-    kategori: "Perangkat Aktif"
+    nama_barang: "Kabel FO Drop Core 2-Core Aerial Drum",
+    stok: 3000,
+    satuan: "meter",
+    kode: "MAT-DC-2C-DRM",
+    kategori: "Kabel & Serat Optik"
   },
   {
     id: 3,
-    nama_barang: "Roset Fiber Optic 1 Port",
-    stok: 120,
-    satuan: "pcs",
-    kode: "ACC-ROS-01",
-    kategori: "Aksesoris Indoor"
+    nama_barang: "Modem ONT ZTE F670L Dual Band GPON",
+    stok: 48,
+    satuan: "unit",
+    kode: "EQP-ONT-ZTE-F670",
+    kategori: "Perangkat Aktif"
   },
   {
     id: 4,
-    nama_barang: "Patch Cord SC-UPC 2M Simplex",
+    nama_barang: "Modem ONT Fiberhome HG6243C AC1200",
+    stok: 35,
+    satuan: "unit",
+    kode: "EQP-ONT-FH-6243",
+    kategori: "Perangkat Aktif"
+  },
+  {
+    id: 5,
+    nama_barang: "Modem ONT Huawei HG8245H5 GPON",
+    stok: 22,
+    satuan: "unit",
+    kode: "EQP-ONT-HW-8245",
+    kategori: "Perangkat Aktif"
+  },
+  {
+    id: 6,
+    nama_barang: "Roset Fiber Optic 1-Port SC/UPC Indoor",
+    stok: 120,
+    satuan: "pcs",
+    kode: "ACC-ROS-1P",
+    kategori: "Aksesoris Indoor"
+  },
+  {
+    id: 7,
+    nama_barang: "Roset Fiber Optic 2-Port Dual Shutter",
+    stok: 65,
+    satuan: "pcs",
+    kode: "ACC-ROS-2P",
+    kategori: "Aksesoris Indoor"
+  },
+  {
+    id: 8,
+    nama_barang: "Patch Cord SC/UPC - SC/UPC 2M Simplex",
     stok: 215,
     satuan: "pcs",
     kode: "ACC-PC-SC2M",
     kategori: "Aksesoris Indoor"
   },
   {
-    id: 5,
-    nama_barang: "Optical Termination Box (OTB) 24 Core",
-    stok: 14,
-    satuan: "unit",
-    kode: "EQP-OTB-24",
-    kategori: "Perangkat Pasif"
-  },
-  {
-    id: 6,
-    nama_barang: "Splitter PLC 1:8 SC/UPC Box Type",
-    stok: 35,
+    id: 9,
+    nama_barang: "Patch Cord SC/APC - SC/UPC 3M Simplex",
+    stok: 90,
     satuan: "pcs",
-    kode: "PAS-SPL-18",
-    kategori: "Perangkat Pasif"
+    kode: "ACC-PC-APC3M",
+    kategori: "Aksesoris Indoor"
   },
   {
-    id: 7,
+    id: 10,
+    nama_barang: "Fast Connector SC/UPC Biru Quick Assembly",
+    stok: 310,
+    satuan: "pcs",
+    kode: "ACC-FC-SC-BLU",
+    kategori: "Aksesoris"
+  },
+  {
+    id: 11,
+    nama_barang: "Fast Connector SC/APC Hijau Quick Assembly",
+    stok: 180,
+    satuan: "pcs",
+    kode: "ACC-FC-SC-GRN",
+    kategori: "Aksesoris"
+  },
+  {
+    id: 12,
     nama_barang: "Protection Sleeve Splicing 60mm",
     stok: 650,
     satuan: "pcs",
@@ -127,12 +167,68 @@ export const initialBarang = [
     kategori: "Consumable"
   },
   {
-    id: 8,
-    nama_barang: "Fast Connector SC-UPC Quick",
-    stok: 310,
+    id: 13,
+    nama_barang: "Splitter PLC 1:8 SC/UPC Box Type ODP",
+    stok: 35,
+    satuan: "unit",
+    kode: "PAS-SPL-18",
+    kategori: "Perangkat Pasif"
+  },
+  {
+    id: 14,
+    nama_barang: "Splitter PLC 1:16 SC/UPC Modul ODC",
+    stok: 18,
+    satuan: "unit",
+    kode: "PAS-SPL-116",
+    kategori: "Perangkat Pasif"
+  },
+  {
+    id: 15,
+    nama_barang: "Clamp Hook / S-Clamp Penarik Kabel Tiang",
+    stok: 420,
     satuan: "pcs",
-    kode: "ACC-FC-SC",
+    kode: "ACC-SCLAMP-01",
     kategori: "Aksesoris"
+  },
+  {
+    id: 16,
+    nama_barang: "Suspension Clamp FO Aerial (Penggantung)",
+    stok: 140,
+    satuan: "pcs",
+    kode: "ACC-SUSP-CLP",
+    kategori: "Aksesoris"
+  },
+  {
+    id: 17,
+    nama_barang: "Adaptor Power ONT 12V 1.5A EU Plug",
+    stok: 55,
+    satuan: "unit",
+    kode: "ACC-PWR-12V",
+    kategori: "Perangkat Aktif"
+  },
+  {
+    id: 18,
+    nama_barang: "Kabel UTP Cat5e Patch Cord 1.5M RJ45",
+    stok: 130,
+    satuan: "pcs",
+    kode: "ACC-UTP-15M",
+    kategori: "Aksesoris Indoor"
+  },
+  {
+    id: 19,
+    nama_barang: "Pigtail SC/UPC 0.9mm 1.5M Singlemode",
+    stok: 260,
+    satuan: "pcs",
+    kode: "ACC-PIG-SC",
+    kategori: "Kabel & Serat Optik"
+  },
+  {
+    id: 20,
+    nama_barang: "Alkohol 95% & Tissue Kimwipes Fiber",
+    stok: 45,
+    satuan: "box",
+    kode: "CNS-CLEAN-KIT",
+    kategori: "Consumable"
   }
 ];
 
@@ -275,21 +371,86 @@ export const initialTrackingGps = [
     longitude: 100.6322,
     waktu_update: "2026-09-17 10:45",
     akurasi: "3 meter",
-    kecepatan: "28 km/jam (Menuju Lokasi Pelanggan Koto Nan IV)",
+    kecepatan: "Siaga di Koto Nan IV",
     baterai: 84,
-    is_active: true
-  },
-  {
-    id: 2,
-    tugas_id: 102,
-    teknisi_id: 3,
-    latitude: -0.2295,
-    longitude: 100.6348,
-    waktu_update: "2026-09-17 10:50",
-    akurasi: "4 meter",
-    kecepatan: "Sedang Bekerja Splicing di Balai Nan Duo",
-    baterai: 95,
     is_active: true
   }
 ];
+
+// Data Titik ODP (Optical Distribution Point) Telkom Akses Payakumbuh untuk WebGIS Normal
+export const initialOdp = [
+  {
+    id: 1,
+    kode_odp: "ODP-PYK-FA/001",
+    nama_lokasi: "Jl. Soekarno Hatta No. 14, Koto Nan IV (Depan STO)",
+    latitude: -0.2285,
+    longitude: 100.6335,
+    kapasitas_port: 8,
+    port_terpakai: 6,
+    redaman_dbm: -17.80,
+    status: "Tersedia",
+    keterangan: "Distribusi feeder utama jalur STO - Kantor Pemerintahan"
+  },
+  {
+    id: 2,
+    kode_odp: "ODP-PYK-FA/002",
+    nama_lokasi: "Balai Nan Duo, Payakumbuh Barat (Tiang FO 04)",
+    latitude: -0.2310,
+    longitude: 100.6355,
+    kapasitas_port: 8,
+    port_terpakai: 8,
+    redaman_dbm: -19.40,
+    status: "Penuh",
+    keterangan: "Kawasan pemukiman padat penduduk - Port penuh terisi pelanggan"
+  },
+  {
+    id: 3,
+    kode_odp: "ODP-PYK-FA/003",
+    nama_lokasi: "Jl. Jenderal Sudirman, Labuh Basilang (Kawasan Ruko)",
+    latitude: -0.2245,
+    longitude: 100.6380,
+    kapasitas_port: 16,
+    port_terpakai: 11,
+    redaman_dbm: -18.25,
+    status: "Tersedia",
+    keterangan: "Splitter 1:16 melayani pelanggan IndiHome Bisnis dan Cafe"
+  },
+  {
+    id: 4,
+    kode_odp: "ODP-PYK-FA/004",
+    nama_lokasi: "Kawasan Pasar Ibuh, Payakumbuh Barat",
+    latitude: -0.2260,
+    longitude: 100.6362,
+    kapasitas_port: 8,
+    port_terpakai: 5,
+    redaman_dbm: -18.90,
+    status: "Tersedia",
+    keterangan: "Tiang distribusi sentra pertokoan pasar"
+  },
+  {
+    id: 5,
+    kode_odp: "ODP-PYK-FA/005",
+    nama_lokasi: "Simpang Benteng, Payolansek, Payakumbuh",
+    latitude: -0.2215,
+    longitude: 100.6305,
+    kapasitas_port: 8,
+    port_terpakai: 3,
+    redaman_dbm: -17.20,
+    status: "Tersedia",
+    keterangan: "Kondisi redaman sangat bagus, port cadangan memadai"
+  },
+  {
+    id: 6,
+    kode_odp: "ODP-PYK-FA/006",
+    nama_lokasi: "Kelurahan Tiakar, Payakumbuh Timur",
+    latitude: -0.2335,
+    longitude: 100.6410,
+    kapasitas_port: 8,
+    port_terpakai: 7,
+    redaman_dbm: -26.50,
+    status: "Maintenance",
+    keterangan: "Redaman tinggi (> -24 dBm), dijadwalkan perbaikan adapter ODP"
+  }
+];
+
 

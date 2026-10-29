@@ -26,6 +26,8 @@ const permohonanRoutes = require('./routes/permohonanRoutes');
 const trackingRoutes = require('./routes/trackingRoutes');
 const laporanRoutes = require('./routes/laporanRoutes');
 const barangRoutes = require('./routes/barangRoutes');
+const odpRoutes = require('./routes/odpRoutes');
+const telegramRoutes = require('./routes/telegramRoutes');
 
 // Inisialisasi aplikasi Express
 const app = express();
@@ -50,7 +52,9 @@ app.use('/api/auth', authRoutes);               // Autentikasi akun & login
 app.use('/api/tugas', tugasRoutes);             // Tiket pekerjaan lapangan
 app.use('/api/barang', barangRoutes);           // Inventaris & stok gudang
 app.use('/api/permohonan', permohonanRoutes);   // Permohonan material ke gudang
-app.use('/api/tracking', trackingRoutes);       // Pelacakan GPS teknisi
+app.use('/api/odp', odpRoutes);                 // WebGIS Pemetaan Titik ODP / Jaringan FO
+app.use('/api/telegram', telegramRoutes);       // Integrasi Bot Telegram @sto_pyk_bot
+app.use('/api/tracking', trackingRoutes);       // Tracking GPS (backward compatibility)
 app.use('/api/laporan', laporanRoutes);         // Berita acara & audit laporan
 
 // Mengekspor objek app agar bisa dijalankan oleh server.js

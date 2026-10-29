@@ -5,8 +5,12 @@ import FormTugas from '../components/FormTugas';
 import ApprovalMaterial from '../components/ApprovalMaterial';
 import LaporanAudit from '../components/LaporanAudit';
 import WebGISTracking from '../components/WebGISTracking';
+import KelolaTugas from '../components/KelolaTugas';
 import KelolaPegawai from '../components/KelolaPegawai';
 import ModalBASTP from '../components/ModalBASTP';
+import TabelAsetJaringan from '../components/TabelAsetJaringan';
+import AnalyticsChartsPimpinan from '../components/AnalyticsChartsPimpinan';
+import ModalDetailRiwayatTeknisi from '../components/ModalDetailRiwayatTeknisi';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import {
@@ -19,7 +23,8 @@ import {
   MapPin,
   ArrowRight,
   FileText,
-  Navigation
+  Navigation,
+  User
 } from 'lucide-react';
 import { getTaskTypeConfig } from '../components/WebGISMap';
 
@@ -28,10 +33,19 @@ function DashboardPimpinan() {
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [bastpModalTask, setBastpModalTask] = useState(null);
   const [selectedTrackingTaskId, setSelectedTrackingTaskId] = useState(null);
+  const [selectedTechnician, setSelectedTechnician] = useState(null);
 
   const navigate = useNavigate();
   const { isDark } = useTheme();
-  const { tugas, permohonan, barang, users, trackingGps } = useApp();
+  const {
+    tugas,
+    permohonan,
+    barang,
+    users,
+    trackingGps,
+    removeGpsEntry,
+    resetGpsTracking
+  } = useApp();
 
   // Proteksi sesi pimpinan
   useEffect(() => {
@@ -41,6 +55,20 @@ function DashboardPimpinan() {
     }
   }, [navigate]);
 
+  // Pastikan daftar armada HANYA menampilkan teknisi unik (tidak pernah duplikat)
+  const uniqueTrackingGps = React.useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    trackingGps.forEach(gps => {
+      const techId = Number(gps.teknisi_id);
+      if (techId && !seen.has(techId)) {
+        seen.add(techId);
+        result.push(gps);
+      }
+    });
+    return result;
+  }, [trackingGps]);
+
   // KPI Calculations
   const totalTasks = tugas.length;
   const progressTasks = tugas.filter(t => t.status === 'Progress').length;
@@ -48,7 +76,7 @@ function DashboardPimpinan() {
   const pendingRequests = permohonan.filter(p => p.status === 'Pending').length;
   const totalBarangCount = barang.length;
   const lowStockCount = barang.filter(b => b.stok <= 20).length;
-  const activeTechCount = trackingGps.length;
+  const activeTechCount = uniqueTrackingGps.length;
 
   return (
     <div className={`min-h-screen flex ${
@@ -74,8 +102,10 @@ function DashboardPimpinan() {
                 <span className="text-xs text-slate-400 font-mono">STO Telkom Payakumbuh (Koto Nan IV)</span>
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeMenu === 'dashboard' && 'Dashboard Lengkap & Ringkasan Operasional'}
-                {activeMenu === 'tracking' && 'Pusat Kendali Pelacakan WebGIS Real-Time'}
+                {activeMenu === 'dashboard' && 'Dashboard Ringkasan Operasional STO'}
+                {activeMenu === 'tracking' && 'WebGIS Pemetaan Titik ODP & Lapangan'}
+                {activeMenu === 'tabel-odp' && 'Tabel Inventarisasi Aset Jaringan (ODP, Tiang FO & ODC)'}
+                {activeMenu === 'kelola-tugas' && 'Manajemen & CRUD Tiket Penugasan Lapangan'}
                 {activeMenu === 'approval' && 'Persetujuan (Approval) Material Teknisi'}
                 {activeMenu === 'laporan-kerja' && 'Laporan Audit & Berita Acara Pekerjaan Lapangan'}
                 {activeMenu === 'laporan-gudang' && 'Laporan & Pengawasan Stok Material Gudang'}
@@ -155,6 +185,9 @@ function DashboardPimpinan() {
                 </div>
               </div>
 
+              {/* Visual Analitik 3 Grafik: Donut/Pie Chart, Bar Chart Jenis Pekerjaan, dan Diagram Ketersediaan Stok */}
+              <AnalyticsChartsPimpinan tugas={tugas} barang={barang} permohonan={permohonan} />
+
               {/* Quick Action & Field Summary Cards */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
@@ -162,83 +195,124 @@ function DashboardPimpinan() {
                 <div className={`lg:col-span-2 p-5 sm:p-6 rounded-3xl border ${
                   isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
                 }`}>
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-rose-500" />
                       <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         Armada Teknisi Lapangan Online ({activeTechCount})
                       </h2>
                     </div>
-                    <button
-                      onClick={() => setActiveMenu('tracking')}
-                      className="text-xs text-burgundy-500 hover:text-burgundy-400 font-bold flex items-center gap-1"
-                    >
-                      <span>Buka WebGIS Lengkap</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      {uniqueTrackingGps.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={resetGpsTracking}
+                          className="px-2.5 py-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer"
+                          title="Hapus dan bersihkan semua duplikat GPS tracking"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Bersihkan Duplikat GPS</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setActiveMenu('tracking')}
+                        className="text-xs text-burgundy-500 hover:text-burgundy-400 font-bold flex items-center gap-1"
+                      >
+                        <span>Buka WebGIS Lengkap</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'} mt-3`}>
-                    {trackingGps.map(gps => {
-                      const tech = users.find(u => Number(u.id) === Number(gps.teknisi_id));
-                      const currentTask = tugas.find(t =>
-                        (Number(t.id) === Number(gps.tugas_id) || Number(t.teknisi_id) === Number(gps.teknisi_id)) &&
-                        t.status !== 'Done'
-                      );
-                      const taskCfg = getTaskTypeConfig(currentTask?.jenis_kerja || 'Siaga');
+                    {uniqueTrackingGps.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-slate-500 italic">
+                        Tidak ada armada teknisi online saat ini.
+                      </div>
+                    ) : (
+                      uniqueTrackingGps.map(gps => {
+                        const tech = users.find(u => Number(u.id) === Number(gps.teknisi_id));
+                        const currentTask = tugas.find(t =>
+                          (Number(t.id) === Number(gps.tugas_id) || Number(t.teknisi_id) === Number(gps.teknisi_id)) &&
+                          t.status !== 'Done'
+                        );
+                        const taskCfg = getTaskTypeConfig(currentTask?.jenis_kerja || 'Siaga');
 
-                      return (
-                        <div key={gps.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                          <div className="flex items-start gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center font-bold shrink-0 mt-0.5">
-                              {tech?.nama_lengkap?.charAt(0) || 'T'}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tech?.nama_lengkap || 'Teknisi'}</span>
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${taskCfg.badgeBg}`}>
-                                  {taskCfg.badgeText}
-                                </span>
+                        return (
+                          <div key={gps.teknisi_id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                            <div className="flex items-start gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center font-bold shrink-0 mt-0.5">
+                                {tech?.nama_lengkap?.charAt(0) || 'T'}
                               </div>
-                              {currentTask ? (
-                                <div className="mt-1 space-y-0.5">
-                                  <div className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                                    Tiket <strong>#{currentTask.id}</strong>: {currentTask.pelanggan_nama}
-                                  </div>
-                                  <div className="text-[10px] text-slate-400 truncate max-w-sm">
-                                    Lokasi Pasang/Perbaikan: {currentTask.lokasi}
-                                  </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tech?.nama_lengkap || 'Teknisi'}</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${taskCfg.badgeBg}`}>
+                                    {taskCfg.badgeText}
+                                  </span>
                                 </div>
-                              ) : (
-                                <div className="text-[11px] text-slate-400 italic mt-0.5">
-                                  Siaga di Wilayah STO Payakumbuh
-                                </div>
-                              )}
+                                {currentTask ? (
+                                  <div className="mt-1 space-y-0.5">
+                                    <div className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                      Tiket <strong>#{currentTask.id}</strong>: {currentTask.pelanggan_nama}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 truncate max-w-sm">
+                                      Lokasi Pasang/Perbaikan: {currentTask.lokasi}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-slate-400 italic mt-0.5">
+                                    Siaga di Wilayah STO Payakumbuh
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1.5 shrink-0">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 beacon-soft"></span>
+                                <span>{gps.kecepatan}</span>
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTechnician(tech || { id: gps.teknisi_id, nama_lengkap: 'Teknisi Lapangan', email: 'teknisi@sto.co.id', role: 'teknisi' })}
+                                  className="px-2.5 py-1 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                                  title="Lihat profil, riwayat kerja, dan kelola data di Supabase"
+                                >
+                                  <User className="w-3 h-3" />
+                                  <span>Detail & Riwayat</span>
+                                </button>
+
+                                {currentTask && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedTrackingTaskId(currentTask.id);
+                                      setActiveMenu('tracking');
+                                    }}
+                                    className="px-2.5 py-1 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-500 border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                                  >
+                                    <Navigation className="w-3 h-3" />
+                                    <span>WebGIS</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => removeGpsEntry(gps.teknisi_id)}
+                                  className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition cursor-pointer"
+                                  title="Hapus teknisi ini dari radar armada"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
                           </div>
-
-                          <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1.5 shrink-0">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 beacon-soft"></span>
-                              <span>{gps.kecepatan}</span>
-                            </span>
-                            {currentTask && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedTrackingTaskId(currentTask.id);
-                                  setActiveMenu('tracking');
-                                }}
-                                className="px-2.5 py-1 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-500 border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
-                              >
-                                <Navigation className="w-3 h-3" />
-                                <span>Pantau di WebGIS</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -339,7 +413,15 @@ function DashboardPimpinan() {
                             </td>
                             <td className="px-3 py-2.5">
                               {tech ? (
-                                <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{tech.nama_lengkap}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTechnician(tech)}
+                                  className="font-semibold text-blue-500 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer transition text-left"
+                                  title="Lihat profil & riwayat kerja teknisi ini di database Supabase"
+                                >
+                                  <User className="w-3 h-3 shrink-0" />
+                                  <span>{tech.nama_lengkap}</span>
+                                </button>
                               ) : (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
                                   📢 Pool Terbuka
@@ -381,10 +463,27 @@ function DashboardPimpinan() {
             </div>
           )}
 
-          {/* TAB 2: PUSAT KENDALI WEBGIS */}
+          {/* TAB 2: PUSAT KENDALI WEBGIS ODP */}
           {activeMenu === 'tracking' && (
             <div className="animate-in fade-in duration-200">
               <WebGISTracking initialSelectedTaskId={selectedTrackingTaskId} />
+            </div>
+          )}
+
+          {/* TAB 2.2: TABEL INVENTARISASI ASET JARINGAN (ODP, TIANG FO, ODC) */}
+          {activeMenu === 'tabel-odp' && (
+            <div className="animate-in fade-in duration-200">
+              <TabelAsetJaringan onNavigateToWebGis={() => setActiveMenu('tracking')} />
+            </div>
+          )}
+
+          {/* TAB 2.5: MANAJEMEN PENUGASAN LAPANGAN (CRUD TIKET) */}
+          {activeMenu === 'kelola-tugas' && (
+            <div className="animate-in fade-in duration-200">
+              <KelolaTugas
+                onOpenCreateModal={() => setShowCreateTaskModal(true)}
+                onOpenBastp={setBastpModalTask}
+              />
             </div>
           )}
 
@@ -510,6 +609,19 @@ function DashboardPimpinan() {
         <ModalBASTP
           task={bastpModalTask}
           onClose={() => setBastpModalTask(null)}
+        />
+      )}
+
+      {/* Modal Detail & Riwayat Kerja Teknisi (Tersimpan & Terhapus dari Supabase) */}
+      {selectedTechnician && (
+        <ModalDetailRiwayatTeknisi
+          teknisi={selectedTechnician}
+          onClose={() => setSelectedTechnician(null)}
+          onOpenBastp={setBastpModalTask}
+          onNavigateToTracking={(taskId) => {
+            setSelectedTrackingTaskId(taskId);
+            setActiveMenu('tracking');
+          }}
         />
       )}
 

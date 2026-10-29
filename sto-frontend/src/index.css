@@ -142,67 +142,9 @@ html.light ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-/* High-Visibility Sonar Radar Pulse for Active GPS Technician in Payakumbuh */
-@keyframes sonar-wave {
-  0% {
-    transform: scale(0.6);
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(3.2);
-    opacity: 0;
-  }
-}
-
-.sonar-beacon {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sonar-beacon::before {
-  content: '';
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  background-color: rgba(225, 29, 72, 0.75);
-  animation: sonar-wave 1.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-  pointer-events: none;
-}
-
-.sonar-beacon::after {
-  content: '';
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  background-color: rgba(16, 185, 129, 0.65);
-  animation: sonar-wave 1.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-  animation-delay: 0.8s;
-  pointer-events: none;
-}
-
-/* Animasi kedip lembut dan tenang (Delay/Siklus 1 detik, tidak heboh) */
-@keyframes soft-blink-delay {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.85;
-    filter: drop-shadow(0 0 10px rgba(225, 29, 72, 0.45));
-  }
-}
-
-.beacon-soft {
-  animation: soft-blink-delay 2s ease-in-out infinite;
+/* Leaflet Map Controls & Smooth Transition */
+.leaflet-container {
+  font-family: inherit;
 }
 
 /* Bentuk khusus penanda peta sesuai jenis pekerjaan */

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
+import api from '../api/axiosInstance';
 import ParticleBackground from '../components/ParticleBackground';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -51,18 +52,47 @@ export default function Login({ onTriggerSplash }) {
     try {
       let loggedInUser = null;
 
-      // 1. Direct real-time check against Supabase 'users' table
-      if (isSupabaseConfigured()) {
+      // 1. Prioritaskan Autentikasi via Backend API STO (/api/auth/login)
+      // Mendukung pencocokan hash password Bcrypt dari Supabase secara aman & akurat
+      try {
+        const response = await api.post('/auth/login', {
+          email: email.toLowerCase().trim(),
+          password: password.trim()
+        });
+
+        if (response.data?.success && (response.data?.data?.user || response.data?.user)) {
+          loggedInUser = response.data?.data?.user || response.data?.user;
+        }
+      } catch (backendErr) {
+        // Jika backend secara spesifik menolak password salah atau email tidak ada
+        if (backendErr.response) {
+          const status = backendErr.response.status;
+          const msg = backendErr.response.data?.message;
+          if (status === 401 || status === 404) {
+            setError(msg || 'Email atau kata sandi tidak valid!');
+            setLoading(false);
+            return;
+          }
+        }
+        console.warn('Backend API tidak merespons, mencoba fallback langsung:', backendErr.message);
+      }
+
+      // 2. Direct real-time check against Supabase 'users' table (Fallback jika server backend offline)
+      if (!loggedInUser && isSupabaseConfigured()) {
         try {
           const { data: dbUser, error: dbErr } = await supabase
             .from('users')
             .select('*')
-            .eq('email', email.toLowerCase().trim())
+            .ilike('email', email.toLowerCase().trim())
             .single();
 
           if (dbUser && !dbErr) {
             if (String(dbUser.password).trim() === String(password).trim()) {
               loggedInUser = dbUser;
+            } else if (dbUser.password.startsWith('$2')) {
+              setError('Password akun Anda dienkripsi (Bcrypt). Harap pastikan server backend aktif di port 5000.');
+              setLoading(false);
+              return;
             } else {
               setError('Kata sandi yang Anda masukkan salah!');
               setLoading(false);
@@ -74,7 +104,7 @@ export default function Login({ onTriggerSplash }) {
         }
       }
 
-      // 2. Fallback to state/localStorage users list
+      // 3. Fallback to state/localStorage users list
       if (!loggedInUser) {
         const localFound = users.find(
           (u) => u.email?.toLowerCase().trim() === email.toLowerCase().trim()
@@ -91,7 +121,7 @@ export default function Login({ onTriggerSplash }) {
         }
       }
 
-      // 3. Evaluate Authentication Result
+      // 4. Evaluate Authentication Result
       if (!loggedInUser) {
         setError('Akun dengan email tersebut belum terdaftar di sistem STO.');
         setLoading(false);
@@ -103,6 +133,16 @@ export default function Login({ onTriggerSplash }) {
       setCurrentUser(loggedInUser);
 
       showToast(`Selamat datang, ${loggedInUser.nama_lengkap}! Masuk sebagai ${loggedInUser.role.toUpperCase()}`, 'success');
+
+      // Validasi redirect dari Link Pesan Bot Telegram (/tiket/:id)
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectUrl = searchParams.get('redirect') || sessionStorage.getItem('sto_redirect_after_login');
+
+      if (redirectUrl) {
+        sessionStorage.removeItem('sto_redirect_after_login');
+        navigate(redirectUrl);
+        return;
+      }
 
       if (loggedInUser.role === 'pimpinan') {
         navigate('/dashboard-pimpinan');

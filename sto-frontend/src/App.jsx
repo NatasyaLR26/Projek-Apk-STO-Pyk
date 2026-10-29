@@ -10,6 +10,8 @@ import DashboardPimpinan from './pages/DashboardPimpinan';
 import DashboardTeknisi from './pages/DashboardTeknisi';
 import GudangDashboard from './pages/GudangDashboard';
 import AuditReportPage from './pages/AuditReportPage';
+import DetailTiketTelegram from './pages/DetailTiketTelegram';
+import MagicLogin from './pages/MagicLogin';
 
 function AppContent() {
   const { notification, setNotification } = useApp();
@@ -47,6 +49,8 @@ function AppContent() {
         <Route path="/dashboard-teknisi" element={<DashboardTeknisi />} />
         <Route path="/dashboard-gudang" element={<GudangDashboard />} />
         <Route path="/laporan-audit" element={<AuditReportPage />} />
+        <Route path="/tiket/:id" element={<DetailTiketTelegram />} />
+        <Route path="/magic-login" element={<MagicLogin />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
