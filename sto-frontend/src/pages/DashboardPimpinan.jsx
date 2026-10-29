@@ -4,7 +4,6 @@ import ModernSidebar from '../components/ModernSidebar';
 import FormTugas from '../components/FormTugas';
 import ApprovalMaterial from '../components/ApprovalMaterial';
 import LaporanAudit from '../components/LaporanAudit';
-import WebGISTracking from '../components/WebGISTracking';
 import KelolaTugas from '../components/KelolaTugas';
 import KelolaPegawai from '../components/KelolaPegawai';
 import ModalBASTP from '../components/ModalBASTP';
@@ -20,54 +19,74 @@ import {
   AlertTriangle,
   PlusCircle,
   Package,
-  MapPin,
   ArrowRight,
   FileText,
-  Navigation,
-  User
+  User,
+  Users,
+  Wrench,
+  Phone
 } from 'lucide-react';
-import { getTaskTypeConfig } from '../components/WebGISMap';
+
+// Helper badge konfigurasi jenis penugasan teknisi
+const getTaskTypeConfig = (jenisKerja) => {
+  const jk = (jenisKerja || '').toLowerCase();
+  if (jk.includes('pasang') || jk.includes('psb')) {
+    return {
+      label: 'Pasang Baru (PSB)',
+      badgeBg: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      badgeText: 'Pasang Baru'
+    };
+  }
+  if (jk.includes('kabel') || jk.includes('putus') || jk.includes('dropcore')) {
+    return {
+      label: 'Kabel Putus',
+      badgeBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+      badgeText: 'Kabel Putus'
+    };
+  }
+  if (jk.includes('gangguan') || jk.includes('los')) {
+    return {
+      label: 'Gangguan (LOS)',
+      badgeBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+      badgeText: 'Gangguan'
+    };
+  }
+  return {
+    label: 'Penugasan Lapangan',
+    badgeBg: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    badgeText: 'Perbaikan'
+  };
+};
 
 function DashboardPimpinan() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [bastpModalTask, setBastpModalTask] = useState(null);
-  const [selectedTrackingTaskId, setSelectedTrackingTaskId] = useState(null);
   const [selectedTechnician, setSelectedTechnician] = useState(null);
 
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const {
-    tugas,
-    permohonan,
-    barang,
-    users,
-    trackingGps,
-    removeGpsEntry,
-    resetGpsTracking
+    tugas = [],
+    permohonan = [],
+    barang = [],
+    users = []
   } = useApp();
 
   // Proteksi sesi pimpinan
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (!user || user.role !== 'pimpinan') {
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user || user.role !== 'pimpinan') {
+        navigate('/');
+      }
+    } catch {
       navigate('/');
     }
   }, [navigate]);
 
-  // Pastikan daftar armada HANYA menampilkan teknisi unik (tidak pernah duplikat)
-  const uniqueTrackingGps = React.useMemo(() => {
-    const seen = new Set();
-    const result = [];
-    trackingGps.forEach(gps => {
-      const techId = Number(gps.teknisi_id);
-      if (techId && !seen.has(techId)) {
-        seen.add(techId);
-        result.push(gps);
-      }
-    });
-    return result;
-  }, [trackingGps]);
+  // Daftar teknisi lapangan
+  const fieldTechnicians = users.filter(u => u.role === 'teknisi');
 
   // KPI Calculations
   const totalTasks = tugas.length;
@@ -76,14 +95,16 @@ function DashboardPimpinan() {
   const pendingRequests = permohonan.filter(p => p.status === 'Pending').length;
   const totalBarangCount = barang.length;
   const lowStockCount = barang.filter(b => b.stok <= 20).length;
-  const activeTechCount = uniqueTrackingGps.length;
+  const activeTechCount = fieldTechnicians.filter(tech =>
+    tugas.some(t => Number(t.teknisi_id) === Number(tech.id) && t.status !== 'Done')
+  ).length;
 
   return (
     <div className={`min-h-screen flex ${
       isDark ? 'bg-[#0a0f1d] text-white' : 'bg-slate-50 text-slate-900'
     } transition-colors duration-300`}>
       
-      {/* Left Sidebar Layout (Persistent, Collapsible, No Blur!) */}
+      {/* Left Sidebar Layout */}
       <ModernSidebar activeTab={activeMenu} onTabChange={setActiveMenu} />
 
       {/* Main Content Area beside Sidebar */}
@@ -96,14 +117,13 @@ function DashboardPimpinan() {
           } flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors`}>
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-burgundy-600/20 text-burgundy-400 border border-burgundy-500/30">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-600/20 text-rose-400 border border-rose-500/30">
                   COMMAND CENTER PIMPINAN
                 </span>
-                <span className="text-xs text-slate-400 font-mono">STO Telkom Payakumbuh (Koto Nan IV)</span>
+                <span className="text-xs text-slate-400 font-mono">STO Telkom Akses Payakumbuh (Koto Nan IV)</span>
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {activeMenu === 'dashboard' && 'Dashboard Ringkasan Operasional STO'}
-                {activeMenu === 'tracking' && 'WebGIS Pemetaan Titik ODP & Lapangan'}
                 {activeMenu === 'tabel-odp' && 'Tabel Inventarisasi Aset Jaringan (ODP, Tiang FO & ODC)'}
                 {activeMenu === 'kelola-tugas' && 'Manajemen & CRUD Tiket Penugasan Lapangan'}
                 {activeMenu === 'approval' && 'Persetujuan (Approval) Material Teknisi'}
@@ -112,14 +132,14 @@ function DashboardPimpinan() {
                 {activeMenu === 'kelola-pegawai' && 'Kelola Akun & Hak Akses Pegawai STO'}
               </h1>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                Sistem Koordinasi Penugasan Teknisi, Verifikasi Logistik, dan Monitoring Lapangan.
+                Sistem Koordinasi Penugasan Teknisi, Verifikasi Logistik Gudang, dan Berita Acara Digital.
               </p>
             </div>
 
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowCreateTaskModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-burgundy-600 hover:bg-burgundy-700 text-white font-bold text-xs shadow-lg shadow-burgundy-600/30 transition cursor-pointer active:scale-95 whitespace-nowrap"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition cursor-pointer active:scale-95 whitespace-nowrap"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Buat Tiket Baru (SOP 1)</span>
@@ -168,7 +188,7 @@ function DashboardPimpinan() {
                     </div>
                   </div>
                   <div className="text-2xl font-black text-emerald-500 mt-2">{doneTasks}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Tervalidasi foto bukti</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Tervalidasi foto & BASTP</div>
                 </div>
 
                 <div className={`p-4 rounded-2xl border transition-all ${
@@ -185,129 +205,91 @@ function DashboardPimpinan() {
                 </div>
               </div>
 
-              {/* Visual Analitik 3 Grafik: Donut/Pie Chart, Bar Chart Jenis Pekerjaan, dan Diagram Ketersediaan Stok */}
+              {/* Visual Analitik 3 Grafik */}
               <AnalyticsChartsPimpinan tugas={tugas} barang={barang} permohonan={permohonan} />
 
               {/* Quick Action & Field Summary Cards */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* Live Technician Fleet Radar Card */}
+                {/* Status & Aktivitas Tim Teknisi Lapangan */}
                 <div className={`lg:col-span-2 p-5 sm:p-6 rounded-3xl border ${
                   isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
                 }`}>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-rose-500" />
+                      <Users className="w-4 h-4 text-blue-500" />
                       <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        Armada Teknisi Lapangan Online ({activeTechCount})
+                        Status Penugasan Tim Teknisi Lapangan ({activeTechCount} / {fieldTechnicians.length} Bertugas)
                       </h2>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {uniqueTrackingGps.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={resetGpsTracking}
-                          className="px-2.5 py-1 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer"
-                          title="Hapus dan bersihkan semua duplikat GPS tracking"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span>Bersihkan Duplikat GPS</span>
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setActiveMenu('tracking')}
-                        className="text-xs text-burgundy-500 hover:text-burgundy-400 font-bold flex items-center gap-1"
-                      >
-                        <span>Buka WebGIS Lengkap</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setActiveMenu('kelola-tugas')}
+                      className="text-xs text-rose-500 hover:text-rose-400 font-bold flex items-center gap-1"
+                    >
+                      <span>Kelola Tiket Tugas</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   <div className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'} mt-3`}>
-                    {uniqueTrackingGps.length === 0 ? (
+                    {fieldTechnicians.length === 0 ? (
                       <div className="py-8 text-center text-xs text-slate-500 italic">
-                        Tidak ada armada teknisi online saat ini.
+                        Belum ada data teknisi terdaftar di sistem.
                       </div>
                     ) : (
-                      uniqueTrackingGps.map(gps => {
-                        const tech = users.find(u => Number(u.id) === Number(gps.teknisi_id));
+                      fieldTechnicians.map(tech => {
                         const currentTask = tugas.find(t =>
-                          (Number(t.id) === Number(gps.tugas_id) || Number(t.teknisi_id) === Number(gps.teknisi_id)) &&
-                          t.status !== 'Done'
+                          Number(t.teknisi_id) === Number(tech.id) && t.status !== 'Done'
                         );
                         const taskCfg = getTaskTypeConfig(currentTask?.jenis_kerja || 'Siaga');
 
                         return (
-                          <div key={gps.teknisi_id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                          <div key={tech.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                             <div className="flex items-start gap-3">
                               <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center font-bold shrink-0 mt-0.5">
-                                {tech?.nama_lengkap?.charAt(0) || 'T'}
+                                {tech.nama_lengkap ? tech.nama_lengkap.charAt(0) : 'T'}
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tech?.nama_lengkap || 'Teknisi'}</span>
-                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${taskCfg.badgeBg}`}>
-                                    {taskCfg.badgeText}
+                                  <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                    {tech.nama_lengkap}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                                    currentTask ? taskCfg.badgeBg : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                  }`}>
+                                    {currentTask ? taskCfg.badgeText : '🟢 Siaga di Posko'}
                                   </span>
                                 </div>
+
                                 {currentTask ? (
                                   <div className="mt-1 space-y-0.5">
                                     <div className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                                      Tiket <strong>#{currentTask.id}</strong>: {currentTask.pelanggan_nama}
+                                      Sedang Menangani: Tiket <strong>#{currentTask.id}</strong> - {currentTask.pelanggan_nama}
                                     </div>
                                     <div className="text-[10px] text-slate-400 truncate max-w-sm">
-                                      Lokasi Pasang/Perbaikan: {currentTask.lokasi}
+                                      Lokasi: {currentTask.lokasi}
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-[11px] text-slate-400 italic mt-0.5">
-                                    Siaga di Wilayah STO Payakumbuh
+                                  <div className="text-[11px] text-slate-400 italic mt-0.5 flex items-center gap-1.5">
+                                    <span>Siap menerima penugasan baru di area Payakumbuh</span>
+                                    {tech.phone && <span className="text-[10px] text-slate-500 font-mono">({tech.phone})</span>}
                                   </div>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1.5 shrink-0">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 beacon-soft"></span>
-                                <span>{gps.kecepatan}</span>
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedTechnician(tech || { id: gps.teknisi_id, nama_lengkap: 'Teknisi Lapangan', email: 'teknisi@sto.co.id', role: 'teknisi' })}
-                                  className="px-2.5 py-1 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
-                                  title="Lihat profil, riwayat kerja, dan kelola data di Supabase"
-                                >
-                                  <User className="w-3 h-3" />
-                                  <span>Detail & Riwayat</span>
-                                </button>
-
-                                {currentTask && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedTrackingTaskId(currentTask.id);
-                                      setActiveMenu('tracking');
-                                    }}
-                                    className="px-2.5 py-1 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-500 border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
-                                  >
-                                    <Navigation className="w-3 h-3" />
-                                    <span>WebGIS</span>
-                                  </button>
-                                )}
-
-                                <button
-                                  type="button"
-                                  onClick={() => removeGpsEntry(gps.teknisi_id)}
-                                  className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition cursor-pointer"
-                                  title="Hapus teknisi ini dari radar armada"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTechnician(tech)}
+                                className="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer"
+                                title="Lihat profil dan riwayat pekerjaan teknisi ini"
+                              >
+                                <User className="w-3.5 h-3.5" />
+                                <span>Detail & Riwayat</span>
+                              </button>
                             </div>
                           </div>
                         );
@@ -356,7 +338,7 @@ function DashboardPimpinan() {
 
                     <button
                       onClick={() => setActiveMenu('approval')}
-                      className="w-full mt-2 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition"
+                      className="w-full mt-2 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition cursor-pointer"
                     >
                       Tinjau Approval Material Sekarang
                     </button>
@@ -369,13 +351,13 @@ function DashboardPimpinan() {
               <div className={`p-6 rounded-3xl border ${
                 isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
               }`}>
-                <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
                   <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Daftar Tiket Tugas Lapangan Terkini
                   </h2>
                   <button
                     onClick={() => setActiveMenu('laporan-kerja')}
-                    className="text-xs text-burgundy-500 hover:text-burgundy-400 font-bold"
+                    className="text-xs text-rose-500 hover:text-rose-400 font-bold"
                   >
                     Lihat Semua Laporan
                   </button>
@@ -394,14 +376,14 @@ function DashboardPimpinan() {
                     </thead>
                     <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
                       {tugas.slice(0, 5).map(t => {
-                        const tech = users.find(u => u.id === t.teknisi_id);
+                        const tech = users.find(u => Number(u.id) === Number(t.teknisi_id));
                         return (
                           <tr key={t.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}>
                             <td className="px-3 py-2.5 font-bold font-mono">#{t.id}</td>
                             <td className="px-3 py-2.5">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                                 t.jenis_kerja === 'Pasang Baru' ? 'bg-blue-600/20 text-blue-400 border-blue-500/30' :
-                                t.jenis_kerja === 'Gangguan' ? 'bg-burgundy-600/20 text-burgundy-400 border-burgundy-500/30' :
+                                t.jenis_kerja === 'Gangguan' ? 'bg-rose-600/20 text-rose-400 border-rose-500/30' :
                                 'bg-purple-600/20 text-purple-400 border-purple-500/30'
                               }`}>
                                 {t.jenis_kerja}
@@ -417,7 +399,7 @@ function DashboardPimpinan() {
                                   type="button"
                                   onClick={() => setSelectedTechnician(tech)}
                                   className="font-semibold text-blue-500 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer transition text-left"
-                                  title="Lihat profil & riwayat kerja teknisi ini di database Supabase"
+                                  title="Lihat profil & riwayat kerja teknisi ini"
                                 >
                                   <User className="w-3 h-3 shrink-0" />
                                   <span>{tech.nama_lengkap}</span>
@@ -437,7 +419,7 @@ function DashboardPimpinan() {
                                   <button
                                     type="button"
                                     onClick={() => setBastpModalTask(t)}
-                                    className="px-2 py-0.5 rounded-lg bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
+                                    className="px-2 py-0.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
                                     title="Lihat BASTP & Material Terpasang"
                                   >
                                     <FileText className="w-2.5 h-2.5" />
@@ -449,7 +431,7 @@ function DashboardPimpinan() {
                                   t.status === 'Progress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
                                   'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                 }`}>
-                                  {t.status}
+                                  {t.status || 'Open'}
                                 </span>
                               )}
                             </td>
@@ -463,21 +445,14 @@ function DashboardPimpinan() {
             </div>
           )}
 
-          {/* TAB 2: PUSAT KENDALI WEBGIS ODP */}
-          {activeMenu === 'tracking' && (
-            <div className="animate-in fade-in duration-200">
-              <WebGISTracking initialSelectedTaskId={selectedTrackingTaskId} />
-            </div>
-          )}
-
-          {/* TAB 2.2: TABEL INVENTARISASI ASET JARINGAN (ODP, TIANG FO, ODC) */}
+          {/* TAB 2: TABEL INVENTARISASI ASET JARINGAN (ODP, TIANG FO, ODC) */}
           {activeMenu === 'tabel-odp' && (
             <div className="animate-in fade-in duration-200">
-              <TabelAsetJaringan onNavigateToWebGis={() => setActiveMenu('tracking')} />
+              <TabelAsetJaringan />
             </div>
           )}
 
-          {/* TAB 2.5: MANAJEMEN PENUGASAN LAPANGAN (CRUD TIKET) */}
+          {/* TAB 3: MANAJEMEN PENUGASAN LAPANGAN (CRUD TIKET) */}
           {activeMenu === 'kelola-tugas' && (
             <div className="animate-in fade-in duration-200">
               <KelolaTugas
@@ -487,27 +462,27 @@ function DashboardPimpinan() {
             </div>
           )}
 
-          {/* TAB 3: PERMOHONAN DARI TEKNISI (APPROVAL MATERIAL) */}
+          {/* TAB 4: PERMOHONAN DARI TEKNISI (APPROVAL MATERIAL) */}
           {activeMenu === 'approval' && (
             <div className="animate-in fade-in duration-200">
               <ApprovalMaterial />
             </div>
           )}
 
-          {/* TAB 4: LAPORAN KERJA LAPANGAN */}
+          {/* TAB 5: LAPORAN KERJA LAPANGAN */}
           {activeMenu === 'laporan-kerja' && (
             <div className="animate-in fade-in duration-200">
               <LaporanAudit />
             </div>
           )}
 
-          {/* TAB 5: LAPORAN BARANG DARI GUDANG */}
+          {/* TAB 6: LAPORAN BARANG DARI GUDANG */}
           {activeMenu === 'laporan-gudang' && (
             <div className={`p-6 sm:p-8 rounded-3xl border ${
               isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
             } space-y-6 animate-in fade-in duration-200`}>
               
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
                 <div>
                   <h2 className={`text-base sm:text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Laporan Monitoring Inventaris & Logistik Gudang
@@ -520,7 +495,7 @@ function DashboardPimpinan() {
                   <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30">
                     Total: {barang.length} Material
                   </span>
-                  <span className="px-3 py-1 rounded-xl bg-burgundy-500/20 text-burgundy-400 text-xs font-bold border border-burgundy-500/30">
+                  <span className="px-3 py-1 rounded-xl bg-rose-500/20 text-rose-400 text-xs font-bold border border-rose-500/30">
                     Kritis: {lowStockCount} Item
                   </span>
                 </div>
@@ -570,7 +545,7 @@ function DashboardPimpinan() {
             </div>
           )}
 
-          {/* TAB 6: KELOLA AKUN & PEGAWAI */}
+          {/* TAB 7: KELOLA AKUN & PEGAWAI */}
           {activeMenu === 'kelola-pegawai' && (
             <div className="animate-in fade-in duration-200">
               <KelolaPegawai />
@@ -586,14 +561,14 @@ function DashboardPimpinan() {
           <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 ${
             isDark ? 'bg-slate-900 border border-slate-700 text-white' : 'bg-white border border-slate-200 text-slate-900'
           } shadow-2xl relative`}>
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
               <h3 className="font-bold text-base flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-burgundy-500" />
-                Buat & Siarkan Tiket Kerja Terbuka (SOP 1)
+                <PlusCircle className="w-5 h-5 text-rose-500" />
+                Buat & Siarkan Tiket Kerja (SOP 1)
               </h3>
               <button
                 onClick={() => setShowCreateTaskModal(false)}
-                className="text-slate-400 hover:text-white p-1"
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
               >
                 ✕
               </button>
@@ -612,16 +587,12 @@ function DashboardPimpinan() {
         />
       )}
 
-      {/* Modal Detail & Riwayat Kerja Teknisi (Tersimpan & Terhapus dari Supabase) */}
+      {/* Modal Detail & Riwayat Kerja Teknisi */}
       {selectedTechnician && (
         <ModalDetailRiwayatTeknisi
           teknisi={selectedTechnician}
           onClose={() => setSelectedTechnician(null)}
           onOpenBastp={setBastpModalTask}
-          onNavigateToTracking={(taskId) => {
-            setSelectedTrackingTaskId(taskId);
-            setActiveMenu('tracking');
-          }}
         />
       )}
 

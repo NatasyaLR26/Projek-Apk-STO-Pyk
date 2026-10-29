@@ -46,9 +46,6 @@ export default function DashboardTeknisi() {
     permohonan,
     detailPermohonan,
     barang,
-    trackingGps,
-    updateGpsLocation,
-    simulateTechnicianStep,
     showToast
   } = useApp();
 
@@ -83,8 +80,7 @@ export default function DashboardTeknisi() {
   const [modalTugasId, setModalTugasId] = useState(null);
   const [uploadTugasId, setUploadTugasId] = useState(null);
   const [bastpModalTask, setBastpModalTask] = useState(null);
-  const [isBroadcastingGps, setIsBroadcastingGps] = useState(false);
-
+  
   // Filter daftar tugas:
   // 1. Tiket terbuka yang disiarkan Pimpinan (belum diambil teknisi mana pun)
   const openTasks = tugas.filter(t => !t.teknisi_id && (t.status === 'Open' || !t.status));
@@ -103,20 +99,7 @@ export default function DashboardTeknisi() {
     return parent?.teknisi_id === user.id;
   });
 
-  // Data koordinat GPS teknisi ini
-  const myGps = trackingGps.find(g => g.teknisi_id === user.id) || {
-    latitude: -0.2285,
-    longitude: 100.6335,
-    kecepatan: 'Standby di STO Payakumbuh (Koto Nan IV)',
-    waktu_update: 'Baru saja',
-    baterai: 92,
-    is_active: true
-  };
-
-  // Referensi mutable untuk performa tinggi tanpa memicu re-render berulang
-  const myGpsRef = useRef(myGps);
-  myGpsRef.current = myGps;
-  const activeTasksRef = useRef(activeTasks);
+    const activeTasksRef = useRef(activeTasks);
   activeTasksRef.current = activeTasks;
 
   // Proteksi hak akses sesi teknisi

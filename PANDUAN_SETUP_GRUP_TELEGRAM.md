@@ -85,15 +85,31 @@ APP_FRONTEND_URL=http://localhost:5173
 
 Sistem secara otomatis menyiarkan pesan ke grup Telegram saat 3 event operasional berikut terjadi di aplikasi:
 
-### 1. 🚨 Tiket Gangguan Baru (Saat Pimpinan Terbitkan SPK)
-Pesan otomatis tersiar saat Pimpinan membuat tiket kerja:
-```html
-🚨 <b>TIKET GANGGUAN BARU</b>
-ODP: ODP-PYK-FA/001
-Lokasi: Jl. Soekarno Hatta Koto Nan IV
-Jenis: Kabel Putus Tertimpa Pohon
-```
-*(Dilengkapi tombol inline Telegram <b>[ 🔘 AMBIL TIKET SEKARANG ]</b> untuk klaim langsung oleh teknisi)*.
+### 1. 🚨 Tiket Gangguan / Pekerjaan Baru (Saat Pimpinan Terbitkan SPK)
+Sistem mendukung 2 mode sesuai operasional riil Telkom IndiHome:
+
+* **Mode A: Siaran Terbuka / Open Pool (Standar Tiket Gangguan)**
+  Tiket tidak mencantumkan nama teknisi karena disiarkan terbuka untuk diperebutkan / diklaim oleh teknisi siaga di grup:
+  ```html
+  🚨 <b>TIKET GANGGUAN / PEKERJAAN BARU</b>
+  ODP: ODP-PYK-FA/001
+  Lokasi: Jl. Soekarno Hatta Koto Nan IV
+  Jenis: Kabel Putus Tertimpa Pohon
+  Status: 📢 Terbuka untuk Diambil (Open Pool)
+  ```
+  *(Dilengkapi tombol inline Telegram <b>[ 🔘 AMBIL TIKET SEKARANG ]</b> sehingga siapapun teknisi di grup yang pertama menekan tombol akan otomatis mengunci tiket tersebut ke akunnya).*
+
+* **Mode B: Disposisi Langsung oleh Pimpinan**
+  Jika Pimpinan memilih teknisi tertentu saat membuat tiket:
+  ```html
+  📌 <b>PENUGASAN TIKET PEKERJAAN</b>
+  ODP: ODP-PYK-FA/001
+  Lokasi: Jl. Soekarno Hatta Koto Nan IV
+  Jenis: Pasang Baru IndiHome
+  Teknisi Ditugaskan: Ahmad Fadli
+  Status: Menunggu Pengerjaan
+  ```
+  *(Dilengkapi tombol inline <b>[ 🔍 BUKA TIKET PEKERJAAN ]</b>).*
 
 ### 2. 👷 Pendaftaran Teknisi Baru
 Pesan tersiar saat akun teknisi baru didaftarkan ke sistem:
@@ -120,3 +136,4 @@ Untuk menguji apakah bot dapat mengirim pesan ke grup Telegram:
 # Uji coba via Node.js
 node -e "require('dotenv').config({ path: 'sto-backend/.env' }); const { kirimKeGrup, esc } = require('./sto-backend/src/services/telegramService'); kirimKeGrup('🤖 <b>Tes Pesan Manual</b>\nKoneksi sukses!').then(console.log);"
 ```
+

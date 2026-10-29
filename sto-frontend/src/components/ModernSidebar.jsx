@@ -117,11 +117,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
             label: 'Dashboard Lengkap',
             icon: LayoutDashboard
           },
-          {
-            key: 'tracking',
-            label: 'WebGIS Pemetaan ODP',
-            icon: MapPin
-          },
+          
           {
             key: 'tabel-odp',
             label: 'Tabel ODP, Tiang & ODC',

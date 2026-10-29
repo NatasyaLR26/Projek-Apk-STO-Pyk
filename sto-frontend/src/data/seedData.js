@@ -362,21 +362,6 @@ export const STO_COORDINATES = {
   alamat: "Jl. Soekarno Hatta No. 12, Koto Nan IV, Payakumbuh Barat, Kota Payakumbuh, Sumatera Barat 26224"
 };
 
-export const initialTrackingGps = [
-  {
-    id: 1,
-    tugas_id: 101,
-    teknisi_id: 2,
-    latitude: -0.2278,
-    longitude: 100.6322,
-    waktu_update: "2026-09-17 10:45",
-    akurasi: "3 meter",
-    kecepatan: "Siaga di Koto Nan IV",
-    baterai: 84,
-    is_active: true
-  }
-];
-
 // Data Titik ODP (Optical Distribution Point) Telkom Akses Payakumbuh untuk WebGIS Normal
 export const initialOdp = [
   {

@@ -17,7 +17,35 @@ import {
   RefreshCw,
   Phone
 } from 'lucide-react';
-import { getTaskTypeConfig } from './WebGISMap';
+const getTaskTypeConfig = (jenisKerja) => {
+  const jk = (jenisKerja || '').toLowerCase();
+  if (jk.includes('pasang') || jk.includes('psb')) {
+    return {
+      label: 'Pasang Baru (PSB)',
+      badgeBg: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      badgeText: 'Pasang Baru'
+    };
+  }
+  if (jk.includes('kabel') || jk.includes('putus') || jk.includes('dropcore')) {
+    return {
+      label: 'Kabel Putus',
+      badgeBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+      badgeText: 'Kabel Putus'
+    };
+  }
+  if (jk.includes('gangguan') || jk.includes('los')) {
+    return {
+      label: 'Gangguan (LOS)',
+      badgeBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+      badgeText: 'Gangguan'
+    };
+  }
+  return {
+    label: 'Penugasan Lapangan',
+    badgeBg: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    badgeText: 'Perbaikan'
+  };
+};
 
 export default function ModalDetailRiwayatTeknisi({
   teknisi,
@@ -188,21 +216,8 @@ export default function ModalDetailRiwayatTeknisi({
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-blue-500/20">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onNavigateToTracking(activeTask.id);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <Navigation className="w-3.5 h-3.5" />
-                  <span>Pantau Posisi Teknisi di WebGIS</span>
-                </button>
               </div>
-            </div>
-          ) : (
+            ) : (
             <div className={`p-3.5 rounded-2xl border text-center ${
               isDark ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
             }`}>

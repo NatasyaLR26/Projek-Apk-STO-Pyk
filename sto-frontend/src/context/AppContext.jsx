@@ -42,7 +42,6 @@ import {
   initialTugas,
   initialPermohonan,
   initialDetailPermohonan,
-  initialTrackingGps,
   initialOdp,
   STO_COORDINATES
 } from '../data/seedData';
@@ -57,7 +56,7 @@ export function AppProvider({ children }) {
 
   // 2. Current Active User (Session)
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('sto_currentUser');
+    const saved = localStorage.getItem('user') || localStorage.getItem('sto_currentUser');
     if (saved) {
       try { return JSON.parse(saved); } catch { /* ignore */ }
     }
@@ -90,30 +89,9 @@ export function AppProvider({ children }) {
     return saved ? JSON.parse(saved) : initialDetailPermohonan;
   });
 
-  const [trackingGps, setTrackingGps] = useState(() => {
-    const saved = localStorage.getItem('sto_trackingGps');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Bersihkan duplikasi: Hanya simpan 1 entri GPS terbaru per teknisi_id
-          const uniqueMap = new Map();
-          parsed.forEach(item => {
-            const techId = Number(item?.teknisi_id);
-            if (techId && !uniqueMap.has(techId)) {
-              uniqueMap.set(techId, item);
-            }
-          });
-          const deduplicated = Array.from(uniqueMap.values());
-          if (deduplicated.length > 0) {
-            localStorage.setItem('sto_trackingGps', JSON.stringify(deduplicated));
-            return deduplicated;
-          }
-        }
-      } catch { /* fallback */ }
-    }
-    return initialTrackingGps;
-  });
+  // GPS Tracking dinonaktifkan sesuai kebutuhan produksi
+  const trackingGps = [];
+  const setTrackingGps = () => {};
 
   const [odp, setOdp] = useState(() => {
     const saved = localStorage.getItem('sto_odp');
@@ -136,6 +114,7 @@ export function AppProvider({ children }) {
   // Sync to LocalStorage (local state fallback cache)
   useEffect(() => {
     localStorage.setItem('sto_currentUser', JSON.stringify(currentUser));
+    if (currentUser) localStorage.setItem('user', JSON.stringify(currentUser));
   }, [currentUser]);
 
   useEffect(() => {
@@ -158,9 +137,7 @@ export function AppProvider({ children }) {
     localStorage.setItem('sto_detailPermohonan', JSON.stringify(detailPermohonan));
   }, [detailPermohonan]);
 
-  useEffect(() => {
-    localStorage.setItem('sto_trackingGps', JSON.stringify(trackingGps));
-  }, [trackingGps]);
+  useEffect(() => { localStorage.removeItem('sto_trackingGps'); }, []);
 
   useEffect(() => {
     localStorage.setItem('sto_odp', JSON.stringify(odp));
@@ -186,15 +163,12 @@ export function AppProvider({ children }) {
         resBarang,
         resTugas,
         resPermohonan,
-        resDetail,
-        resGps
-      ] = await Promise.all([
+        resDetail] = await Promise.all([
         supabase.from('users').select('*'),
         supabase.from('barang').select('*').order('nama_barang', { ascending: true }),
         supabase.from('tugas').select('*').order('id', { ascending: false }),
         supabase.from('permohonan').select('*').order('id', { ascending: false }),
-        supabase.from('detail_permohonan').select('*'),
-        supabase.from('tracking_gps').select('*')
+        supabase.from('detail_permohonan').select('*')
       ]);
 
       if (resUsers.data && resUsers.data.length > 0) setUsers(resUsers.data);
@@ -216,21 +190,7 @@ export function AppProvider({ children }) {
       }
       if (resPermohonan.data && resPermohonan.data.length > 0) setPermohonan(resPermohonan.data);
       if (resDetail.data && resDetail.data.length > 0) setDetailPermohonan(resDetail.data);
-      if (resGps.data && resGps.data.length > 0) {
-        // Tautkan teknisi_id dari tugas jika skema Supabase tracking_gps hanya menyimpan tugas_id
-        const mappedGps = resGps.data.map(g => {
-          const matchedTask = resTugas.data?.find(t => Number(t.id) === Number(g.tugas_id));
-          return {
-            ...g,
-            teknisi_id: g.teknisi_id || (matchedTask ? Number(matchedTask.teknisi_id) : 2),
-            akurasi: g.akurasi || '3 meter',
-            kecepatan: g.kecepatan || 'Bergerak di Payakumbuh',
-            baterai: g.baterai || 85,
-            is_active: g.is_active !== false
-          };
-        });
-        setTrackingGps(mappedGps);
-      }
+      // GPS data query removed
 
       // 7. Ambil data titik ODP Jaringan Fiber Optic
       try {
@@ -297,23 +257,6 @@ export function AppProvider({ children }) {
       .channel('realtime_sto_live')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'tracking_gps' },
-        (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            setTrackingGps((prev) => {
-              const idx = prev.findIndex((g) => g.teknisi_id === payload.new.teknisi_id);
-              if (idx >= 0) {
-                const updated = [...prev];
-                updated[idx] = { ...updated[idx], ...payload.new };
-                return updated;
-              }
-              return [...prev, payload.new];
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
         { event: '*', schema: 'public', table: 'tugas' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
@@ -361,6 +304,8 @@ export function AppProvider({ children }) {
   };
 
   const logout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('sto_currentUser');
     setCurrentUser(null);
     setCurrentView('landing');
     showToast("Anda telah keluar dari sistem.", "info");
@@ -510,26 +455,7 @@ export function AppProvider({ children }) {
       return t;
     }));
 
-    // Tautkan GPS teknisi secara langsung ke tugas yang baru diambil (DENGAN DEDUPLIKASI KETAT)
-    setTrackingGps(prev => {
-      const other = prev.filter(g => Number(g.teknisi_id) !== parsedTeknisiId);
-      const existing = prev.find(g => Number(g.teknisi_id) === parsedTeknisiId);
-
-      const entry = {
-        id: existing ? existing.id : (other.length + 1),
-        tugas_id: parsedTugasId,
-        teknisi_id: parsedTeknisiId,
-        latitude: existing ? existing.latitude : STO_COORDINATES.lat,
-        longitude: existing ? existing.longitude : STO_COORDINATES.lng,
-        waktu_update: new Date().toLocaleTimeString('id-ID'),
-        akurasi: '3 meter',
-        kecepatan: 'Bergerak Menuju Lokasi Pemasangan/Perbaikan',
-        baterai: existing?.baterai || 90,
-        is_active: true
-      };
-
-      return [...other, entry];
-    });
+    // GPS link removed
 
     // 3. Sinkronisasi langsung ke Supabase: Pastikan riwayat kerja tersimpan di tabel tugas Supabase
     if (isSupabaseConfigured()) {
@@ -759,72 +685,8 @@ export function AppProvider({ children }) {
   };
 
   // SOP 5: Teknisi menuju lokasi (Sistem melacak koordinat GPS)
-  const updateGpsLocation = (teknisiId, lat, lng, extra = {}) => {
-    const parsedTeknisiId = parseInt(teknisiId, 10);
-    const parsedLat = parseFloat(lat);
-    const parsedLng = parseFloat(lng);
-
-    if (isNaN(parsedTeknisiId) || isNaN(parsedLat) || isNaN(parsedLng)) return;
-
-    const now = new Date();
-    const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    // Update koordinat dengan menjamin 1 teknisi = 1 entri unik di radar
-    setTrackingGps(prev => {
-      const other = prev.filter(g => Number(g.teknisi_id) !== parsedTeknisiId);
-      const existing = prev.find(g => Number(g.teknisi_id) === parsedTeknisiId);
-      const activeTask = tugas.find(t => Number(t.teknisi_id) === parsedTeknisiId && t.status !== 'Done');
-      const assignedTaskId = extra.tugas_id || (activeTask ? activeTask.id : (existing ? existing.tugas_id : null));
-
-      const entry = {
-        id: existing ? existing.id : (other.length + 1),
-        tugas_id: assignedTaskId,
-        teknisi_id: parsedTeknisiId,
-        latitude: parsedLat,
-        longitude: parsedLng,
-        waktu_update: formattedDate,
-        akurasi: extra.akurasi || "3 meter",
-        kecepatan: extra.kecepatan || (activeTask ? `Menuju Lokasi #${activeTask.id} (${activeTask.jenis_kerja})` : "Bergerak di Payakumbuh"),
-        baterai: extra.baterai || 85,
-        is_active: extra.is_active !== false
-      };
-
-      return [...other, entry];
-    });
-
-    // Sync to Supabase in real-time
-    if (isSupabaseConfigured()) {
-      const activeTaskId = extra.tugas_id || tugas.find(t => Number(t.teknisi_id) === parsedTeknisiId && t.status !== 'Done')?.id;
-      if (activeTaskId) {
-        supabase.from('tracking_gps').insert([{
-          tugas_id: Number(activeTaskId),
-          latitude: Number(parsedLat.toFixed(8)),
-          longitude: Number(parsedLng.toFixed(8)),
-          waktu_update: new Date().toISOString()
-        }]).then(() => {});
-      }
-    }
-  };
-
-  // Simulasi pergerakan teknisi menuju target
-  const simulateTechnicianStep = (teknisiId, targetLat, targetLng) => {
-    const parsedTeknisiId = parseInt(teknisiId, 10);
-    const currentGps = trackingGps.find(g => Number(g.teknisi_id) === parsedTeknisiId);
-    const curLat = currentGps ? currentGps.latitude : STO_COORDINATES.lat;
-    const curLng = currentGps ? currentGps.longitude : STO_COORDINATES.lng;
-
-    // Move 35% closer to target
-    const nextLat = curLat + (targetLat - curLat) * 0.35;
-    const nextLng = curLng + (targetLng - curLng) * 0.35;
-
-    updateGpsLocation(parsedTeknisiId, nextLat, nextLng, {
-      kecepatan: "34 km/h (Menuju Pelanggan)",
-      akurasi: "3 meter",
-      baterai: currentGps ? Math.max(20, currentGps.baterai - 1) : 80
-    });
-
-    showToast("GPS Teknisi terkirim ke WebGIS Pimpinan!", "info");
-  };
+  const updateGpsLocation = () => {};
+  const simulateTechnicianStep = () => {};
 
   /**
    * ==========================================================================

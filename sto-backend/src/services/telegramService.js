@@ -127,6 +127,22 @@ async function handleTelegramCallbackQuery(cq) {
   const senderUsername = from.username || '';
   const senderName = `${from.first_name || ''} ${from.last_name || ''}`.trim() || from.username || 'Teknisi Lapangan';
 
+  // Tangani aksi Lihat Tiket (view_ID)
+  if (data.startsWith('view_')) {
+    const tugasId = parseInt(data.replace('view_', ''), 10);
+    const baseUrl = process.env.APP_FRONTEND_URL || 'http://localhost:5173';
+    await fetch(`${TELEGRAM_API_BASE}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        callback_query_id: cq.id,
+        text: `Membuka Tiket #${tugasId} di browser...`
+      })
+    });
+    await kirimKeGrup(`ℹ️ <b>Detail Tiket #${tugasId}:</b> <a href="${baseUrl}/tiket/${tugasId}">${baseUrl}/tiket/${tugasId}</a>`);
+    return;
+  }
+
   if (!data.startsWith('claim_')) return;
 
   const tugasId = parseInt(data.replace('claim_', ''), 10);

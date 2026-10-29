@@ -115,30 +115,97 @@ exports.createTugas = async (req, res) => {
     const crypto = require('crypto');
     token = crypto.randomBytes(24).toString('hex');
     const expiredAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const assignedUserId = parsedTeknisiId || 2; // Default teknisi utama STO
+    const assignedUserId = parsedTeknisiId || null;
 
-    await supabase.from('auth_tokens').insert([{
-      token,
-      user_id: assignedUserId,
-      tugas_id: data.id,
-      expired_at: expiredAt,
-      is_used: false
-    }]);
+    if (assignedUserId) {
+      await supabase.from('auth_tokens').insert([{
+        token,
+        user_id: assignedUserId,
+        tugas_id: data.id,
+        expired_at: expiredAt,
+        is_used: false
+      }]);
+    }
 
     const baseUrl = process.env.APP_FRONTEND_URL || 'http://localhost:5173';
-    magicUrl = `${baseUrl}/magic-login?token=${token}`;
+    magicUrl = `${baseUrl}/tiket/${data.id}`;
 
     const odp = odp_kode || (parsedOdpId ? `ODP-ID-${parsedOdpId}` : 'ODP-PYK-01/04');
-    const lokasi = data.lokasi || fullLokasi;
+    const lokasiText = data.lokasi || fullLokasi;
     const jenis = data.jenis_kerja || jenis_kerja;
 
-    const inlineKeyboard = telegramService.buildInlineKeyboardTiket({
-      tugas: data,
-      magicUrl
-    });
+    // Ambil nama teknisi jika dipilih langsung oleh pimpinan
+    let techName = null;
+    if (parsedTeknisiId) {
+      try {
+        const { data: techUser } = await supabase
+          .from('users')
+          .select('nama_lengkap')
+          .eq('id', parsedTeknisiId)
+          .single();
+        if (techUser) techName = techUser.nama_lengkap;
+      } catch { /* ignore */ }
+    }
 
-    // 1. Broadcast pesan tiket gangguan baru ke Telegram Group (SOP Alur Telegram)
-    const pesanTiket = `🚨 <b>TIKET GANGGUAN BARU</b>\nODP: ${telegramService.esc(odp)}\nLokasi: ${telegramService.esc(lokasi)}\nJenis: ${telegramService.esc(jenis)}`;
+    let pesanTiket = '';
+    let inlineKeyboard = null;
+
+    if (!parsedTeknisiId) {
+      // 1. ALUR REAL OPEN POOL: Tiket terbuka untuk siapapun teknisi dalam grup Telegram
+      // TIDAK menyertakan nama teknisi karena belum ada yang mengambil
+      pesanTiket = [
+        `🚨 <b>TIKET GANGGUAN / PEKERJAAN BARU</b>`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `📋 <b>Nomor Tiket:</b> #${data.id}`,
+        `🔌 <b>ODP:</b> <code>${telegramService.esc(odp)}</code>`,
+        `📍 <b>Lokasi:</b> ${telegramService.esc(lokasiText)}`,
+        `💼 <b>Jenis:</b> ${telegramService.esc(jenis)}`,
+        pelanggan_nama ? `👤 <b>Pelanggan:</b> ${telegramService.esc(pelanggan_nama)}` : null,
+        pelanggan_telp ? `📞 <b>Kontak:</b> ${telegramService.esc(pelanggan_telp)}` : null,
+        `📊 <b>Status:</b> 📢 Terbuka untuk Diambil (Open Pool)`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `⚡ <i>Silakan teknisi lapangan klik tombol di bawah untuk mengambil tiket:</i>`,
+        `👉 <a href="${magicUrl}">Buka Tiket via Web</a>`
+      ].filter(Boolean).join('\n');
+
+      inlineKeyboard = {
+        inline_keyboard: [
+          [
+            {
+              text: '🔘 AMBIL TIKET SEKARANG',
+              callback_data: `claim_${data.id}`
+            }
+          ]
+        ]
+      };
+    } else {
+      // 2. ALUR PENUGASAN LANGSUNG: Pimpinan menunjuk teknisi spesifik
+      pesanTiket = [
+        `📌 <b>PENUGASAN TIKET PEKERJAAN</b>`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `📋 <b>Nomor Tiket:</b> #${data.id}`,
+        `🔌 <b>ODP:</b> <code>${telegramService.esc(odp)}</code>`,
+        `📍 <b>Lokasi:</b> ${telegramService.esc(lokasiText)}`,
+        `💼 <b>Jenis:</b> ${telegramService.esc(jenis)}`,
+        pelanggan_nama ? `👤 <b>Pelanggan:</b> ${telegramService.esc(pelanggan_nama)}` : null,
+        `👷 <b>Teknisi Ditugaskan:</b> ${telegramService.esc(techName || 'Teknisi Lapangan')}`,
+        `📊 <b>Status:</b> Menunggu Pengerjaan`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `👉 <a href="${magicUrl}">Buka Detail Tiket</a>`
+      ].filter(Boolean).join('\n');
+
+      inlineKeyboard = {
+        inline_keyboard: [
+          [
+            {
+              text: '🔍 BUKA TIKET PEKERJAAN',
+              callback_data: `view_${data.id}`
+            }
+          ]
+        ]
+      };
+    }
+
     const tgResult = await telegramService.kirimKeGrup(pesanTiket, {
       reply_markup: inlineKeyboard
     });
