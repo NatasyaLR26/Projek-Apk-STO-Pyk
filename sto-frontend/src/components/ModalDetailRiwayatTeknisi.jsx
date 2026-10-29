@@ -216,7 +216,22 @@ export default function ModalDetailRiwayatTeknisi({
                 </div>
               </div>
 
-              </div>
+              {onNavigateToTracking && (
+                <div className="pt-2 flex items-center justify-end border-t border-blue-500/20">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onNavigateToTracking(activeTask.id);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Lihat Titik Lokasi di WebGIS</span>
+                  </button>
+                </div>
+              )}
+            </div>
             ) : (
             <div className={`p-3.5 rounded-2xl border text-center ${
               isDark ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'

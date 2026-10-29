@@ -173,6 +173,30 @@ html.light ::-webkit-scrollbar-thumb:hover {
   transform: rotate(-15deg);
 }
 
+/* Efek kedip penanda tugas di WebGIS: lembut dengan jeda/delay 1 detik (tidak heboh/silau) */
+@keyframes softBeacon1s {
+  0% {
+    transform: scale(1);
+    opacity: 0.95;
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.45);
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+    box-shadow: 0 0 0 8px rgba(225, 29, 72, 0);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.95;
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0);
+  }
+}
+
+.beacon-soft-delay-1s {
+  animation: softBeacon1s 2.4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
 /* Glassmorphism Classes */
 .glass-card-dark {
   background: rgba(15, 23, 42, 0.75);

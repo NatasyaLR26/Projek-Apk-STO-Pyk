@@ -4,6 +4,7 @@ import ModernSidebar from '../components/ModernSidebar';
 import FormTugas from '../components/FormTugas';
 import ApprovalMaterial from '../components/ApprovalMaterial';
 import LaporanAudit from '../components/LaporanAudit';
+import WebGISTracking from '../components/WebGISTracking';
 import KelolaTugas from '../components/KelolaTugas';
 import KelolaPegawai from '../components/KelolaPegawai';
 import ModalBASTP from '../components/ModalBASTP';
@@ -19,6 +20,7 @@ import {
   AlertTriangle,
   PlusCircle,
   Package,
+  MapPin,
   ArrowRight,
   FileText,
   User,
@@ -62,6 +64,7 @@ function DashboardPimpinan() {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [bastpModalTask, setBastpModalTask] = useState(null);
+  const [selectedTrackingTaskId, setSelectedTrackingTaskId] = useState(null);
   const [selectedTechnician, setSelectedTechnician] = useState(null);
 
   const navigate = useNavigate();
@@ -124,6 +127,7 @@ function DashboardPimpinan() {
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {activeMenu === 'dashboard' && 'Dashboard Ringkasan Operasional STO'}
+                {activeMenu === 'tracking' && 'WebGIS Pemetaan Titik ODP & Aset Fiber Optic'}
                 {activeMenu === 'tabel-odp' && 'Tabel Inventarisasi Aset Jaringan (ODP, Tiang FO & ODC)'}
                 {activeMenu === 'kelola-tugas' && 'Manajemen & CRUD Tiket Penugasan Lapangan'}
                 {activeMenu === 'approval' && 'Persetujuan (Approval) Material Teknisi'}
@@ -223,13 +227,22 @@ function DashboardPimpinan() {
                       </h2>
                     </div>
 
-                    <button
-                      onClick={() => setActiveMenu('kelola-tugas')}
-                      className="text-xs text-rose-500 hover:text-rose-400 font-bold flex items-center gap-1"
-                    >
-                      <span>Kelola Tiket Tugas</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setActiveMenu('tracking')}
+                        className="px-2.5 py-1 rounded-xl bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 border border-blue-500/30 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Buka Peta WebGIS</span>
+                      </button>
+                      <button
+                        onClick={() => setActiveMenu('kelola-tugas')}
+                        className="text-xs text-rose-500 hover:text-rose-400 font-bold flex items-center gap-1"
+                      >
+                        <span>Kelola Tiket</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'} mt-3`}>
@@ -445,10 +458,17 @@ function DashboardPimpinan() {
             </div>
           )}
 
-          {/* TAB 2: TABEL INVENTARISASI ASET JARINGAN (ODP, TIANG FO, ODC) */}
+                    {/* TAB 2: PUSAT KENDALI WEBGIS ODP */}
+          {activeMenu === 'tracking' && (
+            <div className="animate-in fade-in duration-200">
+              <WebGISTracking initialSelectedTaskId={selectedTrackingTaskId} />
+            </div>
+          )}
+
+          {/* TAB 2.5: TABEL INVENTARISASI ASET JARINGAN (ODP, TIANG FO, ODC) */}
           {activeMenu === 'tabel-odp' && (
             <div className="animate-in fade-in duration-200">
-              <TabelAsetJaringan />
+              <TabelAsetJaringan onNavigateToWebGis={() => setActiveMenu('tracking')} />
             </div>
           )}
 
@@ -593,6 +613,10 @@ function DashboardPimpinan() {
           teknisi={selectedTechnician}
           onClose={() => setSelectedTechnician(null)}
           onOpenBastp={setBastpModalTask}
+          onNavigateToTracking={(taskId) => {
+            setSelectedTrackingTaskId(taskId);
+            setActiveMenu('tracking');
+          }}
         />
       )}
 
