@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "STO Telkom Akses Management Workspace",
   "scripts": {
+    "build": "npm --prefix sto-frontend run build",
     "dev:backend": "npm --prefix sto-backend run dev",
     "dev:frontend": "npm --prefix sto-frontend run dev",
     "build:frontend": "npm --prefix sto-frontend run build",

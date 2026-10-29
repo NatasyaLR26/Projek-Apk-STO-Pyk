@@ -171,10 +171,9 @@ exports.createTugas = async (req, res) => {
       inlineKeyboard = {
         inline_keyboard: [
           [
-            {
-              text: '🔘 AMBIL TIKET SEKARANG',
-              callback_data: `claim_${data.id}`
-            }
+            magicUrl && magicUrl.startsWith('https://')
+              ? { text: '🔘 AMBIL TIKET SEKARANG', url: magicUrl }
+              : { text: '🔘 AMBIL TIKET SEKARANG', callback_data: `claim_${data.id}` }
           ]
         ]
       };
@@ -197,10 +196,9 @@ exports.createTugas = async (req, res) => {
       inlineKeyboard = {
         inline_keyboard: [
           [
-            {
-              text: '🔍 BUKA TIKET PEKERJAAN',
-              callback_data: `view_${data.id}`
-            }
+            magicUrl && magicUrl.startsWith('https://')
+              ? { text: '🔍 BUKA TIKET PEKERJAAN', url: magicUrl }
+              : { text: '🔍 BUKA TIKET PEKERJAAN', callback_data: `view_${data.id}` }
           ]
         ]
       };
