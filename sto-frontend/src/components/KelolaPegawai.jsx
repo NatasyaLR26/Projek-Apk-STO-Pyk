@@ -12,12 +12,16 @@ import {
   BadgeCheck,
   Lock,
   Trash2,
-  X
+  X,
+  Clock,
+  Key,
+  Check,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function KelolaPegawai() {
   const { isDark } = useTheme();
-  const { users, addUser, showToast } = useApp();
+  const { users, addUser, approveUser, rejectUser, showToast } = useApp();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [nama, setNama] = useState('');
@@ -26,6 +30,8 @@ export default function KelolaPegawai() {
   const [role, setRole] = useState('teknisi');
   const [submitting, setSubmitting] = useState(false);
   const [filterRole, setFilterRole] = useState('all');
+
+  const pendingUsers = users.filter(u => u.status_verifikasi === 'Pending Approval');
 
   const handleSubmitUser = async (e) => {
     e.preventDefault();
@@ -86,6 +92,95 @@ export default function KelolaPegawai() {
           <UserPlus className="w-4 h-4" />
           <span>Tambah Akun Pegawai</span>
         </button>
+      </div>
+
+      {/* Persetujuan Registrasi Pegawai Baru (Pending Approval) */}
+      {pendingUsers.length > 0 && (
+        <div className="p-5 rounded-3xl bg-linear-to-r from-amber-500/15 via-purple-500/10 to-transparent border border-amber-500/30 space-y-3 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <Clock className="w-5 h-5 animate-pulse" />
+              </span>
+              <div>
+                <h2 className="text-sm sm:text-base font-extrabold text-amber-400 flex items-center gap-2">
+                  <span>Persetujuan Registrasi Pegawai Baru (Pending Approval)</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 font-mono">
+                    {pendingUsers.length} Permintaan
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Calon pegawai mendaftar tanpa kode otorisasi dan memerlukan verifikasi manual dari Pimpinan STO sebelum dapat login.
+                </p>
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-mono text-amber-300">
+              <Key className="w-3.5 h-3.5" />
+              <span>Token Aktif: STO-PYK-2026</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {pendingUsers.map(pu => (
+              <div
+                key={pu.id}
+                className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center border border-amber-500/30">
+                    {pu.nama_lengkap?.charAt(0) || 'P'}
+                  </div>
+                  <div>
+                    <div className="font-extrabold text-sm text-white flex items-center gap-2">
+                      <span>{pu.nama_lengkap}</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                        {pu.role?.toUpperCase() || 'TEKNISI'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                      <span>{pu.email}</span>
+                      <span>&bull;</span>
+                      <span className="font-mono text-[10px] text-slate-500">OTP Input: {pu.kode_otorisasi || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => approveUser(pu.id)}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Setujui Akun</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => rejectUser(pu.id)}
+                    className="px-3 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 font-bold text-xs transition cursor-pointer flex items-center gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Tolak</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Corporate OTP Banner */}
+      <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <Key className="w-4 h-4 text-blue-400 shrink-0" />
+          <div>
+            <span className="font-bold text-blue-400">Kode Otorisasi Korporat Internal STO Payakumbuh:</span>
+            <span className="ml-2 font-mono font-black text-amber-400 bg-black/40 px-2 py-0.5 rounded border border-amber-500/40">STO-PYK-2026</span>
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-400">
+          Berikan kode ini kepada teknisi baru agar registrasi langsung aktif tanpa menunggu approval manual.
+        </p>
       </div>
 
       {/* Role Filter Tabs */}
@@ -162,8 +257,22 @@ export default function KelolaPegawai() {
                   </td>
 
                   <td className="px-4 py-3.5 text-center">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                      Aktif (Real)
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-flex items-center gap-1 ${
+                      u.status_verifikasi === 'Pending Approval'
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                        : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                    }`}>
+                      {u.status_verifikasi === 'Pending Approval' ? (
+                        <>
+                          <Clock className="w-3 h-3" />
+                          <span>Pending Approval</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Aktif (Verified)</span>
+                        </>
+                      )}
                     </span>
                   </td>
                 </tr>

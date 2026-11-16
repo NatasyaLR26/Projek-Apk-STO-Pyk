@@ -4,6 +4,7 @@ import ModernSidebar from '../components/ModernSidebar';
 import InputBarangGudang from '../components/InputBarangGudang';
 import CetakSuratJalan from '../components/CetakSuratJalan';
 import ModalBASTP from '../components/ModalBASTP';
+import TabelPelangganAset from '../components/TabelPelangganAset';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -18,6 +19,7 @@ import {
   FileText,
   Eye,
   ShieldCheck,
+  ShieldAlert,
   Barcode,
   Radio,
   Package,
@@ -28,7 +30,8 @@ import {
   Download,
   FileSpreadsheet,
   Truck,
-  Check
+  Check,
+  Layers
 } from 'lucide-react';
 
 export default function GudangDashboard() {
@@ -82,10 +85,13 @@ export default function GudangDashboard() {
   const [ontSearchQuery, setOntSearchQuery] = useState('');
   const [ontStatusFilter, setOntStatusFilter] = useState('all');
 
-  // Modals
+  // Modals & Subtabs
   const [editingItem, setEditingItem] = useState(null);
   const [bastpModalTask, setBastpModalTask] = useState(null);
   const [snOntInputs, setSnOntInputs] = useState({});
+  const [batchSnInputs, setBatchSnInputs] = useState({});
+  const [batchModelInputs, setBatchModelInputs] = useState({});
+  const [auditSubTab, setAuditSubTab] = useState('ont-list'); // 'ont-list' | 'pelanggan-debt-collector'
 
   // Form State for Add / Edit
   const [barangForm, setBarangForm] = useState({
@@ -146,15 +152,15 @@ export default function GudangDashboard() {
 
   // Resolusi kategori otomatis berdasarkan nama barang standar Telkom
   const resolveKategori = (b) => {
-    if (b.kategori && b.kategori !== 'Umum' && b.kategori !== 'Material') return b.kategori;
     const name = (b.nama_barang || '').toLowerCase();
-    if (name.includes('kabel') || name.includes('dropcore') || name.includes('fo') || name.includes('fiber') || name.includes('serat')) {
+    const cat = (b.kategori || '').toLowerCase();
+    if (name.includes('kabel') || name.includes('dropcore') || name.includes('fo') || name.includes('fiber') || name.includes('serat') || name.includes('utp') || name.includes('lan') || cat.includes('kabel') || cat.includes('serat')) {
       return 'Kabel & Serat Optik';
     }
-    if (name.includes('ont') || name.includes('modem') || name.includes('zte') || name.includes('huawei') || name.includes('fiberhome')) {
+    if (name.includes('ont') || name.includes('modem') || name.includes('zte') || name.includes('huawei') || name.includes('fiberhome') || name.includes('stb') || cat.includes('aktif') || cat.includes('modem') || cat.includes('ont')) {
       return 'Perangkat Aktif (ONT)';
     }
-    if (name.includes('roset') || name.includes('patchcord') || name.includes('splitter') || name.includes('adapter') || name.includes('odp')) {
+    if (name.includes('roset') || name.includes('patchcord') || name.includes('splitter') || name.includes('adapter') || name.includes('odp') || cat.includes('pasif')) {
       return 'Perangkat Pasif';
     }
     return 'Consumable & Aksesoris';
@@ -260,8 +266,22 @@ export default function GudangDashboard() {
   };
 
   const handleRelease = (reqId) => {
-    const sn = snOntInputs[reqId] || null;
-    releaseMaterial(reqId, sn);
+    const target = permohonan.find(p => Number(p.id) === Number(reqId));
+    const isBatch = target?.is_batch || (target?.tugas_ids && target.tugas_ids.length > 1);
+
+    if (isBatch && target.tugas_ids && target.tugas_ids.length > 0) {
+      const allocations = {};
+      target.tugas_ids.forEach(tid => {
+        const key = `${reqId}_${tid}`;
+        const sn = batchSnInputs[key] || `ZTEGC8B${Math.random().toString(16).substring(2, 7).toUpperCase()}`;
+        const model = batchModelInputs[key] || 'Modem ONT ZTE F670L Dual Band';
+        allocations[tid] = { sn, model };
+      });
+      releaseMaterial(reqId, allocations);
+    } else {
+      const sn = snOntInputs[reqId] || null;
+      releaseMaterial(reqId, sn);
+    }
     showToast('Barang berhasil diserahkan ke teknisi! Status: Dalam Perjalanan.', 'success');
   };
 
@@ -624,27 +644,100 @@ export default function GudangDashboard() {
                         </div>
                       </div>
 
-                      {/* Input SN ONT Opsional jika terdapat item Modem / ONT */}
-                      {req.details.some(d => d.item?.nama_barang?.toLowerCase().includes('ont') || d.item?.nama_barang?.toLowerCase().includes('modem')) && (
-                        <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-2 text-xs">
+                      {/* Input SN ONT (Mendukung Batch Multi-Pelanggan & Tunggal) */}
+                      {(req.is_batch || (req.tugas_ids && req.tugas_ids.length > 1)) ? (
+                        <div className="p-3.5 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-3 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-purple-400">Nomor Seri (SN) Modem ONT (Opsional):</span>
-                            <button
-                              type="button"
-                              onClick={() => setSnOntInputs(prev => ({ ...prev, [req.id]: 'ZTEGC8B' + Math.random().toString(16).substring(2, 7).toUpperCase() }))}
-                              className="text-[10px] text-purple-300 hover:underline font-bold"
-                            >
-                              Buat SN Otomatis
-                            </button>
+                            <span className="font-bold text-purple-400 flex items-center gap-1.5">
+                              <Barcode className="w-4 h-4" />
+                              <span>Alokasi SN ONT per Pelanggan (Gudang Menentukan):</span>
+                            </span>
+                            <span className="text-[10px] text-purple-300 font-mono bg-purple-900/60 px-2 py-0.5 rounded border border-purple-500/40">
+                              Batch {req.tugas_ids?.length || 1} Pelanggan
+                            </span>
                           </div>
-                          <input
-                            type="text"
-                            placeholder="Scan barcode dus ONT atau ketik SN (misal: ZTEGC8B90112)"
-                            value={snOntInputs[req.id] || ''}
-                            onChange={e => setSnOntInputs(prev => ({ ...prev, [req.id]: e.target.value.toUpperCase() }))}
-                            className="w-full p-2.5 rounded-xl border border-purple-600/50 bg-slate-950 text-white font-mono text-xs uppercase"
-                          />
+                          <div className="space-y-2">
+                            {(req.tugas_ids || [req.tugas_id]).map((tid) => {
+                              const tsk = tugas.find((t) => Number(t.id) === Number(tid));
+                              const key = `${req.id}_${tid}`;
+                              return (
+                                <div key={tid} className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-bold text-slate-200">
+                                      Tiket #{tid}: {tsk?.pelanggan_nama || `Pelanggan #${tid}`}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-mono">{tsk?.lokasi}</span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div className="flex gap-1.5">
+                                      <input
+                                        type="text"
+                                        placeholder="Scan Barcode / SN ONT..."
+                                        value={batchSnInputs[key] || ''}
+                                        onChange={(e) =>
+                                          setBatchSnInputs((prev) => ({
+                                            ...prev,
+                                            [key]: e.target.value.toUpperCase(),
+                                          }))
+                                        }
+                                        className="flex-1 p-2 rounded-lg border border-purple-600/40 bg-slate-900 text-white font-mono text-[11px] uppercase"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setBatchSnInputs((prev) => ({
+                                            ...prev,
+                                            [key]: `ZTEGC8B${Math.random().toString(16).substring(2, 7).toUpperCase()}`,
+                                          }))
+                                        }
+                                        className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] cursor-pointer"
+                                      >
+                                        Auto
+                                      </button>
+                                    </div>
+                                    <select
+                                      value={batchModelInputs[key] || 'Modem ONT ZTE F670L Dual Band'}
+                                      onChange={(e) =>
+                                        setBatchModelInputs((prev) => ({
+                                          ...prev,
+                                          [key]: e.target.value,
+                                        }))
+                                      }
+                                      className="p-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-[11px] cursor-pointer"
+                                    >
+                                      <option value="Modem ONT ZTE F670L Dual Band">Modem ONT ZTE F670L Dual Band</option>
+                                      <option value="Modem ONT Huawei HG8245H5">Modem ONT Huawei HG8245H5</option>
+                                      <option value="Modem ONT FiberHome AN5506-04">Modem ONT FiberHome AN5506-04</option>
+                                      <option value="STB Android TV IndiHome 4K">STB Android TV IndiHome 4K</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
+                      ) : (
+                        req.details.some(d => d.item?.nama_barang?.toLowerCase().includes('ont') || d.item?.nama_barang?.toLowerCase().includes('modem')) && (
+                          <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-2 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-purple-400">Nomor Seri (SN) Modem ONT (Alokasi Gudang):</span>
+                              <button
+                                type="button"
+                                onClick={() => setSnOntInputs(prev => ({ ...prev, [req.id]: 'ZTEGC8B' + Math.random().toString(16).substring(2, 7).toUpperCase() }))}
+                                className="text-[10px] text-purple-300 hover:underline font-bold"
+                              >
+                                Buat SN Otomatis
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Scan barcode dus ONT atau ketik SN (misal: ZTEGC8B90112)"
+                              value={snOntInputs[req.id] || ''}
+                              onChange={e => setSnOntInputs(prev => ({ ...prev, [req.id]: e.target.value.toUpperCase() }))}
+                              className="w-full p-2.5 rounded-xl border border-purple-600/50 bg-slate-950 text-white font-mono text-xs uppercase"
+                            />
+                          </div>
+                        )
                       )}
 
                       {/* Release Button & Optional Cetak Surat Jalan */}
@@ -1154,7 +1247,38 @@ export default function GudangDashboard() {
           {/* TAB: AUDIT & PELACAKAN ASET ONT (MENU KHUSUS AUDIT PERANGKAT TERPASANG) */}
           {activeMenu === 'audit-ont' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl overflow-hidden shadow-xl space-y-4 p-5 sm:p-6`}>
+              {/* Subtab Selector */}
+              <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-slate-900/60 border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setAuditSubTab('ont-list')}
+                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer transition ${
+                    auditSubTab === 'ont-list'
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Barcode className="w-4 h-4" />
+                  <span>Audit Lifecycle Perangkat ONT &amp; BASTP</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuditSubTab('pelanggan-debt-collector')}
+                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer transition ${
+                    auditSubTab === 'pelanggan-debt-collector'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>Pelacakan Penarikan Aset Pelanggan Menunggak (Debt Collector)</span>
+                </button>
+              </div>
+
+              {auditSubTab === 'pelanggan-debt-collector' ? (
+                <TabelPelangganAset />
+              ) : (
+                <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl overflow-hidden shadow-xl space-y-4 p-5 sm:p-6`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
@@ -1162,7 +1286,7 @@ export default function GudangDashboard() {
                     </div>
                     <div>
                       <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        Audit & Pelacakan Aset Perangkat ONT Lapangan
+                        Audit &amp; Pelacakan Aset Perangkat ONT Lapangan
                       </h3>
                       <p className="text-xs text-slate-400">
                         Pelacakan alur fisik ONT: Di Rak Gudang &rarr; Dalam Perjalanan (Teknisi) &rarr; Terpasang di Pelanggan (Validasi SN Barcode, Foto Bukti &amp; BASTP).
@@ -1300,6 +1424,30 @@ export default function GudangDashboard() {
                             <td className="px-3.5 py-3">
                               <div className="font-mono text-[10px] text-slate-300">{item.bastp_no}</div>
                               <div className="text-[10px] text-slate-400">Oleh: {item.teknisi}</div>
+                              {isInstalled && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const taskId = Number(item.id?.replace('ONT-INST-', '').replace('ONT-TRANS-', ''));
+                                    const tsk = tugas.find(t => Number(t.id) === taskId) || {
+                                      id: taskId || 1,
+                                      pelanggan_nama: item.pelanggan_nama,
+                                      pelanggan_telp: item.pelanggan_telp,
+                                      lokasi: item.lokasi,
+                                      odp_kode: item.odp_id,
+                                      sn_ont: item.sn,
+                                      redaman_dbm: item.redaman_dbm,
+                                      status: 'Done'
+                                    };
+                                    setBastpModalTask(tsk);
+                                  }}
+                                  className="mt-1 px-2 py-0.5 rounded-lg bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                  title="Buka Berita Acara Serah Terima Pekerjaan"
+                                >
+                                  <FileText className="w-2.5 h-2.5" />
+                                  <span>Lihat BASTP</span>
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );
@@ -1309,6 +1457,7 @@ export default function GudangDashboard() {
                   </table>
                 </div>
               </div>
+              )}
             </div>
           )}
 

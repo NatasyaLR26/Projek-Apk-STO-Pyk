@@ -27,7 +27,8 @@ import {
   Menu,
   X,
   Network,
-  Barcode
+  Barcode,
+  Contact2
 } from 'lucide-react';
 
 export default function ModernSidebar({ activeTab, onTabChange }) {
@@ -167,6 +168,11 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
             key: 'laporan-gudang',
             label: 'Laporan Barang dari Gudang',
             icon: Package
+          },
+          {
+            key: 'tabel-pelanggan',
+            label: 'Data Pelanggan & Audit Aset',
+            icon: Contact2
           },
           {
             key: 'kelola-pegawai',

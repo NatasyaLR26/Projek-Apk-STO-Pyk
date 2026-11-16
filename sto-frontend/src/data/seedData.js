@@ -229,6 +229,38 @@ export const initialBarang = [
     satuan: "box",
     kode: "CNS-CLEAN-KIT",
     kategori: "Consumable"
+  },
+  {
+    id: 11,
+    nama_barang: "Klem Segitiga (Tension Clamp) Pengait Rumah & Tiang",
+    stok: 150,
+    satuan: "pcs",
+    kode: "ACC-KLM-TRI",
+    kategori: "Consumable & Aksesoris"
+  },
+  {
+    id: 12,
+    nama_barang: "STB Android TV IndiHome 4K (ZTE / Fiberhome)",
+    stok: 35,
+    satuan: "unit",
+    kode: "EQP-STB-4K",
+    kategori: "Perangkat Aktif"
+  },
+  {
+    id: 13,
+    nama_barang: "Klem Hook Buaya / Bracket Tiang STO",
+    stok: 120,
+    satuan: "pcs",
+    kode: "ACC-BRK-HOOK",
+    kategori: "Consumable & Aksesoris"
+  },
+  {
+    id: 14,
+    nama_barang: "Kabel UTP LAN Cat6 2M (Koneksi ONT ke STB)",
+    stok: 90,
+    satuan: "pcs",
+    kode: "ACC-LAN-CAT6",
+    kategori: "Kabel & Serat Optik"
   }
 ];
 
@@ -435,6 +467,114 @@ export const initialOdp = [
     redaman_dbm: -26.50,
     status: "Maintenance",
     keterangan: "Redaman tinggi (> -24 dBm), dijadwalkan perbaikan adapter ODP"
+  }
+];
+
+export const initialPelanggan = [
+  {
+    id: 1,
+    id_pelanggan: "112233445501",
+    nama: "Bpk. Rian Hidayat",
+    no_telp: "0812-3456-7890",
+    alamat: "Jl. Soekarno Hatta No. 14, Koto Nan IV, Payakumbuh Barat",
+    patokan: "Depan Kantor STO Telkom Payakumbuh",
+    latitude: -0.22415,
+    longitude: 100.63120,
+    odp_id: "ODP-PYK-FA/001",
+    port_odp: "02",
+    paket: "IndiHome Fiber 50 Mbps + IndiBox TV",
+    sn_ont: "ZTEGC8B90112",
+    model_ont: "Modem ONT ZTE F670L Dual Band",
+    sn_stb: "STB4K-PYK-8801",
+    tanggal_pasang: "2025-10-15",
+    status_langganan: "Lancar",
+    total_tunggakan: "Rp 0 (Lunas)",
+    foto_rumah: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80",
+    catatan_kolektor: "Pelanggan tertib bayar tagihan bulanan."
+  },
+  {
+    id: 2,
+    id_pelanggan: "112233445502",
+    nama: "Ibu Siti Aminah",
+    no_telp: "0813-9988-7711",
+    alamat: "Jl. Tan Malaka No. 88, Bunian, Payakumbuh Barat",
+    patokan: "Samping Toko Kue Sari Rasa",
+    latitude: -0.22890,
+    longitude: 100.63420,
+    odp_id: "ODP-PYK-FA/002",
+    port_odp: "05",
+    paket: "IndiHome 30 Mbps",
+    sn_ont: "FHTT91A04121",
+    model_ont: "Modem ONT Fiberhome HG6243C",
+    sn_stb: "-",
+    tanggal_pasang: "2025-11-20",
+    status_langganan: "Target Penarikan Aset / Debt Collector (Menunggak > 3 Bulan)",
+    total_tunggakan: "Rp 1.150.000 (4 Bulan)",
+    foto_rumah: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&auto=format&fit=crop&q=80",
+    catatan_kolektor: "⚠️ PERINGATAN: Menunggak 4 bulan berturut-turut. Kontrak diputus. Tim penarikan aset lapangan wajib menyita fisik ONT Modem Fiberhome ke lokasi rumah!"
+  },
+  {
+    id: 3,
+    id_pelanggan: "112233445503",
+    nama: "Bpk. Doni Pratama",
+    no_telp: "0821-6655-4433",
+    alamat: "Kelurahan Tiakar RT 02 / RW 01, Payakumbuh Timur",
+    patokan: "Dekat Mushalla Al-Ikhlas Tiakar",
+    latitude: -0.23350,
+    longitude: 100.64100,
+    odp_id: "ODP-PYK-FA/006",
+    port_odp: "03",
+    paket: "IndiHome 100 Mbps Gamer + 2 STB 4K",
+    sn_ont: "ZTEGC8B90203",
+    model_ont: "Modem ONT ZTE F670L Dual Band",
+    sn_stb: "STB4K-PYK-8803",
+    tanggal_pasang: "2026-01-08",
+    status_langganan: "Isolir (Menunggak 1 Bulan)",
+    total_tunggakan: "Rp 425.000 (1 Bulan)",
+    foto_rumah: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&auto=format&fit=crop&q=80",
+    catatan_kolektor: "Layanan terisolir sementara. Pelanggan berjanji membayar via m-banking."
+  },
+  {
+    id: 4,
+    id_pelanggan: "112233445504",
+    nama: "Ibu Ratna Juwita",
+    no_telp: "0852-7722-1199",
+    alamat: "Jl. Sudirman No. 120, Labuh Basilang, Payakumbuh",
+    patokan: "Ruko Lantai 2 Percetakan Mitra",
+    latitude: -0.22450,
+    longitude: 100.63800,
+    odp_id: "ODP-PYK-FA/003",
+    port_odp: "07",
+    paket: "Indibiz Bisnis 100 Mbps",
+    sn_ont: "HWTC8B90304",
+    model_ont: "Modem ONT Huawei HG8245H5",
+    sn_stb: "-",
+    tanggal_pasang: "2025-08-12",
+    status_langganan: "Target Penarikan Aset / Debt Collector (Menunggak > 3 Bulan)",
+    total_tunggakan: "Rp 2.450.000 (3 Bulan)",
+    foto_rumah: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&auto=format&fit=crop&q=80",
+    catatan_kolektor: "⚠️ TARGET SITA ASET: Ruko tutup, pelanggan tidak kooperatif via telepon. Tim debt collector didampingi teknisi untuk cabut dropcore tiang ODP dan tarik modem ONT!"
+  },
+  {
+    id: 5,
+    id_pelanggan: "112233445505",
+    nama: "Bpk. Eko Prasetyo",
+    no_telp: "0812-8877-6655",
+    alamat: "Kawasan Pasar Ibuh Barat No. 22, Payakumbuh",
+    patokan: "Belakang Pos Polisi Pasar Ibuh",
+    latitude: -0.22600,
+    longitude: 100.63620,
+    odp_id: "ODP-PYK-FA/004",
+    port_odp: "01",
+    paket: "IndiHome 50 Mbps",
+    sn_ont: "ZTEGC8B90205",
+    model_ont: "Modem ONT ZTE F670L Dual Band",
+    sn_stb: "-",
+    tanggal_pasang: "2026-02-14",
+    status_langganan: "Lancar",
+    total_tunggakan: "Rp 0 (Lunas)",
+    foto_rumah: "https://images.unsplash.com/photo-1598228723793-52759bba239c?w=600&auto=format&fit=crop&q=80",
+    catatan_kolektor: "Layanan aktif lancar, pelanggan loyal."
   }
 ];
 

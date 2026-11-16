@@ -9,6 +9,7 @@ import KelolaTugas from '../components/KelolaTugas';
 import KelolaPegawai from '../components/KelolaPegawai';
 import ModalBASTP from '../components/ModalBASTP';
 import TabelAsetJaringan from '../components/TabelAsetJaringan';
+import TabelPelangganAset from '../components/TabelPelangganAset';
 import AnalyticsChartsPimpinan from '../components/AnalyticsChartsPimpinan';
 import ModalDetailRiwayatTeknisi from '../components/ModalDetailRiwayatTeknisi';
 import { useTheme } from '../context/ThemeContext';
@@ -70,7 +71,7 @@ function DashboardPimpinan() {
   const [activeMenu, setActiveMenu] = useState(() => {
     try {
       const saved = localStorage.getItem('sto_active_tab_pimpinan');
-      const valid = ['dashboard', 'tracking', 'tabel-odp', 'kelola-tugas', 'approval', 'laporan-kerja', 'laporan-gudang', 'kelola-pegawai'];
+      const valid = ['dashboard', 'tracking', 'tabel-odp', 'kelola-tugas', 'approval', 'laporan-kerja', 'laporan-gudang', 'tabel-pelanggan', 'kelola-pegawai'];
       return saved && valid.includes(saved) ? saved : 'dashboard';
     } catch {
       return 'dashboard';
@@ -242,6 +243,7 @@ function DashboardPimpinan() {
                 {activeMenu === 'approval' && 'Persetujuan (Approval) Material Teknisi'}
                 {activeMenu === 'laporan-kerja' && 'Laporan Audit & Berita Acara Pekerjaan Lapangan'}
                 {activeMenu === 'laporan-gudang' && 'Laporan & Pengawasan Stok Material Gudang'}
+                {activeMenu === 'tabel-pelanggan' && 'Master Data Pelanggan & Audit Penarikan Aset STO'}
                 {activeMenu === 'kelola-pegawai' && 'Kelola Akun & Hak Akses Pegawai STO'}
               </h1>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
@@ -879,7 +881,14 @@ function DashboardPimpinan() {
             </div>
           )}
 
-          {/* TAB 7: KELOLA AKUN & PEGAWAI */}
+          {/* TAB 7: DATA PELANGGAN & AUDIT PENARIKAN ASET STO */}
+          {activeMenu === 'tabel-pelanggan' && (
+            <div className="animate-in fade-in duration-200">
+              <TabelPelangganAset />
+            </div>
+          )}
+
+          {/* TAB 8: KELOLA AKUN & PEGAWAI */}
           {activeMenu === 'kelola-pegawai' && (
             <div className="animate-in fade-in duration-200">
               <KelolaPegawai />

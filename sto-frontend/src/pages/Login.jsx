@@ -21,7 +21,8 @@ import {
   Wrench,
   Package,
   Eye,
-  EyeOff
+  EyeOff,
+  Key
 } from 'lucide-react';
 
 export default function Login({ onTriggerSplash }) {
@@ -35,6 +36,7 @@ export default function Login({ onTriggerSplash }) {
   const [regNama, setRegNama] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [regToken, setRegToken] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
   const regRole = 'teknisi'; // Strictly Teknisi! Pimpinan and Gudang cannot be self-registered
@@ -128,6 +130,13 @@ export default function Login({ onTriggerSplash }) {
         return;
       }
 
+      // Validasi Status Otorisasi / Approval Pegawai Baru
+      if (loggedInUser.status_verifikasi === 'Pending Approval') {
+        setError('⚠️ Akun Anda sedang menunggu persetujuan (approval) Pimpinan STO Telkom Akses Payakumbuh. Hubungi Pimpinan untuk mengaktifkan akun Anda.');
+        setLoading(false);
+        return;
+      }
+
       // 4. Save Session & Auto Route by Database Role
       localStorage.setItem('user', JSON.stringify(loggedInUser));
       setCurrentUser(loggedInUser);
@@ -182,19 +191,27 @@ export default function Login({ onTriggerSplash }) {
         return;
       }
 
+      const isTokenValid = regToken.trim().toUpperCase() === 'STO-PYK-2026';
+
       const created = await addUser({
         nama_lengkap: regNama.trim(),
         email: regEmail.toLowerCase().trim(),
         password: regPassword,
-        role: 'teknisi' // Strictly Teknisi Lapangan! Pimpinan & Gudang are managed internally
+        role: 'teknisi', // Strictly Teknisi Lapangan! Pimpinan & Gudang are managed internally
+        status_verifikasi: isTokenValid ? 'Verified' : 'Pending Approval',
+        kode_otorisasi: regToken.trim() || '-'
       });
 
-      showToast(`Pendaftaran berhasil! Akun Teknisi ${created.nama_lengkap} siap digunakan.`, 'success');
-
-      // Pre-fill login email and switch to login tab
-      setEmail(regEmail);
-      setPassword(regPassword);
-      setAuthMode('login');
+      if (isTokenValid) {
+        showToast(`Pendaftaran berhasil dengan Kode Otorisasi Korporat! Akun Teknisi ${created.nama_lengkap} langsung aktif.`, 'success');
+        setEmail(regEmail);
+        setPassword(regPassword);
+        setAuthMode('login');
+      } else {
+        showToast(`Pendaftaran diajukan! Akun Anda sedang menunggu persetujuan Pimpinan STO Payakumbuh.`, 'info');
+        setAuthMode('login');
+        setError('Pendaftaran berhasil! Akun Anda berstatus "Pending Approval" dan memerlukan persetujuan dari Pimpinan STO sebelum dapat login.');
+      }
     } catch (err) {
       setError('Gagal mendaftarkan akun. Silakan periksa koneksi data.');
       console.error(err);
@@ -474,6 +491,30 @@ export default function Login({ onTriggerSplash }) {
                     {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-800'} flex items-center justify-between`}>
+                  <span>Kode Otorisasi / OTP Korporat STO (Opsional)</span>
+                  <span className="text-[10px] text-amber-500 font-mono">Bypass Approval</span>
+                </label>
+                <div className="relative">
+                  <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={regToken}
+                    onChange={(e) => setRegToken(e.target.value.toUpperCase())}
+                    placeholder="Contoh: STO-PYK-2026"
+                    className={`w-full pl-10 pr-3.5 py-2.5 rounded-2xl text-xs font-mono uppercase tracking-wider border outline-none transition ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-700 text-white focus:border-rose-500'
+                        : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                    }`}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                  Masukkan kode korporat internal agar akun langsung aktif. Jika kosong, akun harus di-approve oleh Pimpinan STO.
+                </p>
               </div>
 
               <button

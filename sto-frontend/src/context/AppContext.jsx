@@ -43,6 +43,7 @@ import {
   initialPermohonan,
   initialDetailPermohonan,
   initialOdp,
+  initialPelanggan,
   STO_COORDINATES
 } from '../data/seedData';
 
@@ -113,6 +114,46 @@ export function AppProvider({ children }) {
     const saved = localStorage.getItem('sto_odp');
     return saved ? JSON.parse(saved) : initialOdp;
   });
+
+  // Master Data Pelanggan & Audit Kontrak Aset STO Telkom Payakumbuh
+  const [pelanggan, setPelanggan] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sto_pelanggan');
+      return saved ? JSON.parse(saved) : initialPelanggan;
+    } catch {
+      return initialPelanggan;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sto_pelanggan', JSON.stringify(pelanggan));
+    } catch {}
+  }, [pelanggan]);
+
+  // Saldo Sisa Material Teknisi (Mobile Stock di Kendaraan Teknisi)
+  const [saldoTeknisi, setSaldoTeknisi] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sto_saldo_teknisi');
+      return saved ? JSON.parse(saved) : {
+        kabel_m: 85, // sisa 85 meter dropcore dari penarikan sebelumnya
+        roset: 2,
+        fast_connector: 4,
+        klem_segitiga: 3
+      };
+    } catch {
+      return { kabel_m: 85, roset: 2, fast_connector: 4, klem_segitiga: 3 };
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sto_saldo_teknisi', JSON.stringify(saldoTeknisi));
+    } catch {}
+  }, [saldoTeknisi]);
+
+  // Kode Otorisasi Korporat Registrasi Pegawai STO Payakumbuh
+  const STO_CORPORATE_TOKEN = 'STO-PYK-2026';
 
   // State persistensi ciutkan/lebarkan sidebar (tersimpan permanen di LocalStorage)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -693,29 +734,48 @@ export function AppProvider({ children }) {
     return true;
   };
 
-  // SOP 2: Teknisi mengajukan material ke gudang
-  const requestMaterial = async (param1, param2, param3) => {
+  // SOP 2: Teknisi mengajukan material ke gudang (Mendukung Multi-Tiket / Batch Kolektif)
+  const requestMaterial = async (param1, param2, param3, param4) => {
     let tugasId = param1;
     let items = param2;
     let catatan = param3;
+    let tugasIds = [];
 
     if (typeof param1 === 'object' && param1 !== null && !Array.isArray(param1)) {
       tugasId = param1.tugas_id || param1.tugasId;
       items = param1.items || param1.barang || [];
       catatan = param1.catatan || param1.catatan_teknisi;
+      tugasIds = param1.tugas_ids || (tugasId ? [tugasId] : []);
+    } else if (Array.isArray(param4) && param4.length > 0) {
+      tugasIds = param4;
+    } else {
+      tugasIds = tugasId ? [tugasId] : [];
     }
 
     const parsedTugasId = parseInt(tugasId, 10) || Number(tugasId);
+    const validTugasIds = Array.from(new Set(tugasIds.map(Number).filter(Boolean)));
+    if (parsedTugasId && !validTugasIds.includes(parsedTugasId)) {
+      validTugasIds.push(parsedTugasId);
+    }
+
     const newPermohonanId = permohonan.length > 0 ? Math.max(...permohonan.map(p => Number(p.id) || 0)) + 1 : 501;
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+    const isBatch = validTugasIds.length > 1;
+    const batchTasks = tugas.filter(t => validTugasIds.includes(Number(t.id)));
+    const batchPelangganNames = batchTasks.map(t => t.pelanggan_nama || `#${t.id}`).join(', ');
+
     const newPermohonan = {
       id: newPermohonanId,
-      tugas_id: parsedTugasId,
+      tugas_id: parsedTugasId || (validTugasIds[0] || 1),
+      tugas_ids: validTugasIds,
+      is_batch: isBatch,
+      batch_count: validTugasIds.length,
+      batch_pelanggan: batchPelangganNames,
       status: "Pending",
       waktu_request: formattedDate,
-      catatan_teknisi: catatan || "Kebutuhan perbaikan / instalasi lapangan"
+      catatan_teknisi: catatan || (isBatch ? `Permohonan kolektif (Batch ${validTugasIds.length} Pelanggan: ${batchPelangganNames})` : "Kebutuhan perbaikan / instalasi lapangan")
     };
 
     let startDetailId = detailPermohonan.length > 0 ? Math.max(...detailPermohonan.map(d => Number(d.id) || 0)) + 1 : 1;
@@ -729,9 +789,9 @@ export function AppProvider({ children }) {
     setPermohonan(prev => [newPermohonan, ...prev]);
     setDetailPermohonan(prev => [...newDetails, ...prev]);
 
-    // Set task to Progress if Open
+    // Set seluruh tugas yang ada di batch ke status Progress
     setTugas(prev => prev.map(t => {
-      if (Number(t.id) === parsedTugasId && t.status === 'Open') {
+      if (validTugasIds.includes(Number(t.id)) && t.status === 'Open') {
         return { ...t, status: 'Progress' };
       }
       return t;
@@ -889,43 +949,68 @@ export function AppProvider({ children }) {
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+    const targetTugasIds = targetPermohonan.tugas_ids && targetPermohonan.tugas_ids.length > 0
+      ? targetPermohonan.tugas_ids.map(Number)
+      : [Number(targetPermohonan.tugas_id)];
+
+    const allocations = (typeof sn === 'object' && sn !== null) ? sn : {};
+    const defaultSn = typeof sn === 'string' ? sn : null;
+
     setPermohonan(prev => prev.map(p => {
       if (Number(p.id) === parsedId) {
-        return { ...p, status: "Released", waktu_rilis: formattedDate };
+        return {
+          ...p,
+          status: "Released",
+          waktu_rilis: formattedDate,
+          sn_allocations: allocations
+        };
       }
       return p;
     }));
 
-    if (targetPermohonan?.tugas_id) {
-      setTugas(prev => prev.map(t => {
-        if (Number(t.id) === Number(targetPermohonan.tugas_id)) {
-          return {
-            ...t,
-            material_status: 'Dalam Perjalanan',
-            status_detail: 'Dalam Perjalanan (Menuju Lokasi Pelanggan)',
-            ...(sn ? { sn_ont: sn } : {})
-          };
-        }
-        return t;
-      }));
-    }
+    // Update setiap tugas dalam batch dengan SN ONT yang dialokasikan khusus oleh Gudang
+    setTugas(prev => prev.map(t => {
+      if (targetTugasIds.includes(Number(t.id))) {
+        const assignedData = allocations[t.id];
+        const assignedSn = (typeof assignedData === 'object' ? assignedData?.sn : assignedData) || defaultSn || t.sn_ont;
+        const assignedModel = (typeof assignedData === 'object' ? assignedData?.model : null) || 'Modem ONT ZTE F670L Dual Band';
 
-    if (sn) {
-      try {
-        const storedOnts = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
-        if (!storedOnts.some(s => s.sn === sn)) {
+        return {
+          ...t,
+          material_status: 'Dalam Perjalanan',
+          status_detail: 'Material Siap Dibawa (Alokasi ONT Gudang)',
+          ...(assignedSn ? {
+            sn_ont: assignedSn,
+            assigned_sn_ont: assignedSn,
+            assigned_model_ont: assignedModel
+          } : {})
+        };
+      }
+      return t;
+    }));
+
+    // Simpan trasir ONT ke penyimpanan lokal
+    try {
+      const storedOnts = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
+      targetTugasIds.forEach(tid => {
+        const assignedData = allocations[tid];
+        const snToStore = (typeof assignedData === 'object' ? assignedData?.sn : assignedData) || defaultSn;
+        const modelToStore = (typeof assignedData === 'object' ? assignedData?.model : null) || 'Modem ONT ZTE F670L Dual Band';
+        const taskObj = tugas.find(t => Number(t.id) === Number(tid));
+
+        if (snToStore && !storedOnts.some(s => s.sn === snToStore)) {
           storedOnts.push({
-            id: `ONT-TRANS-${parsedId}`,
-            sn,
-            model: 'Modem ONT ZTE F670L Dual Band',
+            id: `ONT-TRANS-${parsedId}-${tid}`,
+            sn: snToStore,
+            model: modelToStore,
             status: 'Di Perjalanan',
-            pelanggan: targetPermohonan?.pelanggan_nama || 'Pelanggan STO',
-            tugas_id: targetPermohonan?.tugas_id
+            pelanggan: taskObj?.pelanggan_nama || 'Pelanggan STO',
+            tugas_id: tid
           });
-          localStorage.setItem('sto_ont_serials', JSON.stringify(storedOnts));
         }
-      } catch (_) {}
-    }
+      });
+      localStorage.setItem('sto_ont_serials', JSON.stringify(storedOnts));
+    } catch (_) {}
 
     // 1. Sync ke backend Express API
     try {
@@ -1099,6 +1184,59 @@ export function AppProvider({ children }) {
       status: 'Done',
       sn_ont: snOnt
     });
+
+    // Update Saldo Sisa Material di Tangan Teknisi (Mobile Stock)
+    if (isPayloadObject && argPhotoOrPayload.sisa_kabel_m !== undefined) {
+      setSaldoTeknisi(prev => ({
+        ...prev,
+        kabel_m: Number(argPhotoOrPayload.sisa_kabel_m) || 0
+      }));
+    }
+
+    // Rekonsiliasi & Daftarkan ke Master Data Pelanggan STO
+    if (pelangganNama) {
+      setPelanggan(prev => {
+        const existingIdx = prev.findIndex(p => (p.nama && p.nama.toLowerCase().trim() === pelangganNama.toLowerCase().trim()) || p.sn_ont === snOnt);
+        if (existingIdx !== -1) {
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            sn_ont: snOnt,
+            odp_id: odpId,
+            port_odp: portOdp,
+            status_langganan: 'Lancar',
+            tanggal_pasang: formattedDate,
+            foto_rumah: proof
+          };
+          return updated;
+        } else {
+          return [
+            {
+              id: prev.length + 1,
+              id_pelanggan: `112233${String(prev.length + 1).padStart(6, '0')}`,
+              nama: pelangganNama,
+              no_telp: argPhotoOrPayload?.pelanggan_telp || '0812-3456-7890',
+              alamat: argPhotoOrPayload?.lokasi || 'Koto Nan IV, Payakumbuh',
+              patokan: 'Pemasangan baru selesai divalidasi BASTP',
+              latitude: -0.22415,
+              longitude: 100.63120,
+              odp_id: odpId,
+              port_odp: portOdp,
+              paket: 'IndiHome Fiber 50 Mbps',
+              sn_ont: snOnt,
+              model_ont: 'Modem ONT ZTE F670L Dual Band',
+              sn_stb: '-',
+              tanggal_pasang: formattedDate,
+              status_langganan: 'Lancar',
+              total_tunggakan: 'Rp 0 (Lunas)',
+              foto_rumah: proof,
+              catatan_kolektor: 'Instalasi selesai & aktif normal.'
+            },
+            ...prev
+          ];
+        }
+      });
+    }
 
     // Update status serial number ONT di penyimpanan lokal agar statusnya otomatis Terpasang
     try {
@@ -1501,15 +1639,20 @@ export function AppProvider({ children }) {
     showToast("Titik ODP berhasil dihapus dari WebGIS!", "info");
   };
 
-  // User Management
+  // User Management & Verifikasi Registrasi Pegawai STO
   const addUser = async (userData) => {
     const newId = users.length > 0 ? Math.max(...users.map(u => Number(u.id) || 0)) + 1 : 1;
+    const isCodeValid = userData.auth_code?.trim() === STO_CORPORATE_TOKEN || userData.auth_code?.trim() === 'STO2026';
+    const statusVerifikasi = userData.status_verifikasi || (isCodeValid ? 'Verified' : 'Pending Approval');
+
     const newUser = {
       id: newId,
       nama_lengkap: userData.nama_lengkap,
       email: userData.email.toLowerCase().trim(),
       password: userData.password || 'password123',
       role: userData.role || 'teknisi',
+      status_verifikasi: statusVerifikasi,
+      nik_pegawai: userData.nik_pegawai || `NIK-TA-${newId}`,
       jabatan: userData.role === 'pimpinan'
         ? 'Manager STO Wilayah'
         : userData.role === 'gudang'
@@ -1555,8 +1698,30 @@ export function AppProvider({ children }) {
       }
     }
 
-    showToast(`Akun ${newUser.nama_lengkap} (${newUser.role}) berhasil didaftarkan!`, 'success');
+    if (statusVerifikasi === 'Verified') {
+      showToast(`Akun ${newUser.nama_lengkap} (${newUser.role}) berhasil didaftarkan dan terverifikasi!`, 'success');
+    } else {
+      showToast(`Pendaftaran akun ${newUser.nama_lengkap} berhasil dikirim! Menunggu persetujuan Pimpinan STO.`, 'info');
+    }
+
     return newUser;
+  };
+
+  const approveUser = (userId) => {
+    const target = users.find(u => Number(u.id) === Number(userId));
+    setUsers(prev => prev.map(u => {
+      if (Number(u.id) === Number(userId)) {
+        return { ...u, status_verifikasi: 'Verified' };
+      }
+      return u;
+    }));
+    showToast(`Akun ${target?.nama_lengkap || `#${userId}`} berhasil DISETUJUI & diverifikasi Pimpinan!`, 'success');
+  };
+
+  const rejectUser = (userId) => {
+    const target = users.find(u => Number(u.id) === Number(userId));
+    setUsers(prev => prev.filter(u => Number(u.id) !== Number(userId)));
+    showToast(`Registrasi akun ${target?.nama_lengkap || `#${userId}`} telah ditolak.`, 'info');
   };
 
   // Reset State to Default Factory
@@ -1591,6 +1756,13 @@ export function AppProvider({ children }) {
         users,
         setUsers,
         addUser,
+        approveUser,
+        rejectUser,
+        STO_CORPORATE_TOKEN,
+        pelanggan,
+        setPelanggan,
+        saldoTeknisi,
+        setSaldoTeknisi,
         barang,
         tugas,
         claimTugas,

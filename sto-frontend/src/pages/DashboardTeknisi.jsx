@@ -23,7 +23,10 @@ import {
   FilePlus2,
   Printer,
   FileText,
-  Lock
+  Lock,
+  Barcode,
+  Zap,
+  Layers
 } from 'lucide-react';
 
 /**
@@ -44,11 +47,13 @@ export default function DashboardTeknisi() {
   const { isDark } = useTheme();
   const {
     tugas,
+    setTugas,
     claimTugas,
     checkInTugas,
     permohonan,
     detailPermohonan,
     barang,
+    saldoTeknisi,
     showToast,
     sidebarCollapsed
   } = useApp();
@@ -215,6 +220,44 @@ export default function DashboardTeknisi() {
           {activeMenu === 'tiket' && (
             <div className="space-y-8 animate-in fade-in duration-200">
               
+              {/* Saldo Sisa Material di Mobil Teknisi (Mobile Stock) */}
+              {saldoTeknisi && (
+                <div className="p-4 rounded-3xl bg-linear-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-500/25 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center justify-center shrink-0">
+                      <Package className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                        <span>Mobile Stock di Mobil Anda (Sisa Material Sebelumnya)</span>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 font-mono">Tercatat</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Gunakan sisa material di kendaraan sebelum meminta material baru ke gudang STO. Kehilangan material menjadi tanggung jawab teknisi.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 font-mono text-xs">
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center shrink-0">
+                      <span className="text-[9px] text-slate-400 block">Sisa Dropcore</span>
+                      <strong className="text-emerald-400 font-black">{saldoTeknisi.kabel_m || 0} m</strong>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center shrink-0">
+                      <span className="text-[9px] text-slate-400 block">Roset FO</span>
+                      <strong className="text-sky-400 font-black">{saldoTeknisi.roset || 0} pcs</strong>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center shrink-0">
+                      <span className="text-[9px] text-slate-400 block">Fast Conn</span>
+                      <strong className="text-amber-400 font-black">{saldoTeknisi.fast_connector || 0} pcs</strong>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center shrink-0">
+                      <span className="text-[9px] text-slate-400 block">Klem Segitiga</span>
+                      <strong className="text-purple-400 font-black">{saldoTeknisi.klem_segitiga || 0} pcs</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* SECTION 1: POOL TIKET TERBUKA (DIUMUMKAN PIMPINAN) */}
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -385,19 +428,47 @@ export default function DashboardTeknisi() {
 
                         {/* Status Alur Pengerjaan Lapangan Realistis */}
                         {(() => {
-                          const taskPerm = permohonan.find(p => Number(p.tugas_id) === Number(t.id));
+                          const taskPerm = permohonan.find(p => Number(p.tugas_id) === Number(t.id) || (p.tugas_ids && p.tugas_ids.map(Number).includes(Number(t.id))));
                           const isApproved = taskPerm?.status === 'Approved';
                           const isReleased = taskPerm?.status === 'Released' || t.material_status === 'Dalam Perjalanan';
+                          const isSelfSpliced = t.material_status === 'Splicing Mandiri (Tanpa Order Gudang)' || t.material_status === 'Tanpa Order Gudang';
                           const isPending = taskPerm && taskPerm.status === 'Pending';
                           const isCheckedIn = !!t.checkin?.verified;
+                          const isTroubleOrSplicing = (t.jenis_kerja || '').toLowerCase().includes('gangguan') ||
+                                                      (t.jenis_kerja || '').toLowerCase().includes('putus') ||
+                                                      (t.jenis_kerja || '').toLowerCase().includes('splicing') ||
+                                                      (t.jenis_kerja || '').toLowerCase().includes('maintenance');
 
                           return (
                             <div className="space-y-2.5 pt-1">
+                              {/* Alokasi ONT Spesifik dari Gudang */}
+                              {(t.assigned_sn_ont || t.sn_ont) && (
+                                <div className="p-2.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-mono flex items-center justify-between">
+                                  <div className="flex items-center gap-2 truncate">
+                                    <Barcode className="w-4 h-4 text-purple-400 shrink-0" />
+                                    <span className="truncate">ONT: <strong>{t.assigned_sn_ont || t.sn_ont}</strong> {t.assigned_model_ont ? `(${t.assigned_model_ont})` : ''}</span>
+                                  </div>
+                                  <span className="text-[10px] text-purple-300 font-sans font-bold bg-purple-900/60 px-2 py-0.5 rounded border border-purple-500/40 shrink-0 ml-1">
+                                    Alokasi Gudang
+                                  </span>
+                                </div>
+                              )}
+
                               {/* Indikator Status Tahapan Terkini */}
-                              {!taskPerm && (
+                              {!taskPerm && !isSelfSpliced && (
                                 <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-semibold flex items-center gap-2">
                                   <Package className="w-4 h-4 shrink-0" />
-                                  <span>Tahap 1: Kebutuhan material belum diajukan.</span>
+                                  <span>
+                                    {isTroubleOrSplicing
+                                      ? 'Pekerjaan Gangguan: Splicing kabel mandiri atau order material gudang.'
+                                      : 'Tahap 1: Kebutuhan material belum diajukan ke gudang.'}
+                                  </span>
+                                </div>
+                              )}
+                              {isSelfSpliced && !isCheckedIn && (
+                                <div className="p-2.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-300 text-xs font-semibold flex items-center gap-2">
+                                  <Wrench className="w-4 h-4 shrink-0 text-teal-400" />
+                                  <span>Splicing Mandiri: Tanpa material gudang. Langsung Check-In GPS di lokasi!</span>
                                 </div>
                               )}
                               {isPending && (
@@ -427,20 +498,52 @@ export default function DashboardTeknisi() {
 
                               {/* Tombol Aksi Utama Berdasarkan Alur SOP */}
                               <div className="space-y-2">
-                                {!taskPerm && (
-                                  <button
-                                    onClick={() => setModalTugasId(t.id)}
-                                    className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
-                                  >
-                                    <Package className="w-4 h-4" />
-                                    <span>📦 Isi & Ajukan Kebutuhan Material ke Gudang</span>
-                                  </button>
+                                {!taskPerm && !isSelfSpliced && (
+                                  <>
+                                    {isTroubleOrSplicing ? (
+                                      <div className="space-y-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setTugas(prev => prev.map(item => Number(item.id) === Number(t.id) ? {
+                                              ...item,
+                                              material_status: 'Splicing Mandiri (Tanpa Order Gudang)',
+                                              status: 'Progress'
+                                            } : item));
+                                            showToast(`Tiket #${t.id} siap diselesaikan via Splicing Mandiri! Langsung aktifkan GPS saat tiba.`, 'success');
+                                          }}
+                                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                                        >
+                                          <Zap className="w-4 h-4 text-amber-300" />
+                                          <span>⚡ Selesaikan Gangguan Langsung (Splicing Mandiri Tanpa Gudang)</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setModalTugasId(t.id)}
+                                          className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                                        >
+                                          <Package className="w-3.5 h-3.5 text-amber-400" />
+                                          <span>📦 Butuh Material Gudang (Ganti Dropcore / ONT Rusak)</span>
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setModalTugasId(t.id)}
+                                        className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                                      >
+                                        <Package className="w-4 h-4" />
+                                        <span>📦 Isi & Ajukan Kebutuhan Material ke Gudang</span>
+                                      </button>
+                                    )}
+                                  </>
                                 )}
 
                                 {taskPerm && !isReleased && (
                                   <div className="space-y-2">
                                     <div className="flex gap-2">
                                       <button
+                                        type="button"
                                         onClick={() => showToast('Permohonan telah diteruskan ke Gudang STO Payakumbuh. Silakan temui petugas logistik untuk serah terima barang.', 'info')}
                                         className="flex-1 py-2.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
                                       >
@@ -449,6 +552,7 @@ export default function DashboardTeknisi() {
                                       </button>
                                     </div>
                                     <button
+                                      type="button"
                                       onClick={() => handleSetActiveMenu('cetak-surat')}
                                       className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                                     >
@@ -458,12 +562,13 @@ export default function DashboardTeknisi() {
                                   </div>
                                 )}
 
-                                {isReleased && !isCheckedIn && (
+                                {(isReleased || isSelfSpliced) && !isCheckedIn && (
                                   <div className="space-y-2">
                                     <button
+                                      type="button"
                                       onClick={() => handleDoCheckIn(t)}
                                       disabled={isCheckingInId === t.id}
-                                      className="w-full py-3 px-4 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer disabled:opacity-75"
+                                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer disabled:opacity-75"
                                     >
                                       {isCheckingInId === t.id ? (
                                         <span className="flex items-center gap-2">
@@ -477,20 +582,24 @@ export default function DashboardTeknisi() {
                                         </>
                                       )}
                                     </button>
-                                    <button
-                                      onClick={() => handleSetActiveMenu('cetak-surat')}
-                                      className="w-full py-1.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 font-medium text-[11px] flex items-center justify-center gap-1.5 transition cursor-pointer"
-                                    >
-                                      <Printer className="w-3 h-3" />
-                                      <span>Cetak Surat Jalan / Bukti Gudang (Opsional)</span>
-                                    </button>
+                                    {isReleased && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSetActiveMenu('cetak-surat')}
+                                        className="w-full py-1.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 font-medium text-[11px] flex items-center justify-center gap-1.5 transition cursor-pointer"
+                                      >
+                                        <Printer className="w-3 h-3" />
+                                        <span>Cetak Surat Jalan / Bukti Gudang (Opsional)</span>
+                                      </button>
+                                    )}
                                   </div>
                                 )}
 
                                 {isCheckedIn && (
                                   <button
+                                    type="button"
                                     onClick={() => setUploadTugasId(t.id)}
-                                    className="w-full py-3 px-4 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
                                   >
                                     <Camera className="w-4 h-4" />
                                     <span>📸 AMBIL FOTO SELESAI & SCAN SERIAL NUMBER ONT (BASTP)</span>
