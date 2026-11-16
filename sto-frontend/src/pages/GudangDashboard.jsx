@@ -56,10 +56,19 @@ export default function GudangDashboard() {
   const [activeMenu, setActiveMenu] = useState(() => {
     try {
       const saved = localStorage.getItem('sto_active_tab_gudang');
-      const valid = ['daftar-barang', 'output-barang', 'input-barang', 'audit-ont', 'cetak-surat-jalan'];
-      return saved && valid.includes(saved) ? saved : 'daftar-barang';
+      if (saved === 'daftar-barang') return 'dashboard-gudang';
+      const valid = [
+        'dashboard-gudang',
+        'tabel-material',
+        'input-barang',
+        'output-barang',
+        'audit-ont',
+        'penarikan-aset',
+        'cetak-surat-jalan'
+      ];
+      return saved && valid.includes(saved) ? saved : 'dashboard-gudang';
     } catch {
-      return 'daftar-barang';
+      return 'dashboard-gudang';
     }
   });
 
@@ -70,11 +79,11 @@ export default function GudangDashboard() {
     } catch {}
   };
 
-  // Reset tab ke daftar stok barang jika logo diklik
+  // Reset tab ke dashboard gudang jika logo diklik
   useEffect(() => {
     const handleReset = (e) => {
       if (!e.detail?.role || e.detail.role === 'gudang') {
-        setActiveMenu('daftar-barang');
+        setActiveMenu('dashboard-gudang');
       }
     };
     window.addEventListener('sto:reset-dashboard-tab', handleReset);
@@ -477,14 +486,22 @@ export default function GudangDashboard() {
                 <span className="text-xs text-slate-400 font-mono">Petugas: {user.nama_lengkap}</span>
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeMenu === 'daftar-barang' && 'Daftar Stok & Master Inventaris Material Gudang STO'}
+                {activeMenu === 'dashboard-gudang' && 'Dashboard & Analitik Logistik Gudang STO'}
+                {activeMenu === 'tabel-material' && 'Tabel Master Material & Stok Inventaris Gudang'}
                 {activeMenu === 'output-barang' && 'Output Barang (Rilis & Serah Terima ke Teknisi)'}
                 {activeMenu === 'input-barang' && 'Input Barang (Pengadaan & Registrasi Masuk)'}
                 {activeMenu === 'audit-ont' && 'Audit & Pelacakan Aset ONT (Status Terpasang Lapangan)'}
+                {activeMenu === 'penarikan-aset' && 'Penarikan Aset Pelanggan Menunggak (Dept Collector)'}
                 {activeMenu === 'cetak-surat-jalan' && 'Cetak Surat Jalan & Bukti Serah Terima Material'}
               </h1>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                Sistem Logistik Sentral STO Telkom Akses: Verifikasi Fisik, Rilis, dan Pemotongan Stok Otomatis.
+                {activeMenu === 'dashboard-gudang' && 'Visualisasi grafik komposisi material, ambang batas stok, dan analitik logistik real-time.'}
+                {activeMenu === 'tabel-material' && 'Daftar lengkap master material fisik, filter kategori, penambahan stok instan, dan ekspor data.'}
+                {activeMenu === 'output-barang' && 'Verifikasi permohonan material teknisi, alokasi Serial Number ONT per pelanggan, dan serah terima fisik.'}
+                {activeMenu === 'input-barang' && 'Registrasi penambahan material fisik masuk ke rak gudang Sentral STO Telkom Akses Payakumbuh.'}
+                {activeMenu === 'audit-ont' && 'Pelacakan siklus hidup modem ONT: Rak Gudang → Perjalanan Teknisi → Terpasang di Rumah Pelanggan.'}
+                {activeMenu === 'penarikan-aset' && 'Daftar penarikan perangkat ONT dari pelanggan menunggak oleh tim penagih / debt collector STO.'}
+                {activeMenu === 'cetak-surat-jalan' && 'Penerbitan dokumen fisik surat pengeluaran barang resmi logistik STO Telkom Akses.'}
               </p>
             </div>
           </div>
@@ -516,52 +533,351 @@ export default function GudangDashboard() {
             </div>
           )}
 
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between`}>
-              <div>
-                <div className="text-[11px] text-amber-500 font-semibold uppercase">Siap Rilis (SOP 4)</div>
-                <div className="text-2xl font-extrabold text-amber-500 mt-1">{pendingReleaseCount}</div>
-                <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Disetujui pimpinan</div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-600/20 text-amber-500 border border-amber-500/30 flex items-center justify-center">
-                <Send className="w-5 h-5" />
-              </div>
-            </div>
+          {/* TAB: DASHBOARD & GRAFIK REALTIME GUDANG (VISUAL CHARTS ONLY) */}
+          {activeMenu === 'dashboard-gudang' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* KPI Cards Realtime */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div
+                  onClick={() => handleSetActiveMenu('output-barang')}
+                  className={`${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-amber-500/50' : 'bg-white border-slate-200 hover:border-amber-500/50 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between cursor-pointer transition`}
+                >
+                  <div>
+                    <div className="text-[11px] text-amber-500 font-semibold uppercase">Siap Rilis (SOP 4)</div>
+                    <div className="text-2xl font-extrabold text-amber-500 mt-1">{pendingReleaseCount}</div>
+                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Disetujui pimpinan</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-amber-600/20 text-amber-500 border border-amber-500/30 flex items-center justify-center">
+                    <Send className="w-5 h-5" />
+                  </div>
+                </div>
 
-            <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between`}>
-              <div>
-                <div className="text-[11px] text-emerald-500 font-semibold uppercase">Total Jenis Barang</div>
-                <div className={`text-2xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'} mt-1`}>{totalItemCount}</div>
-                <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Katalog aktif</div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center">
-                <Boxes className="w-5 h-5" />
-              </div>
-            </div>
+                <div
+                  onClick={() => handleSetActiveMenu('tabel-material')}
+                  className={`${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-emerald-500/50' : 'bg-white border-slate-200 hover:border-emerald-500/50 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between cursor-pointer transition`}
+                >
+                  <div>
+                    <div className="text-[11px] text-emerald-500 font-semibold uppercase">Total Jenis Barang</div>
+                    <div className={`text-2xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'} mt-1`}>{totalItemCount}</div>
+                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Katalog aktif</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center">
+                    <Boxes className="w-5 h-5" />
+                  </div>
+                </div>
 
-            <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between`}>
-              <div>
-                <div className="text-[11px] text-burgundy-500 font-semibold uppercase">Stok Menipis (≤ 20)</div>
-                <div className="text-2xl font-extrabold text-burgundy-500 mt-1">{lowStockItems}</div>
-                <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Perlu pengadaan baru</div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-burgundy-600/20 text-burgundy-500 border border-burgundy-500/30 flex items-center justify-center">
-                <TrendingDown className="w-5 h-5" />
-              </div>
-            </div>
+                <div
+                  onClick={() => handleSetActiveMenu('tabel-material')}
+                  className={`${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-rose-500/50' : 'bg-white border-slate-200 hover:border-rose-500/50 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between cursor-pointer transition`}
+                >
+                  <div>
+                    <div className="text-[11px] text-burgundy-500 font-semibold uppercase">Stok Menipis (≤ 20)</div>
+                    <div className="text-2xl font-extrabold text-burgundy-500 mt-1">{lowStockItems}</div>
+                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Perlu pengadaan baru</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-burgundy-600/20 text-burgundy-500 border border-burgundy-500/30 flex items-center justify-center">
+                    <TrendingDown className="w-5 h-5" />
+                  </div>
+                </div>
 
-            <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between`}>
-              <div>
-                <div className="text-[11px] text-blue-500 font-semibold uppercase">Total Serah Terima</div>
-                <div className="text-2xl font-extrabold text-blue-500 mt-1">{totalReleasedCount}</div>
-                <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Telah dirilis ke teknisi</div>
+                <div
+                  onClick={() => handleSetActiveMenu('audit-ont')}
+                  className={`${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-blue-500/50' : 'bg-white border-slate-200 hover:border-blue-500/50 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between cursor-pointer transition`}
+                >
+                  <div>
+                    <div className="text-[11px] text-blue-500 font-semibold uppercase">Total Serah Terima</div>
+                    <div className="text-2xl font-extrabold text-blue-500 mt-1">{totalReleasedCount}</div>
+                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Telah dirilis ke teknisi</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center">
+                    <ClipboardCheck className="w-5 h-5" />
+                  </div>
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center">
-                <ClipboardCheck className="w-5 h-5" />
+
+              {/* ANALYTICS CHARTS SECTION (DONUT & BAR CHART STOK GUDANG) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                
+                {/* 1. DONUT / PIE CHART: DISTRIBUSI KATEGORI MATERIAL GUDANG (REAL SUPABASE) */}
+                <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl p-5 space-y-4`}>
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800/60">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                        <PieChart className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          Komposisi Kategori Material Gudang
+                        </h3>
+                        <p className="text-[10px] text-slate-400">Proporsi volume fisik material sinkron real-time dengan Supabase</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                      Total: {categoryStats.totalQty.toLocaleString()} Unit
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-6 py-2">
+                    {/* SVG Donut Chart Dinamis */}
+                    <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                        {/* Background Ring */}
+                        <circle cx="50" cy="50" r="38" fill="none" stroke={isDark ? '#1e293b' : '#f1f5f9'} strokeWidth="14" />
+                        
+                        {categoryStats.totalQty > 0 ? (
+                          <>
+                            {/* Segment 1: Kabel & Serat (Emerald) */}
+                            {categoryStats.kabel.len > 0 && (
+                              <circle
+                                cx="50" cy="50" r="38" fill="none" stroke="#059669" strokeWidth="14"
+                                strokeDasharray={`${categoryStats.kabel.len} ${categoryStats.circumference - categoryStats.kabel.len}`}
+                                strokeDashoffset={categoryStats.kabel.offset}
+                                strokeLinecap="round"
+                              />
+                            )}
+                            {/* Segment 2: Perangkat Aktif ONT (Sky) */}
+                            {categoryStats.ont.len > 0 && (
+                              <circle
+                                cx="50" cy="50" r="38" fill="none" stroke="#0284c7" strokeWidth="14"
+                                strokeDasharray={`${categoryStats.ont.len} ${categoryStats.circumference - categoryStats.ont.len}`}
+                                strokeDashoffset={categoryStats.ont.offset}
+                                strokeLinecap="round"
+                              />
+                            )}
+                            {/* Segment 3: Perangkat Pasif (Amber) */}
+                            {categoryStats.pasif.len > 0 && (
+                              <circle
+                                cx="50" cy="50" r="38" fill="none" stroke="#d97706" strokeWidth="14"
+                                strokeDasharray={`${categoryStats.pasif.len} ${categoryStats.circumference - categoryStats.pasif.len}`}
+                                strokeDashoffset={categoryStats.pasif.offset}
+                                strokeLinecap="round"
+                              />
+                            )}
+                            {/* Segment 4: Aksesoris & Consumables (Purple) */}
+                            {categoryStats.consumable.len > 0 && (
+                              <circle
+                                cx="50" cy="50" r="38" fill="none" stroke="#a855f7" strokeWidth="14"
+                                strokeDasharray={`${categoryStats.consumable.len} ${categoryStats.circumference - categoryStats.consumable.len}`}
+                                strokeDashoffset={categoryStats.consumable.offset}
+                                strokeLinecap="round"
+                              />
+                            )}
+                          </>
+                        ) : null}
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-black text-emerald-400">
+                          {categoryStats.totalQty.toLocaleString()}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase">Unit Fisik</span>
+                      </div>
+                    </div>
+
+                    {/* Legend Chips Real Data Database */}
+                    <div className="flex-1 w-full space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                          <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Kabel &amp; Dropcore</span>
+                        </span>
+                        <strong className="font-mono text-emerald-400 text-xs">
+                          {categoryStats.kabel.qty.toLocaleString()} unit ({categoryStats.kabel.pct}%)
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+                          <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Perangkat Aktif (ONT)</span>
+                        </span>
+                        <strong className="font-mono text-sky-400 text-xs">
+                          {categoryStats.ont.qty.toLocaleString()} unit ({categoryStats.ont.pct}%)
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                          <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Perangkat Pasif (Roset/Splitter)</span>
+                        </span>
+                        <strong className="font-mono text-amber-400 text-xs">
+                          {categoryStats.pasif.qty.toLocaleString()} unit ({categoryStats.pasif.pct}%)
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                          <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Aksesoris &amp; Consumables</span>
+                        </span>
+                        <strong className="font-mono text-purple-400 text-xs">
+                          {categoryStats.consumable.qty.toLocaleString()} unit ({categoryStats.consumable.pct}%)
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. BAR CHART: KESEHATAN & AMBANG BATAS STOK GUDANG */}
+                <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl p-5 space-y-4`}>
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800/60">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          Status Kesehatan &amp; Level Stok Material
+                        </h3>
+                        <p className="text-[10px] text-slate-400">Monitoring ambang batas restock pengadaan Telkom</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleExportExcel}
+                      className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-[10px] flex items-center gap-1 border border-slate-700 transition cursor-pointer"
+                      title="Download format audit Excel CSV"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Export CSV</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-3.5 py-1 text-xs">
+                    {/* Bar 1: Stok Aman */}
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="font-semibold text-emerald-400">Stok Aman (&gt; 20 unit)</span>
+                        <span className="font-mono font-bold text-slate-300">{stockHealthStats.aman} Jenis Material</span>
+                      </div>
+                      <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.round((stockHealthStats.aman / Math.max(1, barang.length)) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bar 2: Stok Menipis */}
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="font-semibold text-amber-400">Stok Menipis (11 - 20 unit)</span>
+                        <span className="font-mono font-bold text-slate-300">{stockHealthStats.menipis} Jenis Material</span>
+                      </div>
+                      <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.round((stockHealthStats.menipis / Math.max(1, barang.length)) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bar 3: Stok Kritis */}
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="font-semibold text-rose-400">Stok Kritis (&le; 10 unit)</span>
+                        <span className="font-mono font-bold text-rose-400">{stockHealthStats.kritis} Jenis Material</span>
+                      </div>
+                      <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.round((stockHealthStats.kritis / Math.max(1, barang.length)) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
+                      <span>Threshold Otomatis: Sinkron dengan Database Supabase</span>
+                      <span className="text-emerald-400 font-bold">100% Real-Time</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* QUICK ACTION NAVIGATION CARDS (HUB LOGISTIK GUDANG STO) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div
+                  onClick={() => handleSetActiveMenu('tabel-material')}
+                  className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
+                    isDark ? 'bg-slate-900/60 border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900' : 'bg-white border-slate-200 hover:border-emerald-500/50 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                      <Boxes className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      {barang.length} Item
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs">Tabel Master Material</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Kelola stok fisik, edit barang, &amp; tambah kuota logistik.</p>
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => handleSetActiveMenu('output-barang')}
+                  className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
+                    isDark ? 'bg-slate-900/60 border-slate-800 hover:border-amber-500/50 hover:bg-slate-900' : 'bg-white border-slate-200 hover:border-amber-500/50 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+                      <Send className="w-4 h-4" />
+                    </div>
+                    {pendingReleaseCount > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+                        {pendingReleaseCount} Menunggu
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs">Persetujuan Barang Keluar</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Verifikasi rilis barang teknisi &amp; alokasi SN ONT.</p>
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => handleSetActiveMenu('audit-ont')}
+                  className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
+                    isDark ? 'bg-slate-900/60 border-slate-800 hover:border-purple-500/50 hover:bg-slate-900' : 'bg-white border-slate-200 hover:border-purple-500/50 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                      <Barcode className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                      Lifecycle ONT
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs">Audit &amp; Pelacakan ONT</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Lacak ONT di gudang, teknisi, &amp; terpasang di pelanggan.</p>
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => handleSetActiveMenu('penarikan-aset')}
+                  className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
+                    isDark ? 'bg-slate-900/60 border-slate-800 hover:border-rose-500/50 hover:bg-slate-900' : 'bg-white border-slate-200 hover:border-rose-500/50 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center">
+                      <ShieldAlert className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                      Debt Collector
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs">Penarikan Aset Pelanggan</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Lacak pelanggan nunggak untuk penarikan modem STO.</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* TAB 1: INPUT BARANG (PENGADAAN) */}
           {activeMenu === 'input-barang' && (
@@ -872,207 +1188,9 @@ export default function GudangDashboard() {
             </div>
           )}
 
-          {/* TAB 1: DAFTAR TABEL BARANG APA SAJA DI GUDANG (MASTER INVENTARIS) */}
-          {(activeMenu === 'daftar-barang' || activeMenu === 'laporan-detail') && (
+          {/* TAB: TABEL MASTER MATERIAL (STOK & INVENTARIS GUDANG) */}
+          {activeMenu === 'tabel-material' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              
-              {/* ANALYTICS CHARTS SECTION (DONUT & BAR CHART STOK GUDANG) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                
-                {/* 1. DONUT / PIE CHART: DISTRIBUSI KATEGORI MATERIAL GUDANG (REAL SUPABASE) */}
-                <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl p-5 space-y-4`}>
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800/60">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
-                        <PieChart className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          Komposisi Kategori Material Gudang
-                        </h3>
-                        <p className="text-[10px] text-slate-400">Proporsi volume fisik material sinkron real-time dengan Supabase</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                      Total: {categoryStats.totalQty.toLocaleString()} Unit
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center gap-6 py-2">
-                    {/* SVG Donut Chart Dinamis */}
-                    <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                        {/* Background Ring */}
-                        <circle cx="50" cy="50" r="38" fill="none" stroke={isDark ? '#1e293b' : '#f1f5f9'} strokeWidth="14" />
-                        
-                        {categoryStats.totalQty > 0 ? (
-                          <>
-                            {/* Segment 1: Kabel & Serat (Emerald) */}
-                            {categoryStats.kabel.len > 0 && (
-                              <circle
-                                cx="50" cy="50" r="38" fill="none" stroke="#059669" strokeWidth="14"
-                                strokeDasharray={`${categoryStats.kabel.len} ${categoryStats.circumference - categoryStats.kabel.len}`}
-                                strokeDashoffset={categoryStats.kabel.offset}
-                                strokeLinecap="round"
-                              />
-                            )}
-                            {/* Segment 2: Perangkat Aktif ONT (Sky) */}
-                            {categoryStats.ont.len > 0 && (
-                              <circle
-                                cx="50" cy="50" r="38" fill="none" stroke="#0284c7" strokeWidth="14"
-                                strokeDasharray={`${categoryStats.ont.len} ${categoryStats.circumference - categoryStats.ont.len}`}
-                                strokeDashoffset={categoryStats.ont.offset}
-                                strokeLinecap="round"
-                              />
-                            )}
-                            {/* Segment 3: Perangkat Pasif (Amber) */}
-                            {categoryStats.pasif.len > 0 && (
-                              <circle
-                                cx="50" cy="50" r="38" fill="none" stroke="#d97706" strokeWidth="14"
-                                strokeDasharray={`${categoryStats.pasif.len} ${categoryStats.circumference - categoryStats.pasif.len}`}
-                                strokeDashoffset={categoryStats.pasif.offset}
-                                strokeLinecap="round"
-                              />
-                            )}
-                            {/* Segment 4: Aksesoris & Consumables (Purple) */}
-                            {categoryStats.consumable.len > 0 && (
-                              <circle
-                                cx="50" cy="50" r="38" fill="none" stroke="#a855f7" strokeWidth="14"
-                                strokeDasharray={`${categoryStats.consumable.len} ${categoryStats.circumference - categoryStats.consumable.len}`}
-                                strokeDashoffset={categoryStats.consumable.offset}
-                                strokeLinecap="round"
-                              />
-                            )}
-                          </>
-                        ) : null}
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                        <span className="text-xs font-black text-emerald-400">
-                          {categoryStats.totalQty.toLocaleString()}
-                        </span>
-                        <span className="text-[9px] text-slate-400 font-bold uppercase">Unit Fisik</span>
-                      </div>
-                    </div>
-
-                    {/* Legend Chips Real Data Database */}
-                    <div className="flex-1 w-full space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                          <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Kabel & Dropcore</span>
-                        </span>
-                        <strong className="font-mono text-emerald-400 text-xs">
-                          {categoryStats.kabel.qty.toLocaleString()} unit ({categoryStats.kabel.pct}%)
-                        </strong>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
-                          <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Perangkat Aktif (ONT)</span>
-                        </span>
-                        <strong className="font-mono text-sky-400 text-xs">
-                          {categoryStats.ont.qty.toLocaleString()} unit ({categoryStats.ont.pct}%)
-                        </strong>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                          <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Perangkat Pasif (Roset/Splitter)</span>
-                        </span>
-                        <strong className="font-mono text-amber-400 text-xs">
-                          {categoryStats.pasif.qty.toLocaleString()} unit ({categoryStats.pasif.pct}%)
-                        </strong>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-                          <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Aksesoris & Consumables</span>
-                        </span>
-                        <strong className="font-mono text-purple-400 text-xs">
-                          {categoryStats.consumable.qty.toLocaleString()} unit ({categoryStats.consumable.pct}%)
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. BAR CHART: KESEHATAN & AMBANG BATAS STOK GUDANG */}
-                <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl p-5 space-y-4`}>
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800/60">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center">
-                        <BarChart3 className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          Status Kesehatan & Level Stok Material
-                        </h3>
-                        <p className="text-[10px] text-slate-400">Monitoring ambang batas restock pengadaan Telkom</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleExportExcel}
-                      className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-[10px] flex items-center gap-1 border border-slate-700 transition cursor-pointer"
-                      title="Download format audit Excel CSV"
-                    >
-                      <Download className="w-3 h-3" />
-                      <span>Export CSV</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-3.5 py-1 text-xs">
-                    {/* Bar 1: Stok Aman */}
-                    <div>
-                      <div className="flex items-center justify-between text-[11px] mb-1">
-                        <span className="font-semibold text-emerald-400">Stok Aman (&gt; 20 unit)</span>
-                        <span className="font-mono font-bold text-slate-300">{stockHealthStats.aman} Jenis Material</span>
-                      </div>
-                      <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.round((stockHealthStats.aman / Math.max(1, barang.length)) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Bar 2: Stok Menipis */}
-                    <div>
-                      <div className="flex items-center justify-between text-[11px] mb-1">
-                        <span className="font-semibold text-amber-400">Stok Menipis (11 - 20 unit)</span>
-                        <span className="font-mono font-bold text-slate-300">{stockHealthStats.menipis} Jenis Material</span>
-                      </div>
-                      <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.round((stockHealthStats.menipis / Math.max(1, barang.length)) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Bar 3: Stok Kritis */}
-                    <div>
-                      <div className="flex items-center justify-between text-[11px] mb-1">
-                        <span className="font-semibold text-rose-400">Stok Kritis (&le; 10 unit)</span>
-                        <span className="font-mono font-bold text-rose-400">{stockHealthStats.kritis} Jenis Material</span>
-                      </div>
-                      <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.round((stockHealthStats.kritis / Math.max(1, barang.length)) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
-                      <span>Threshold Otomatis: Sinkron dengan Database Supabase</span>
-                      <span className="text-emerald-400 font-bold">100% Real-Time</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
               {/* Toolbar Pencarian, Filter Kategori & Tombol Input Material Baru (RESPONSIVE & RAPI) */}
               <div className={`flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} p-4 rounded-3xl border`}>
                 <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-1 min-w-0">
@@ -1247,38 +1365,7 @@ export default function GudangDashboard() {
           {/* TAB: AUDIT & PELACAKAN ASET ONT (MENU KHUSUS AUDIT PERANGKAT TERPASANG) */}
           {activeMenu === 'audit-ont' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              {/* Subtab Selector */}
-              <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-slate-900/60 border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setAuditSubTab('ont-list')}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer transition ${
-                    auditSubTab === 'ont-list'
-                      ? 'bg-purple-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Barcode className="w-4 h-4" />
-                  <span>Audit Lifecycle Perangkat ONT &amp; BASTP</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAuditSubTab('pelanggan-debt-collector')}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer transition ${
-                    auditSubTab === 'pelanggan-debt-collector'
-                      ? 'bg-rose-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <ShieldAlert className="w-4 h-4" />
-                  <span>Pelacakan Penarikan Aset Pelanggan Menunggak (Debt Collector)</span>
-                </button>
-              </div>
-
-              {auditSubTab === 'pelanggan-debt-collector' ? (
-                <TabelPelangganAset />
-              ) : (
-                <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl overflow-hidden shadow-xl space-y-4 p-5 sm:p-6`}>
+              <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl overflow-hidden shadow-xl space-y-4 p-5 sm:p-6`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
@@ -1457,11 +1544,17 @@ export default function GudangDashboard() {
                   </table>
                 </div>
               </div>
-              )}
             </div>
           )}
 
-          {/* TAB 4: CETAK SURAT JALAN MATERIAL */}
+          {/* TAB: PENARIKAN ASET PELANGGAN MENUNGGAK (DEPT COLLECTOR) */}
+          {activeMenu === 'penarikan-aset' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <TabelPelangganAset />
+            </div>
+          )}
+
+          {/* TAB: CETAK SURAT JALAN & BASTP */}
           {activeMenu === 'cetak-surat-jalan' && (
             <div className="animate-in fade-in duration-200">
               <CetakSuratJalan />

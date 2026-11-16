@@ -213,13 +213,15 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
                         #{task.id}
                       </td>
 
-                      <td className="px-4 py-3">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                          task.jenis_kerja?.toLowerCase().includes('pasang baru')
-                            ? 'bg-blue-600/20 text-blue-400 border-blue-500/30'
-                            : task.jenis_kerja?.toLowerCase().includes('gangguan')
-                            ? 'bg-rose-600/20 text-rose-400 border-rose-500/30'
-                            : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap border shadow-xs tracking-wide ${
+                          task.jenis_kerja?.toLowerCase().includes('pasang')
+                            ? 'bg-blue-600/20 text-blue-400 border-blue-500/40'
+                            : (task.jenis_kerja?.toLowerCase().includes('gangguan') || task.jenis_kerja?.toLowerCase().includes('putus'))
+                            ? 'bg-rose-600/20 text-rose-400 border-rose-500/40'
+                            : task.jenis_kerja?.toLowerCase().includes('modem')
+                            ? 'bg-amber-600/20 text-amber-400 border-amber-500/40'
+                            : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40'
                         }`}>
                           {task.jenis_kerja}
                         </span>

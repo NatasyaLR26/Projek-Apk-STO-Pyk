@@ -143,10 +143,10 @@ function LaporanAudit() {
                     <span className="font-mono font-black text-burgundy-500 text-sm">
                       TGS-{String(item.id).padStart(3, '0')}
                     </span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      item.jenis_kerja === 'Pasang Baru' ? 'bg-blue-500/20 text-blue-500 border-blue-500/30' :
-                      item.jenis_kerja === 'Gangguan' ? 'bg-rose-500/20 text-rose-500 border-rose-500/30' :
-                      'bg-purple-500/20 text-purple-500 border-purple-500/30'
+                    <span className={`text-[11px] font-bold px-3 py-1 rounded-xl whitespace-nowrap inline-flex items-center border shadow-xs tracking-wide ${
+                      item.jenis_kerja === 'Pasang Baru' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' :
+                      item.jenis_kerja === 'Gangguan' ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' :
+                      'bg-purple-500/20 text-purple-400 border-purple-500/40'
                     }`}>
                       {item.jenis_kerja}
                     </span>

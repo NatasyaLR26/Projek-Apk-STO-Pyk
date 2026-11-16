@@ -42,6 +42,12 @@ const CONTOH_FOTO_LAPANGAN = [
   { label: 'Hasil Ukur OPM (Redaman dBm)', url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80' },
 ];
 
+// Contoh foto bukti fisik sisa / kelebihan material retur ke STO
+const CONTOH_FOTO_SISA = [
+  { label: 'Sisa Kabel Dropcore', url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80' },
+  { label: 'Aksesoris Klem & Roset Sisa', url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80' },
+];
+
 export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const { isDark } = useTheme();
   const { tugas, permohonan, detailPermohonan, barang, finishTugas, showToast } = useApp();
@@ -57,6 +63,12 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const [pelangganNama, setPelangganNama] = useState(task?.pelanggan_nama || 'Pelanggan Telkom');
   const [catatan, setCatatan] = useState('Pemasangan instalasi selesai. Redaman optimal (-18.5 dBm), lampu PON modem hijau solid, internet aktif.');
   const [returKeGudang, setReturKeGudang] = useState(true);
+
+  // State Kelebihan Material (Berdasarkan Tulisan & Foto Saja Sesuai SOP STO)
+  const [adaKelebihanMaterial, setAdaKelebihanMaterial] = useState(false);
+  const [rincianKelebihan, setRincianKelebihan] = useState('');
+  const [fotoKelebihan, setFotoKelebihan] = useState('');
+  const [konfirmasiRetur, setKonfirmasiRetur] = useState(true);
 
   // 2. STATE FOTO DOKUMENTASI
   const [preview, setPreview] = useState(CONTOH_FOTO_LAPANGAN[0].url);
@@ -194,6 +206,25 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
     }
   };
 
+  // Handler upload foto bukti fisik sisa / kelebihan material
+  const handleFileKelebihanChange = (e) => {
+    const selected = e.target.files[0];
+    if (!selected) return;
+    if (!selected.type.startsWith('image/')) {
+      showToast('File harus berupa gambar foto', 'error');
+      return;
+    }
+    try {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setFotoKelebihan(ev.target.result);
+      };
+      reader.readAsDataURL(selected);
+    } catch (_) {
+      setFotoKelebihan(URL.createObjectURL(selected));
+    }
+  };
+
   // Validasi kualitas redaman optik (Standar Telkom Regional: -16.0 s/d -24.0 dBm)
   const redamanVal = parseFloat(redamanDbm);
   const isRedamanValid = !isNaN(redamanVal) && redamanVal >= -24.0 && redamanVal <= -14.0;
@@ -224,7 +255,12 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
       redaman_dbm: redamanDbm,
       sn_ont: snOnt,
       pelanggan_nama: pelangganNama,
-      retur_ke_gudang: returKeGudang,
+      retur_ke_gudang: adaKelebihanMaterial && konfirmasiRetur,
+      kelebihan_material: {
+        ada: adaKelebihanMaterial,
+        rincian: adaKelebihanMaterial ? (rincianKelebihan || 'Material berlebih siap diretur ke STO') : 'Tidak ada material berlebih (terpakai pas)',
+        foto: adaKelebihanMaterial ? fotoKelebihan : null
+      },
       reconciliation: materialList,
       bastp_number: `BASTP/TA-PYK/2026/${String(tugasId).padStart(4, '0')}`
     };
@@ -453,102 +489,191 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                   onClick={() => setActiveStep(2)}
                   className="px-5 py-2.5 rounded-xl bg-burgundy-600 hover:bg-burgundy-700 text-white font-bold text-xs shadow-lg transition cursor-pointer"
                 >
-                  Lanjut ke Rekonsiliasi Material →
+                  Lanjut ke Deklarasi Kelebihan Material →
                 </button>
               </div>
             </div>
           )}
 
-          {/* STEP 2: REKONSILIASI MATERIAL REAL (CONSUMED VS SISA RETUR) */}
+          {/* STEP 2: DEKLARASI & BUKTI KELEBIHAN MATERIAL (RETUR KE SENTRAL STO) */}
           {activeStep === 2 && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div className={`p-4 rounded-2xl border ${
+              <div className={`p-4 sm:p-5 rounded-2xl border ${
                 isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'
-              } space-y-3`}>
-                <div className="flex items-center justify-between">
+              } space-y-4`}>
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-bold text-sm">Rekonsiliasi Material Lapangan Real</h3>
+                    <h3 className="font-bold text-sm flex items-center gap-2">
+                      <span>Deklarasi &amp; Bukti Kelebihan Material Lapangan</span>
+                    </h3>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Catat berapa panjang/jumlah material yang terpasang di rumah pelanggan vs sisa yang diretur ke gudang.
+                      Sesuai SOP STO Telkom Akses: Kelebihan material tidak dihitung per meter, melainkan dicatat dalam bentuk tulisan dan bukti foto fisik untuk dikembalikan ke Sentral STO.
                     </p>
                   </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                    Audit Material
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+                    SOP Retur Logistik
                   </span>
                 </div>
 
-                {/* Tabel Rekonsiliasi Material */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className={`border-b ${isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-600'}`}>
-                        <th className="py-2 px-2.5 font-bold">Material / Barang</th>
-                        <th className="py-2 px-2.5 font-bold text-center">Diambil</th>
-                        <th className="py-2 px-2.5 font-bold text-center text-emerald-400">Terpasang di Pelanggan</th>
-                        <th className="py-2 px-2.5 font-bold text-center text-amber-400">Sisa Kembali ke Gudang</th>
-                        <th className="py-2 px-2.5 font-bold text-right">Status Akhir</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800">
-                      {materialList.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-800/20">
-                          <td className="py-2.5 px-2.5">
-                            <span className="font-semibold block">{item.nama_barang}</span>
-                            {item.sn && (
-                              <span className="text-[10px] font-mono text-purple-400 block">
-                                SN: {item.sn}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-2.5 text-center font-mono font-bold">
-                            {item.jumlah_diambil} {item.satuan}
-                          </td>
-                          <td className="py-2.5 px-2.5 text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              max={item.jumlah_diambil}
-                              value={item.jumlah_terpakai}
-                              onChange={(e) => handleTerpakaiChange(idx, e.target.value)}
-                              className={`w-20 text-center p-1.5 rounded-lg border font-mono font-bold text-xs outline-none ${
-                                isDark ? 'bg-slate-900 border-slate-700 text-emerald-400' : 'bg-slate-50 border-slate-300 text-emerald-600'
-                              }`}
-                            />
-                          </td>
-                          <td className="py-2.5 px-2.5 text-center font-mono text-amber-400 font-bold">
-                            {item.jumlah_sisa} {item.satuan}
-                          </td>
-                          <td className="py-2.5 px-2.5 text-right">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
-                              TERPASANG (CONSUMED)
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Referensi Barang yang Diambil dari Gudang */}
+                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Referensi Material yang Diambil dari Gudang:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {materialList.map((m, idx) => (
+                      <span key={idx} className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-mono text-[11px] border border-slate-700 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        <span>{m.nama_barang}: <strong>{m.jumlah_diambil} {m.satuan}</strong></span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Opsi Retur Otomatis */}
-                <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                  isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <RotateCcw className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                {/* Dua Pilihan Toggle: Tidak Ada vs Ada Kelebihan */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div
+                    onClick={() => {
+                      setAdaKelebihanMaterial(false);
+                      setRincianKelebihan('');
+                      setFotoKelebihan('');
+                    }}
+                    className={`p-3.5 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                      !adaKelebihanMaterial
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : isDark ? 'border-slate-800 bg-slate-900/40 hover:border-slate-700' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-xs text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Tidak Ada Material Berlebih</span>
+                      </span>
+                      <input
+                        type="radio"
+                        checked={!adaKelebihanMaterial}
+                        onChange={() => {}}
+                        className="accent-emerald-500"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Seluruh material habis terpakai dan terpasang pas di rumah pelanggan sesuai SOP penarikan FO.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setAdaKelebihanMaterial(true)}
+                    className={`p-3.5 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                      adaKelebihanMaterial
+                        ? 'border-amber-500 bg-amber-500/10'
+                        : isDark ? 'border-slate-800 bg-slate-900/40 hover:border-slate-700' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-xs text-amber-400 flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>Ada Material Berlebih (Wajib Foto &amp; Retur)</span>
+                      </span>
+                      <input
+                        type="radio"
+                        checked={adaKelebihanMaterial}
+                        onChange={() => {}}
+                        className="accent-amber-500"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Terdapat sisa kabel, klem tiang, roset cadangan, dll yang wajib difoto dan diserahkan kembali ke Gudang STO.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Form Input Rincian Tulisan & Foto Jika Ada Kelebihan Material */}
+                {adaKelebihanMaterial && (
+                  <div className="space-y-3.5 p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 animate-in fade-in duration-200">
                     <div>
-                      <span className="font-bold text-xs">Retur Sisa Material ke Gudang Otomatis</span>
-                      <p className="text-[10px] text-slate-400">
-                        Sisa material yang tidak terpasang (misal potongan dropcore) otomatis ditambahkan kembali ke stok gudang.
-                      </p>
+                      <label className="block text-xs font-bold text-amber-400 mb-1">
+                        1. Rincian Tertulis Material Berlebih / Sisa: *
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={rincianKelebihan}
+                        onChange={(e) => setRincianKelebihan(e.target.value)}
+                        placeholder="Contoh: Sisa kabel dropcore 1 rol gulungan pendek, 2 pcs klem tiang segitiga, 1 unit roset optik cadangan..."
+                        className={`w-full p-2.5 rounded-xl border outline-none text-xs ${
+                          isDark ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-500' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-amber-400 mb-1.5">
+                        2. Foto Bukti Fisik Barang Berlebih: *
+                      </label>
+                      
+                      {fotoKelebihan ? (
+                        <div className="relative rounded-xl overflow-hidden border border-amber-500/40 h-36 w-full mb-2">
+                          <img src={fotoKelebihan} alt="Bukti Kelebihan Material" className="w-full h-full object-cover" />
+                          <div className="absolute top-2 right-2 flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setFotoKelebihan('')}
+                              className="px-2 py-1 rounded-lg bg-black/80 hover:bg-rose-600 text-white text-[10px] font-bold transition cursor-pointer"
+                            >
+                              Ganti Foto
+                            </button>
+                          </div>
+                          <div className="absolute bottom-2 left-2 bg-black/75 backdrop-blur px-2 py-0.5 rounded text-[10px] text-amber-300 font-mono">
+                            Bukti Fisik Barang Berlebih
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            {CONTOH_FOTO_SISA.map((sample, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => setFotoKelebihan(sample.url)}
+                                className="p-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold truncate transition cursor-pointer text-center"
+                              >
+                                {sample.label}
+                              </button>
+                            ))}
+                          </div>
+                          <label className={`block py-2 px-3 rounded-xl border text-center cursor-pointer transition ${
+                            isDark ? 'bg-slate-900 hover:bg-slate-800 text-amber-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-amber-600 border-slate-300'
+                          }`}>
+                            <span className="font-bold text-xs">+ Ambil / Upload Foto Sisa Material</span>
+                            <input type="file" accept="image/*" capture="environment" onChange={handleFileKelebihanChange} className="hidden" />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Checkbox Konfirmasi Retur ke Sentral STO */}
+                    <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-start gap-2.5">
+                      <input
+                        type="checkbox"
+                        id="konfirmasiReturCheckbox"
+                        checked={konfirmasiRetur}
+                        onChange={(e) => setKonfirmasiRetur(e.target.checked)}
+                        className="w-4 h-4 mt-0.5 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
+                      />
+                      <label htmlFor="konfirmasiReturCheckbox" className="text-xs text-slate-300 cursor-pointer">
+                        <strong className="text-amber-400 block mb-0.5">Komitmen Retur Fisik ke Sentral STO:</strong>
+                        Saya menyatakan bertanggung jawab penuh atas barang berlebih ini dan siap menyerahkan fisik barang ke Gudang Sentral STO Telkom Akses Payakumbuh saat kembali dari lapangan.
+                      </label>
+                    </div>
+
+                    {/* Alert Peringatan Ganti Rugi Sesuai Permintaan User */}
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>
+                        <strong>Peringatan Audit STO:</strong> Jika material berlebih tidak dikembalikan ke Sentral STO atau hilang tanpa bukti fisik, teknisi wajib bertanggung jawab dan mengganti rugi sesuai ketentuan Telkom Akses.
+                      </span>
                     </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={returKeGudang}
-                    onChange={(e) => setReturKeGudang(e.target.checked)}
-                    className="w-4 h-4 rounded text-burgundy-600 accent-burgundy-600 cursor-pointer"
-                  />
-                </div>
+                )}
               </div>
 
               <div className="flex justify-between pt-2">

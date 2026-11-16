@@ -28,7 +28,8 @@ import {
   X,
   Network,
   Barcode,
-  Contact2
+  Contact2,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function ModernSidebar({ activeTab, onTabChange }) {
@@ -97,23 +98,28 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
       case 'gudang':
         return [
           {
-            key: 'daftar-barang',
-            label: 'Daftar Stok Barang Gudang',
+            key: 'dashboard-gudang',
+            label: 'Dashboard & Grafik Gudang',
+            icon: LayoutDashboard
+          },
+          {
+            key: 'tabel-material',
+            label: 'Tabel Master Material (Stok)',
             icon: Boxes,
             badge: barang.length > 0 ? `${barang.length} Item` : null,
             badgeColor: 'bg-emerald-500 text-white'
           },
           {
-            key: 'output-barang',
-            label: 'Output Barang (Rilis / Serah Terima)',
-            icon: Send,
-            badge: pendingGudangCount > 0 ? pendingGudangCount : null,
-            badgeColor: 'bg-amber-500 text-white'
-          },
-          {
             key: 'input-barang',
             label: 'Input Barang (Pengadaan Masuk)',
             icon: PlusCircle
+          },
+          {
+            key: 'output-barang',
+            label: 'Persetujuan Barang Keluar (Rilis Pasang)',
+            icon: Send,
+            badge: pendingGudangCount > 0 ? pendingGudangCount : null,
+            badgeColor: 'bg-amber-500 text-white'
           },
           {
             key: 'audit-ont',
@@ -123,8 +129,15 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
             badgeColor: 'bg-purple-600 text-white'
           },
           {
+            key: 'penarikan-aset',
+            label: 'Penarikan Aset Pelanggan (Dept Collector)',
+            icon: ShieldAlert,
+            badge: 'Sita Aset',
+            badgeColor: 'bg-rose-600 text-white'
+          },
+          {
             key: 'cetak-surat-jalan',
-            label: 'Cetak Surat Jalan Material',
+            label: 'Cetak Surat Jalan & BASTP',
             icon: FileCheck
           }
         ];
@@ -193,7 +206,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
   };
 
   const handleLogoClick = () => {
-    const defaultTab = currentRole === 'teknisi' ? 'tiket' : currentRole === 'gudang' ? 'daftar-barang' : 'dashboard';
+    const defaultTab = currentRole === 'teknisi' ? 'tiket' : currentRole === 'gudang' ? 'dashboard-gudang' : 'dashboard';
     if (onTabChange) {
       onTabChange(defaultTab);
     }
