@@ -36,6 +36,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
 import api from '../api/axiosInstance';
+import { playNotificationChime } from '../utils/soundHelper';
 import {
   initialUsers,
   initialBarang,
@@ -55,6 +56,7 @@ export function AppProvider({ children }) {
   // Helper pengiriman sinyal broadcast peer-to-peer WebSocket via Supabase Realtime
   const broadcastLiveSignal = useCallback((event, payload) => {
     try {
+      playNotificationChime();
       if (stoChannelRef.current) {
         stoChannelRef.current.send({
           type: 'broadcast',
@@ -182,6 +184,9 @@ export function AppProvider({ children }) {
   // Show Toast / Notification
   const showToast = useCallback((message, type = 'success') => {
     setNotification({ message, type, id: Date.now() });
+    if (type !== 'error') {
+      playNotificationChime();
+    }
     setTimeout(() => {
       setNotification(null);
     }, 4000);
@@ -578,6 +583,39 @@ export function AppProvider({ children }) {
 
     // 2. Update state React lokal seketika
     setTugas(prev => [finalTask, ...prev.filter(t => t.id !== newId && t.id !== finalTask.id)]);
+
+    // 2b. Simpan data calon pelanggan ke Master Data Pelanggan STO sejak awal tiket diterbitkan Pimpinan
+    if (finalTask.pelanggan_nama) {
+      setPelanggan(prev => {
+        const cleanName = finalTask.pelanggan_nama.trim().toLowerCase();
+        const exists = prev.some(p => p.nama && p.nama.trim().toLowerCase() === cleanName);
+        if (!exists) {
+          const newCustomer = {
+            id: prev.length + 1,
+            id_pelanggan: `112233${String(prev.length + 1).padStart(6, '0')}`,
+            nama: finalTask.pelanggan_nama,
+            no_telp: finalTask.pelanggan_telp || '0812-7711-2233',
+            alamat: finalTask.lokasi || 'Payakumbuh',
+            patokan: finalTask.keterangan || 'Tiket Terbit - Dalam Penanganan Teknisi Lapangan',
+            latitude: target_lat,
+            longitude: target_lng,
+            odp_id: taskData.odp_kode || 'ODP-PYK-FA/001',
+            port_odp: '-',
+            paket: finalTask.jenis_kerja?.includes('Pasang Baru') ? 'IndiHome Fiber 50 Mbps' : 'Maintenance Jaringan',
+            sn_ont: 'Menunggu Closing BASTP',
+            model_ont: 'Modem ONT ZTE F670L Dual Band',
+            sn_stb: '-',
+            tanggal_pasang: 'Dalam Proses Pasang',
+            status_langganan: 'Proses Pasang Baru',
+            total_tunggakan: 'Rp 0',
+            foto_rumah: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80',
+            catatan_kolektor: `Tiket #${finalTask.id} diterbitkan Pimpinan STO.`
+          };
+          return [newCustomer, ...prev];
+        }
+        return prev;
+      });
+    }
 
     // 3. Supabase Realtime WebSocket Broadcast: Sinyal langsung masuk ke aplikasi teknisi dalam hitungan milidetik ⚡
     broadcastLiveSignal('tugas_baru', finalTask);
@@ -1058,6 +1096,7 @@ export function AppProvider({ children }) {
 
     // Cek apakah argumen kedua berupa objek payload lengkap atau sekadar string URL foto
     const isPayloadObject = typeof argPhotoOrPayload === 'object' && argPhotoOrPayload !== null;
+    const matchedTask = tugas.find(t => Number(t.id) === parsedTugasId);
 
     const proof = isPayloadObject
       ? (argPhotoOrPayload.foto_bukti || argPhotoOrPayload.fotoBuktiUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80")
@@ -1068,7 +1107,9 @@ export function AppProvider({ children }) {
     const portOdp = isPayloadObject ? (argPhotoOrPayload.port_odp || "03") : "03";
     const redamanDbm = isPayloadObject ? (argPhotoOrPayload.redaman_dbm || "-18.5") : "-18.5";
     const snOnt = isPayloadObject ? (argPhotoOrPayload.sn_ont || "ZTEGC8B90112") : "ZTEGC8B90112";
-    const pelangganNama = isPayloadObject ? (argPhotoOrPayload.pelanggan_nama || "") : "";
+    const pelangganNama = isPayloadObject ? (argPhotoOrPayload.pelanggan_nama || matchedTask?.pelanggan_nama || "") : (matchedTask?.pelanggan_nama || "");
+    const pelangganTelp = isPayloadObject ? (argPhotoOrPayload.pelanggan_telp || matchedTask?.pelanggan_telp || "") : (matchedTask?.pelanggan_telp || "");
+    const lokasiAlamat = isPayloadObject ? (argPhotoOrPayload.lokasi || matchedTask?.lokasi || "") : (matchedTask?.lokasi || "");
     const reconciliation = isPayloadObject ? (argPhotoOrPayload.reconciliation || []) : [];
     const bastpNumber = isPayloadObject
       ? (argPhotoOrPayload.bastp_number || `BASTP/TA-PYK/${now.getFullYear()}/${String(parsedTugasId).padStart(4, '0')}`)
@@ -1215,8 +1256,8 @@ export function AppProvider({ children }) {
               id: prev.length + 1,
               id_pelanggan: `112233${String(prev.length + 1).padStart(6, '0')}`,
               nama: pelangganNama,
-              no_telp: argPhotoOrPayload?.pelanggan_telp || '0812-3456-7890',
-              alamat: argPhotoOrPayload?.lokasi || 'Koto Nan IV, Payakumbuh',
+              no_telp: pelangganTelp || '0812-3456-7890',
+              alamat: lokasiAlamat || 'Koto Nan IV, Payakumbuh',
               patokan: 'Pemasangan baru selesai divalidasi BASTP',
               latitude: -0.22415,
               longitude: 100.63120,

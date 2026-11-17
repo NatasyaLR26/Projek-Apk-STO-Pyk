@@ -43,6 +43,7 @@ export default function GudangDashboard() {
     detailPermohonan,
     tugas,
     users,
+    pelanggan,
     releaseMaterial,
     updateBarang,
     tambahStokBarang,
@@ -301,15 +302,20 @@ export default function GudangDashboard() {
     // 1. ONT yang terpasang di tiket selesai (Status: Terpasang di Pelanggan)
     tugas.forEach(t => {
       if (t.sn_ont || t.bastp?.sn_ont || t.status === 'Done') {
+        const matchedCust = (pelanggan || []).find(p => (p.sn_ont && p.sn_ont === (t.sn_ont || t.bastp?.sn_ont)) || (p.nama && p.nama.trim().toLowerCase() === (t.pelanggan_nama || '').trim().toLowerCase()));
+        const cleanTelp = (t.pelanggan_telp && !t.pelanggan_telp.includes('xxxx'))
+          ? t.pelanggan_telp
+          : matchedCust?.no_telp || '0812-7711-2233';
+
         list.push({
           id: `ONT-INST-${t.id}`,
           sn: t.sn_ont || t.bastp?.sn_ont || `ZTEGC8B901${String(t.id).padStart(2, '0')}`,
           model: 'Modem ONT ZTE F670L Dual Band',
           status: t.status === 'Done' ? 'Terpasang' : 'Di Perjalanan',
-          pelanggan_nama: t.pelanggan_nama || 'Pelanggan STO',
-          pelanggan_telp: t.pelanggan_telp || '0812-xxxx-xxxx',
-          lokasi: t.lokasi,
-          odp_id: t.odp_id || t.odp_kode || 'ODP-PYK-FA/001',
+          pelanggan_nama: t.pelanggan_nama || matchedCust?.nama || 'Pelanggan STO',
+          pelanggan_telp: cleanTelp,
+          lokasi: t.lokasi || matchedCust?.alamat || 'Payakumbuh',
+          odp_id: t.odp_id || t.odp_kode || matchedCust?.odp_id || 'ODP-PYK-FA/001',
           redaman_dbm: t.redaman_dbm ? `${t.redaman_dbm} dBm` : '-18.50 dBm',
           bastp_no: t.bastp_no || `BASTP/TA-PYK/2026/${String(t.id).padStart(4, '0')}`,
           teknisi: users.find(u => Number(u.id) === Number(t.teknisi_id))?.nama_lengkap || 'Teknisi Lapangan',
@@ -324,15 +330,20 @@ export default function GudangDashboard() {
       if (!isDone) {
         const alreadyIn = list.some(o => o.sn === (rel.parentTask?.sn_ont || `ZTEGC8B901${String(rel.parentTask?.id || 1).padStart(2, '0')}`));
         if (!alreadyIn) {
+          const matchedCust = (pelanggan || []).find(p => p.nama && p.nama.trim().toLowerCase() === (rel.parentTask?.pelanggan_nama || '').trim().toLowerCase());
+          const cleanTelp = (rel.parentTask?.pelanggan_telp && !rel.parentTask.pelanggan_telp.includes('xxxx'))
+            ? rel.parentTask.pelanggan_telp
+            : matchedCust?.no_telp || '0813-8822-4455';
+
           list.push({
             id: `ONT-TRANS-${rel.id}`,
             sn: rel.parentTask?.sn_ont || `ZTEGC8B901${String(rel.parentTask?.id || 1).padStart(2, '0')}`,
             model: 'Modem ONT ZTE F670L Dual Band',
             status: 'Di Perjalanan',
-            pelanggan_nama: rel.parentTask?.pelanggan_nama || 'Pelanggan STO',
-            pelanggan_telp: rel.parentTask?.pelanggan_telp || '0812-xxxx-xxxx',
-            lokasi: rel.parentTask?.lokasi || 'Koto Nan IV',
-            odp_id: rel.parentTask?.odp_kode || 'ODP-PYK-FA/001',
+            pelanggan_nama: rel.parentTask?.pelanggan_nama || matchedCust?.nama || 'Pelanggan STO',
+            pelanggan_telp: cleanTelp,
+            lokasi: rel.parentTask?.lokasi || matchedCust?.alamat || 'Koto Nan IV',
+            odp_id: rel.parentTask?.odp_kode || matchedCust?.odp_id || 'ODP-PYK-FA/001',
             redaman_dbm: 'Belum Diukur (Dalam Perjalanan)',
             bastp_no: 'Menunggu Closing',
             teknisi: rel.tech?.nama_lengkap || 'Teknisi STO',
@@ -486,22 +497,22 @@ export default function GudangDashboard() {
                 <span className="text-xs text-slate-400 font-mono">Petugas: {user.nama_lengkap}</span>
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeMenu === 'dashboard-gudang' && 'Dashboard & Analitik Logistik Gudang STO'}
-                {activeMenu === 'tabel-material' && 'Tabel Master Material & Stok Inventaris Gudang'}
-                {activeMenu === 'output-barang' && 'Output Barang (Rilis & Serah Terima ke Teknisi)'}
-                {activeMenu === 'input-barang' && 'Input Barang (Pengadaan & Registrasi Masuk)'}
-                {activeMenu === 'audit-ont' && 'Audit & Pelacakan Aset ONT (Status Terpasang Lapangan)'}
-                {activeMenu === 'penarikan-aset' && 'Penarikan Aset Pelanggan Menunggak (Dept Collector)'}
-                {activeMenu === 'cetak-surat-jalan' && 'Cetak Surat Jalan & Bukti Serah Terima Material'}
+                {activeMenu === 'dashboard-gudang' && 'Dashboard Gudang'}
+                {activeMenu === 'tabel-material' && 'Tabel Material'}
+                {activeMenu === 'output-barang' && 'Persetujuan Barang Keluar'}
+                {activeMenu === 'input-barang' && 'Input Barang Masuk'}
+                {activeMenu === 'audit-ont' && 'Audit Aset ONT'}
+                {activeMenu === 'penarikan-aset' && 'Dismantle & Recovery Aset STO'}
+                {activeMenu === 'cetak-surat-jalan' && 'Cetak Surat Jalan & BASTP'}
               </h1>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                {activeMenu === 'dashboard-gudang' && 'Visualisasi grafik komposisi material, ambang batas stok, dan analitik logistik real-time.'}
-                {activeMenu === 'tabel-material' && 'Daftar lengkap master material fisik, filter kategori, penambahan stok instan, dan ekspor data.'}
-                {activeMenu === 'output-barang' && 'Verifikasi permohonan material teknisi, alokasi Serial Number ONT per pelanggan, dan serah terima fisik.'}
-                {activeMenu === 'input-barang' && 'Registrasi penambahan material fisik masuk ke rak gudang Sentral STO Telkom Akses Payakumbuh.'}
-                {activeMenu === 'audit-ont' && 'Pelacakan siklus hidup modem ONT: Rak Gudang → Perjalanan Teknisi → Terpasang di Rumah Pelanggan.'}
-                {activeMenu === 'penarikan-aset' && 'Daftar penarikan perangkat ONT dari pelanggan menunggak oleh tim penagih / debt collector STO.'}
-                {activeMenu === 'cetak-surat-jalan' && 'Penerbitan dokumen fisik surat pengeluaran barang resmi logistik STO Telkom Akses.'}
+                {activeMenu === 'dashboard-gudang' && 'Monitoring inventaris & pergerakan material.'}
+                {activeMenu === 'tabel-material' && 'Master inventaris & stok material fisik.'}
+                {activeMenu === 'output-barang' && 'Rilis barang & alokasi SN ONT ke teknisi.'}
+                {activeMenu === 'input-barang' && 'Registrasi pengadaan material masuk.'}
+                {activeMenu === 'audit-ont' && 'Pelacakan ONT terpasang di pelanggan.'}
+                {activeMenu === 'penarikan-aset' && 'Penarikan perangkat pelanggan putus kontrak.'}
+                {activeMenu === 'cetak-surat-jalan' && 'Dokumen fisik resmi serah terima barang.'}
               </p>
             </div>
           </div>
@@ -867,12 +878,12 @@ export default function GudangDashboard() {
                       <ShieldAlert className="w-4 h-4" />
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                      Debt Collector
+                      Dismantle
                     </span>
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs">Penarikan Aset Pelanggan</h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Lacak pelanggan nunggak untuk penarikan modem STO.</p>
+                    <h4 className="font-bold text-xs">Dismantle &amp; Recovery Aset</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Penarikan modem pelanggan putus kontrak.</p>
                   </div>
                 </div>
               </div>

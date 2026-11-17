@@ -196,14 +196,18 @@ export default function DashboardTeknisi() {
                 <span className="text-xs text-slate-400 font-mono">ID: TA-02981</span>
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeMenu === 'tiket' && 'Daftar Tiket Tugas & Penugasan Lapangan'}
-                {activeMenu === 'surat-permohonan' && 'Form Pembuatan Surat Permohonan Barang'}
-                {activeMenu === 'cetak-surat' && 'Cetak Fisik Surat Permohonan Pengambilan Barang'}
-                {activeMenu === 'status-approval' && 'Status Persetujuan Pimpinan & Pengambilan Gudang'}
-                {activeMenu === 'pengerjaan' && 'Pengerjaan Lapangan, Pengukuran OPM & BASTP'}
+                {activeMenu === 'tiket' && 'Dashboard Teknisi'}
+                {activeMenu === 'surat-permohonan' && 'Permohonan Material'}
+                {activeMenu === 'cetak-surat' && 'Cetak Surat Permohonan'}
+                {activeMenu === 'status-approval' && 'Persetujuan & Gudang'}
+                {activeMenu === 'pengerjaan' && 'Pemasangan & BASTP Digital'}
               </h1>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                Petugas: <strong>{user.nama_lengkap}</strong> | Unit: Fiber Optic Maintenance & Provisioning.
+                {activeMenu === 'tiket' && 'Daftar tiket tugas lapangan & pengambilan pekerjaan.'}
+                {activeMenu === 'surat-permohonan' && 'Formulir pengajuan kebutuhan barang ke gudang.'}
+                {activeMenu === 'cetak-surat' && 'Cetak dokumen surat permohonan material.'}
+                {activeMenu === 'status-approval' && 'Status persetujuan pimpinan & rilis gudang.'}
+                {activeMenu === 'pengerjaan' && 'Check-in GPS, closing pekerjaan, & penerbitan BASTP.'}
               </p>
             </div>
 
@@ -229,11 +233,11 @@ export default function DashboardTeknisi() {
                     </div>
                     <div>
                       <div className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                        <span>Mobile Stock di Mobil Anda (Sisa Material Sebelumnya)</span>
+                        <span>Mobile Stock di Kendaraan (Sisa Material Sebelumnya)</span>
                         <span className="px-2 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 font-mono">Tercatat</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        Gunakan sisa material di kendaraan sebelum meminta material baru ke gudang STO. Kehilangan material menjadi tanggung jawab teknisi.
+                        Kabel dropcore berlebih digulung di mobil operasional dan diprioritaskan untuk penanganan perbaikan / kabel putus. Cukup sertakan tulisan &amp; foto bukti saat closing.
                       </p>
                     </div>
                   </div>

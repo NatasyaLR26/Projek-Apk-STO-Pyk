@@ -236,18 +236,26 @@ function DashboardPimpinan() {
                 <span className="text-xs text-slate-400 font-mono">STO Telkom Akses Payakumbuh (Koto Nan IV)</span>
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeMenu === 'dashboard' && 'Dashboard Ringkasan Operasional STO'}
-                {activeMenu === 'tracking' && 'WebGIS Pemetaan Titik ODP & Aset Fiber Optic'}
-                {activeMenu === 'tabel-odp' && 'Tabel Inventarisasi Aset Jaringan (ODP, Tiang FO & ODC)'}
-                {activeMenu === 'kelola-tugas' && 'Manajemen & CRUD Tiket Penugasan Lapangan'}
-                {activeMenu === 'approval' && 'Persetujuan (Approval) Material Teknisi'}
-                {activeMenu === 'laporan-kerja' && 'Laporan Audit & Berita Acara Pekerjaan Lapangan'}
-                {activeMenu === 'laporan-gudang' && 'Laporan & Pengawasan Stok Material Gudang'}
-                {activeMenu === 'tabel-pelanggan' && 'Master Data Pelanggan & Audit Penarikan Aset STO'}
-                {activeMenu === 'kelola-pegawai' && 'Kelola Akun & Hak Akses Pegawai STO'}
+                {activeMenu === 'dashboard' && 'Dashboard Pimpinan'}
+                {activeMenu === 'tracking' && 'Peta WebGIS & Radar Armada'}
+                {activeMenu === 'tabel-odp' && 'Inventarisasi Aset Jaringan'}
+                {activeMenu === 'kelola-tugas' && 'Kelola Tiket Tugas'}
+                {activeMenu === 'approval' && 'Persetujuan Material'}
+                {activeMenu === 'laporan-kerja' && 'Laporan Kerja Lapangan'}
+                {activeMenu === 'laporan-gudang' && 'Laporan Logistik Gudang'}
+                {activeMenu === 'tabel-pelanggan' && 'Data Pelanggan & Aset'}
+                {activeMenu === 'kelola-pegawai' && 'Kelola Pegawai'}
               </h1>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                Sistem Koordinasi Penugasan Teknisi, Verifikasi Logistik Gudang, dan Berita Acara Digital.
+                {activeMenu === 'dashboard' && 'Monitoring operasional tiket & performa tim.'}
+                {activeMenu === 'tracking' && 'Pemetaan ODP dan pelacakan GPS armada teknisi.'}
+                {activeMenu === 'tabel-odp' && 'Master data ODP, tiang FO, dan kapasitas splitter.'}
+                {activeMenu === 'kelola-tugas' && 'Penerbitan dan pengawasan penugasan kerja.'}
+                {activeMenu === 'approval' && 'Validasi permohonan pengeluaran barang teknisi.'}
+                {activeMenu === 'laporan-kerja' && 'Rekapitulasi BASTP digital dan hasil kerja.'}
+                {activeMenu === 'laporan-gudang' && 'Monitoring inventaris dan alokasi material.'}
+                {activeMenu === 'tabel-pelanggan' && 'Master data pelanggan dan audit aset STO.'}
+                {activeMenu === 'kelola-pegawai' && 'Verifikasi akun dan hak akses pegawai.'}
               </p>
             </div>
 
@@ -620,9 +628,8 @@ function DashboardPimpinan() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      100% Database Supabase Real-Time
+                      Database Terhubung Real-Time
                     </span>
-                    <span className="text-[11px] text-slate-400 font-mono">Port 6543 (PgBouncer Pooler)</span>
                   </div>
                   <h2 className={`text-lg sm:text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Laporan Monitoring Inventaris & Logistik Gudang

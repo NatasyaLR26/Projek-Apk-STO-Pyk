@@ -130,9 +130,9 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
           },
           {
             key: 'penarikan-aset',
-            label: 'Penarikan Aset Pelanggan (Dept Collector)',
+            label: 'Dismantle & Recovery Aset STO',
             icon: ShieldAlert,
-            badge: 'Sita Aset',
+            badge: 'Dismantle',
             badgeColor: 'bg-rose-600 text-white'
           },
           {

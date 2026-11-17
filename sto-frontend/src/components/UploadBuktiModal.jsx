@@ -572,7 +572,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="font-bold text-xs text-amber-400 flex items-center gap-1.5">
                         <AlertTriangle className="w-4 h-4" />
-                        <span>Ada Material Berlebih (Wajib Foto &amp; Retur)</span>
+                        <span>Ada Material Berlebih / Sisa (Cukup Catatan &amp; Foto)</span>
                       </span>
                       <input
                         type="radio"
@@ -582,7 +582,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                       />
                     </div>
                     <p className="text-[11px] text-slate-400">
-                      Terdapat sisa kabel, klem tiang, roset cadangan, dll yang wajib difoto dan diserahkan kembali ke Gudang STO.
+                      Sisa kabel dropcore (misal ~10m) digulung di mobil untuk perbaikan/gangguan, atau barang retur ke gudang. Cukup sertakan catatan &amp; foto fisik.
                     </p>
                   </div>
                 </div>
@@ -598,7 +598,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         rows={2}
                         value={rincianKelebihan}
                         onChange={(e) => setRincianKelebihan(e.target.value)}
-                        placeholder="Contoh: Sisa kabel dropcore 1 rol gulungan pendek, 2 pcs klem tiang segitiga, 1 unit roset optik cadangan..."
+                        placeholder="Contoh: Sisa kabel dropcore ~10 meter digulung di mobil operasional untuk tiket perbaikan/gangguan, 2 pcs klem tiang..."
                         className={`w-full p-2.5 rounded-xl border outline-none text-xs ${
                           isDark ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-500' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
                         }`}
@@ -660,8 +660,8 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         className="w-4 h-4 mt-0.5 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
                       />
                       <label htmlFor="konfirmasiReturCheckbox" className="text-xs text-slate-300 cursor-pointer">
-                        <strong className="text-amber-400 block mb-0.5">Komitmen Retur Fisik ke Sentral STO:</strong>
-                        Saya menyatakan bertanggung jawab penuh atas barang berlebih ini dan siap menyerahkan fisik barang ke Gudang Sentral STO Telkom Akses Payakumbuh saat kembali dari lapangan.
+                        <strong className="text-amber-400 block mb-0.5">Komitmen Mobile Stock &amp; Retur Sentral STO:</strong>
+                        Saya menyatakan bertanggung jawab penuh atas barang berlebih ini (sisa kabel digulung di kendaraan untuk perbaikan / perangkat dikembalikan ke gudang) sesuai ketentuan Telkom Akses.
                       </label>
                     </div>
 

@@ -395,36 +395,19 @@ export default function Login({ onTriggerSplash }) {
                     onClick={() => { setAuthMode('register'); setError(''); }}
                     className="text-rose-500 font-bold hover:underline cursor-pointer"
                   >
-                    Daftar Akun Teknisi Lapangan
+                    Daftar Akun Baru
                   </button>
                 </span>
               </div>
             </form>
           )}
 
-          {/* MODE 2: REGISTER FORM - Strictly for Field Technicians */}
+          {/* MODE 2: REGISTER FORM */}
           {authMode === 'register' && (
             <form onSubmit={handleRegister} className="space-y-3.5 animate-in fade-in duration-200">
-              {/* Role Informational Notice Card */}
-              <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shrink-0 mt-0.5">
-                    <Wrench className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                      Pendaftaran Khusus: Teknisi Lapangan (Field Tech)
-                    </div>
-                    <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">
-                      Pendaftaran mandiri ini diperuntukkan bagi Teknisi Lapangan. Akun Pimpinan dan Petugas Gudang dikelola secara resmi & terpusat oleh Kantor Sentral STO Telkom Akses.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
               <div>
                 <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  Nama Lengkap Teknisi
+                  Nama Lengkap
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -433,7 +416,7 @@ export default function Login({ onTriggerSplash }) {
                     required
                     value={regNama}
                     onChange={(e) => setRegNama(e.target.value)}
-                    placeholder="Contoh: Ahmad Fadli"
+                    placeholder="Nama lengkap Anda"
                     className={`w-full pl-10 pr-3.5 py-2.5 rounded-2xl text-xs font-medium border outline-none transition ${
                       isDark
                         ? 'bg-slate-950/80 border-slate-700 text-white focus:border-rose-500'
@@ -445,7 +428,7 @@ export default function Login({ onTriggerSplash }) {
 
               <div>
                 <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  Email Resmi Teknisi
+                  Email
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -454,7 +437,7 @@ export default function Login({ onTriggerSplash }) {
                     required
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="nama@gmail.com"
+                    placeholder="nama@email.com"
                     className={`w-full pl-10 pr-3.5 py-2.5 rounded-2xl text-xs font-medium border outline-none transition ${
                       isDark
                         ? 'bg-slate-950/80 border-slate-700 text-white focus:border-rose-500'
@@ -494,9 +477,8 @@ export default function Login({ onTriggerSplash }) {
               </div>
 
               <div>
-                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-800'} flex items-center justify-between`}>
-                  <span>Kode Otorisasi / OTP Korporat STO (Opsional)</span>
-                  <span className="text-[10px] text-amber-500 font-mono">Bypass Approval</span>
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                  Kode Otorisasi (Opsional)
                 </label>
                 <div className="relative">
                   <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -504,7 +486,7 @@ export default function Login({ onTriggerSplash }) {
                     type="text"
                     value={regToken}
                     onChange={(e) => setRegToken(e.target.value.toUpperCase())}
-                    placeholder="Contoh: STO-PYK-2026"
+                    placeholder="Masukkan kode otorisasi jika ada"
                     className={`w-full pl-10 pr-3.5 py-2.5 rounded-2xl text-xs font-mono uppercase tracking-wider border outline-none transition ${
                       isDark
                         ? 'bg-slate-950/80 border-slate-700 text-white focus:border-rose-500'
@@ -512,17 +494,14 @@ export default function Login({ onTriggerSplash }) {
                     }`}
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                  Masukkan kode korporat internal agar akun langsung aktif. Jika kosong, akun harus di-approve oleh Pimpinan STO.
-                </p>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 mt-2 rounded-2xl bg-linear-to-r from-rose-700 via-rose-600 to-rose-700 hover:from-rose-600 hover:to-rose-600 text-white font-extrabold text-xs shadow-xl shadow-rose-900/40 transition active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                className="w-full py-3 px-4 mt-2 rounded-2xl bg-gradient-to-r from-rose-700 via-rose-600 to-rose-700 hover:from-rose-600 hover:to-rose-600 text-white font-extrabold text-xs shadow-xl shadow-rose-900/40 transition active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {loading ? <span>Mendaftarkan Akun Teknisi...</span> : <span>Daftarkan Akun Teknisi Lapangan</span>}
+                {loading ? <span>Mendaftarkan Akun...</span> : <span>Daftar Akun Baru</span>}
               </button>
 
               <div className="pt-2 text-center">

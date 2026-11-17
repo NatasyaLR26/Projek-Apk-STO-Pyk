@@ -51,7 +51,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
 
   // Masking nama: "Bpk. Rian Hidayat" -> "B**k. R*** H******"
   const maskName = (name) => {
-    if (isPrivileged || !name) return name;
+    if (isPrivileged || isGudangView || !name) return name;
     return name.split(' ').map(w => {
       if (w.length <= 2) return w[0] + '*';
       return w[0] + '*'.repeat(Math.max(1, w.length - 2)) + w[w.length - 1];
@@ -60,7 +60,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
 
   // Masking telepon: "0812-3456-7890" -> "0812-****-7890"
   const maskPhone = (phone) => {
-    if (isPrivileged || !phone) return phone;
+    if (isPrivileged || isGudangView || !phone) return phone;
     const clean = phone.replace(/[^0-9]/g, '');
     if (clean.length < 8) return '08**-****';
     return clean.slice(0, 4) + '-****-' + clean.slice(-4);
@@ -149,7 +149,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
               type="button"
               onClick={() => {
                 setPrivacyPreview(!privacyPreview);
-                showToast(privacyPreview ? 'Mode Pimpinan Aktif: Data nama & kontak tampil bersih.' : 'Mode Debt Collector: Data nama & kontak disensor (***) demi privasi.', 'info');
+                showToast(privacyPreview ? 'Mode Pimpinan Aktif: Data nama & kontak tampil bersih.' : 'Mode Lapangan: Data pribadi disensor (***) demi privasi.', 'info');
               }}
               className={`px-3 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
                 privacyPreview
@@ -159,7 +159,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
               title="Simulasi Sensor Data Privasi Lapangan (UU PDP Telkom)"
             >
               {privacyPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              <span>{privacyPreview ? 'Mode Sensor Privasi Aktif' : 'Simulasi Sensor (Debt Collector)'}</span>
+              <span>{privacyPreview ? 'Mode Sensor Privasi Aktif' : 'Simulasi Sensor Dismantle'}</span>
             </button>
           )}
 
@@ -196,11 +196,11 @@ export default function TabelPelangganAset({ isGudangView = false }) {
 
         <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-900/60 border-rose-900/40' : 'bg-rose-50/60 border-rose-200 shadow-sm'}`}>
           <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span className="text-rose-500 font-bold">Target Penarikan Aset (Debt Collector)</span>
+            <span className="text-rose-500 font-bold">Target Dismantle &amp; Recovery Aset</span>
             <ShieldAlert className="w-4 h-4 text-rose-500" />
           </div>
           <div className="text-2xl font-black text-rose-500">{totalDismantleCount}</div>
-          <span className="text-[10px] text-rose-500 font-bold">Menunggak &gt; 3 Bulan (Modem ONT Wajib Disita)</span>
+          <span className="text-[10px] text-rose-500 font-bold">Menunggak &gt; 3 Bulan (Modem ONT Wajib Ditarik Fisik)</span>
         </div>
       </div>
 
@@ -220,7 +220,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {[
             { id: 'all', label: 'Semua Pelanggan' },
-            { id: 'dismantle', label: '⚠️ Target Sita Aset (Debt Collector)' },
+            { id: 'dismantle', label: '⚠️ Target Dismantle & Recovery' },
             { id: 'isolir', label: 'Menunggak (Isolir)' },
             { id: 'lancar', label: 'Lancar' }
           ].map(f => (
@@ -497,7 +497,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
 
             <div className="space-y-3 text-xs leading-relaxed">
               <p>
-                Berdasarkan data audit kontrak operasional STO Telkom Payakumbuh, dengan ini menugaskan <strong>Tim Penarikan Aset Lapangan / Debt Collector</strong> bersama <strong>Teknisi STO</strong> untuk mendatangi lokasi dan menarik kembali aset perusahaan berikut:
+                Berdasarkan data audit kontrak operasional STO Telkom Payakumbuh, dengan ini menugaskan <strong>Tim Dismantle &amp; Recovery Aset Lapangan</strong> bersama <strong>Teknisi STO</strong> untuk mendatangi lokasi dan menarik kembali aset perusahaan berikut:
               </p>
 
               <div className="p-3 rounded-xl bg-slate-100 border border-slate-300 space-y-1">

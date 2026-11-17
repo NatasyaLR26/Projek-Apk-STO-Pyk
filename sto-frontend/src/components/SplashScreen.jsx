@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Radio, ArrowRight } from 'lucide-react';
-
+import { Activity, Radio, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
-export default function SplashScreen({ onFinish, duration = 1800 }) {
+// Nilai Utama (Core Values) BUMN - AKHLAK Telkom Group
+const AKHLAK_VALUES = [
+  { letter: 'A', name: 'Amanah', desc: 'Memegang teguh kepercayaan yang diberikan' },
+  { letter: 'K', name: 'Kompeten', desc: 'Terus belajar dan mengembangkan kapabilitas' },
+  { letter: 'H', name: 'Harmonis', desc: 'Saling peduli dan menghargai perbedaan' },
+  { letter: 'L', name: 'Loyal', desc: 'Berdedikasi & mengutamakan kepentingan Bangsa' },
+  { letter: 'A', name: 'Adaptif', desc: 'Terus berinovasi & antusias menghadapi perubahan' },
+  { letter: 'K', name: 'Kolaboratif', desc: 'Membangun kerja sama yang sinergis' },
+];
+
+export default function SplashScreen({ onFinish, duration = 2200 }) {
   const [progress, setProgress] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
@@ -35,64 +44,95 @@ export default function SplashScreen({ onFinish, duration = 1800 }) {
 
   return (
     <div
-      className={`fixed inset-0 z-99999 flex flex-col items-center justify-center bg-linear-to-br from-slate-950 via-slate-900 to-rose-950 text-white transition-opacity duration-300 ${
+      className={`fixed inset-0 z-99999 flex flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-[#0b101f] to-rose-950 text-white transition-opacity duration-300 p-4 overflow-y-auto ${
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
       {/* Background ambient lighting */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-rose-600/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-rose-600/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
 
       {/* Skip Button on top right */}
       <button
+        type="button"
         onClick={handleSkip}
-        className="absolute top-6 right-6 px-3 py-1.5 rounded-full bg-slate-900/60 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-300 hover:text-white transition flex items-center gap-1 cursor-pointer"
+        className="absolute top-5 right-5 px-3 py-1.5 rounded-full bg-slate-900/70 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-300 hover:text-white transition flex items-center gap-1 cursor-pointer z-10"
       >
         <span>Lewati</span>
         <ArrowRight className="w-3.5 h-3.5" />
       </button>
 
       {/* Center Animated Logo Emblem */}
-      <div className="relative mb-8 flex items-center justify-center">
-        {/* Pulsing Concentric Rings */}
-        <div className="absolute w-44 h-44 rounded-full border-2 border-rose-500/30 animate-ping opacity-60 pointer-events-none" />
-        <div className="absolute w-36 h-36 rounded-full border border-blue-500/40 animate-pulse pointer-events-none" />
-
-        {/* High-Tech Corporate Logo */}
-        <BrandLogo size="xl" className="transform scale-125" clickable={false} />
+      <div className="relative mb-5 flex items-center justify-center shrink-0">
+        <div className="absolute w-36 h-36 rounded-full border-2 border-rose-500/20 animate-ping opacity-50 pointer-events-none" />
+        <div className="absolute w-28 h-28 rounded-full border border-blue-500/30 animate-pulse pointer-events-none" />
+        <BrandLogo size="lg" className="transform scale-110" clickable={false} />
       </div>
 
       {/* Text Branding */}
-      <div className="text-center px-4 mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-950/60 border border-rose-500/40 text-[11px] font-bold text-rose-300 uppercase tracking-widest mb-2">
+      <div className="text-center px-4 mb-4">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-950/60 border border-rose-500/40 text-[10px] sm:text-[11px] font-bold text-rose-300 uppercase tracking-widest mb-1.5">
           <Radio className="w-3.5 h-3.5 animate-pulse text-rose-400" />
-          <span>Sistem Komando Operasional Lapangan</span>
+          <span>Sentral Telepon Otomatis (STO) Payakumbuh</span>
         </div>
-        <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-          Integrasi WebGIS Real-Time, Penugasan Lapangan, dan Logistik Material
+        <p className="text-xs text-slate-400 max-w-sm mx-auto">
+          PT Telkom Akses • Integrasi Operasional Lapangan &amp; Logistik
         </p>
       </div>
 
+      {/* CORE VALUES BUMN: AKHLAK DENGAN PENJELASAN ARTI LENGKAP */}
+      <div className="w-full max-w-xl mx-auto my-3 p-3.5 rounded-3xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md shadow-2xl">
+        <div className="flex items-center justify-center gap-2 mb-2.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3" />
+            <span>Nilai Utama BUMN • AKHLAK Telkom Group</span>
+          </span>
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {AKHLAK_VALUES.map((item, idx) => (
+            <div
+              key={idx}
+              className="p-2 sm:p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 hover:border-rose-500/40 transition flex items-start gap-2"
+            >
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-rose-600 to-rose-700 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-sm shadow-rose-950">
+                {item.letter}
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-extrabold text-white truncate leading-tight">
+                  {item.name}
+                </div>
+                <div className="text-[9px] text-slate-400 leading-tight mt-0.5 line-clamp-2">
+                  {item.desc}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Progress Bar & Status Counter */}
-      <div className="w-64 max-w-xs space-y-2">
+      <div className="w-64 max-w-xs space-y-2 mt-2">
         <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
           <span className="flex items-center gap-1.5">
             <Activity className="w-3 h-3 text-rose-400 animate-spin" />
-            <span>Memuat Sistem...</span>
+            <span>Sinkronisasi Sistem...</span>
           </span>
           <span className="text-rose-400 font-bold">{progress}%</span>
         </div>
 
         <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 p-px">
           <div
-            className="h-full bg-linear-to-r from-rose-600 via-rose-500 to-amber-400 rounded-full transition-all duration-75 shadow-sm shadow-rose-500/50"
+            className="h-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-400 rounded-full transition-all duration-75 shadow-sm shadow-rose-500/50"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
       {/* Footer copyright */}
-      <div className="absolute bottom-6 text-[10px] text-slate-400 font-mono">
-        © 2026 PT Telkom Akses — Sentral Telepon Otomatis Payakumbuh
+      <div className="mt-4 text-[10px] text-slate-500 font-mono text-center">
+        © 2026 PT Telkom Akses • BerAKHLAK untuk Indonesia
       </div>
     </div>
   );
