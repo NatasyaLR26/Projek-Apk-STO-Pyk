@@ -20,13 +20,21 @@ import {
   CheckCircle2,
   Radio,
   Package,
-  Eye
+  Eye,
+  MapPin,
+  Phone,
+  Camera,
+  Clock,
+  User,
+  Wrench,
+  AlertCircle
 } from 'lucide-react';
 import ModalBASTP from './ModalBASTP';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { parseTaskDetails, formatWaktuBuat } from '../utils/taskFormatter';
 
-function LaporanAudit() {
+function LaporanAudit({ hideHeader = false }) {
   const { isDark } = useTheme();
   const { tugas, permohonan, detailPermohonan, barang, users } = useApp();
 
@@ -84,28 +92,27 @@ function LaporanAudit() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      {/* Header Halaman */}
-      <div className="pb-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-extrabold flex items-center gap-2">
-            <span className="p-1.5 rounded-xl bg-burgundy-600/20 text-burgundy-500 border border-burgundy-500/30">
-              <FileText className="w-5 h-5" />
-            </span>
-            <span>Riwayat & Laporan Audit Pekerjaan Lapangan</span>
-          </h1>
-          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Rekapitulasi resmi penugasan, parameter ODP & redaman dBm, status material terpasang, dan dokumen BASTP.
-          </p>
-        </div>
+      {/* Header Halaman (Hanya tampil jika bukan di dalam tab terintegrasi) */}
+      {!hideHeader && (
+        <div className="pb-4 border-b border-rose-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-extrabold flex items-center gap-2">
+              <span className="p-1.5 rounded-xl bg-rose-600/20 text-rose-500 border border-rose-500/30 shadow-[0_0_12px_rgba(225,29,72,0.2)]">
+                <FileText className="w-5 h-5" />
+              </span>
+              <span className="text-white">Riwayat &amp; Laporan Audit Pekerjaan Lapangan</span>
+            </h1>
+          </div>
 
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-burgundy-600 hover:bg-burgundy-700 text-white font-bold text-xs shadow-lg shadow-burgundy-950 transition cursor-pointer self-start sm:self-auto"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Cetak Seluruh Rekap (Print)</span>
-        </button>
-      </div>
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-700 hover:bg-rose-600 text-white font-bold text-xs shadow-lg shadow-rose-950/50 hover:shadow-rose-900/40 transition cursor-pointer self-start sm:self-auto"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Cetak Seluruh Rekap (Print)</span>
+          </button>
+        </div>
+      )}
 
       {/* Input Pencarian */}
       <div className="no-print relative max-w-sm">
@@ -115,167 +122,222 @@ function LaporanAudit() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cari ID tiket, pelanggan, atau lokasi..."
-          className={`w-full pl-10 pr-3.5 py-2.5 rounded-2xl text-xs border outline-none transition ${
-            isDark
-              ? 'bg-slate-950 border-slate-700 text-white focus:border-burgundy-500'
-              : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-burgundy-500'
-          }`}
+          className="w-full pl-10 pr-3.5 py-2.5 rounded-2xl text-xs border outline-none transition bg-slate-950/80 border-rose-950/40 text-white placeholder-slate-500 focus:border-rose-500/60 focus:ring-1 focus:ring-rose-500/30"
         />
       </div>
 
       {/* Daftar Kartu Laporan Audit */}
       <div className="space-y-4">
-        {filtered.map((item) => {
-          const isDone = item.status === 'Done';
-          const odp = item.odp_id || item.bastp?.odp_id || 'ODP-PYK-FA/014';
-          const port = item.port_odp || item.bastp?.port_odp || '03';
-          const dbm = item.redaman_dbm || item.bastp?.redaman_dbm || '-18.5';
-          const sn = item.sn_ont || item.bastp?.sn_ont || 'ZTEGC8B90112';
+        {filtered.length === 0 ? (
+          <div className="p-8 rounded-2xl bg-slate-950/70 border border-rose-950/40 text-center text-slate-400 text-xs italic">
+            Tidak ada riwayat pekerjaan lapangan yang sesuai dengan filter pencarian.
+          </div>
+        ) : (
+          filtered.map((item) => {
+            const isDone = item.status === 'Done';
+            const isProgress = item.status === 'Progress';
+            const cust = parseTaskDetails(item);
+            const odp = item.odp_id || item.bastp?.odp_id || 'ODP-PYK-FA/014';
+            const port = item.port_odp || item.bastp?.port_odp || '03';
+            const dbm = item.redaman_dbm || item.bastp?.redaman_dbm || '-18.5';
+            const sn = item.sn_ont || item.bastp?.sn_ont || 'ZTEGC8B90112';
 
-          return (
-            <div
-              key={item.id}
-              className={`p-5 rounded-2xl border transition-all shadow-md ${
-                isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-white border-slate-200'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 gap-2 mb-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-black text-burgundy-500 text-sm">
-                      TGS-{String(item.id).padStart(3, '0')}
-                    </span>
-                    <span className={`text-[11px] font-bold px-3 py-1 rounded-xl whitespace-nowrap inline-flex items-center border shadow-xs tracking-wide ${
-                      item.jenis_kerja === 'Pasang Baru' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' :
-                      item.jenis_kerja === 'Gangguan' ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' :
-                      'bg-purple-500/20 text-purple-400 border-purple-500/40'
-                    }`}>
-                      {item.jenis_kerja}
-                    </span>
-                    {isDone && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                        ✓ BASTP Terbit
+            return (
+              <div
+                key={item.id}
+                className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/40 rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.37)] hover:border-rose-800/40 hover:shadow-[0_8px_32px_rgba(225,29,72,0.1)] transition-all duration-300 space-y-4"
+              >
+                {/* Header Kartu: Judul, Badges & Aksi */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between pb-3.5 border-b border-white/5 gap-3">
+                  <div className="space-y-2 flex-1 min-w-0">
+                    {/* Baris 1: ID Tiket, Nama Pelanggan, Badge Jenis Kerja, & Badge BASTP */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-black text-rose-500 text-sm tracking-wider">
+                        TGS-{String(item.id).padStart(3, '0')}
                       </span>
-                    )}
-                  </div>
-                  <p className={`text-xs mt-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    <strong>{item.pelanggan_nama}</strong> — {item.lokasi}
-                  </p>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
-                    Teknisi: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{item.teknisi?.nama_lengkap || 'Belum Diambil'}</strong> | Waktu Buat: {item.waktu_buat}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  {isDone && (
-                    <button
-                      onClick={() => setSelectedBastpTask(item)}
-                      className="px-3 py-1 rounded-xl bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Lihat BASTP</span>
-                    </button>
-                  )}
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase border ${
-                    item.status === 'Done' ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' :
-                    item.status === 'Progress' ? 'bg-blue-500/20 text-blue-500 border-blue-500/30' :
-                    'bg-amber-500/20 text-amber-500 border-amber-500/30'
-                  }`}>
-                    ● {item.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Grid Rincian Teknis & Rekonsiliasi Material */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                
-                {/* Kolom 1: Parameter Teknis Telkom (ODP & Redaman) */}
-                <div className={`p-3 rounded-xl border ${
-                  isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
-                } space-y-1.5`}>
-                  <span className="font-bold text-slate-400 text-[11px] uppercase tracking-wider block flex items-center gap-1">
-                    <Radio className="w-3 h-3 text-blue-400" />
-                    <span>Parameter Teknis:</span>
-                  </span>
-                  <div className="text-[11px] space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">ODP / Port:</span>
-                      <strong className="font-mono">{isDone ? `${odp} (P.${port})` : '-'}</strong>
+                      <span className="text-white font-extrabold text-base tracking-wide truncate max-w-sm">
+                        {cust.name}
+                      </span>
+                      <span className={`text-[11px] font-bold px-3 py-1 rounded-xl whitespace-nowrap inline-flex items-center border tracking-wide ${
+                        item.jenis_kerja === 'Pasang Baru'
+                          ? 'bg-blue-950/60 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.15)]'
+                          : item.jenis_kerja === 'Gangguan'
+                          ? 'bg-rose-950/60 text-rose-400 border-rose-500/30 shadow-[0_0_10px_rgba(225,29,72,0.15)]'
+                          : 'bg-purple-950/60 text-purple-400 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.15)]'
+                      }`}>
+                        {item.jenis_kerja}
+                      </span>
+                      {isDone && (
+                        <span className="bg-rose-950/60 text-rose-300 border border-rose-600/30 shadow-[0_0_10px_rgba(225,29,72,0.15)] text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                          ✓ BASTP Terbit
+                        </span>
+                      )}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Redaman Optik:</span>
-                      <strong className="font-mono text-emerald-400">{isDone ? `${dbm} dBm` : '-'}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">SN ONT Modem:</span>
-                      <strong className="font-mono text-purple-400">{isDone ? sn : '-'}</strong>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Kolom 2: Rekonsiliasi Material (Status Terpasang di Pelanggan) */}
-                <div className={`p-3 rounded-xl border ${
-                  isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
-                } space-y-1.5`}>
-                  <span className="font-bold text-slate-400 text-[11px] uppercase tracking-wider block flex items-center gap-1">
-                    <Package className="w-3 h-3 text-amber-400" />
-                    <span>Rekonsiliasi Material:</span>
-                  </span>
-                  {item.materials?.length > 0 ? (
-                    <ul className="space-y-1 text-[11px]">
-                      {item.materials.map((m, idx) => (
-                        <li key={idx} className="flex items-center justify-between">
-                          <span className="truncate">• {m.nama_barang}</span>
-                          <span className="font-mono font-bold text-amber-500 whitespace-nowrap ml-1">
-                            {m.jumlah} {m.satuan}
+                    {/* Baris 2: Detail Terpisah (Alamat, No Telp, Catatan - Bebas Clutter) */}
+                    <div className="flex items-center gap-3 flex-wrap text-xs pt-0.5">
+                      <div className="flex items-center gap-1.5 text-slate-300">
+                        <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span className="truncate max-w-xs sm:max-w-md" title={cust.address}>
+                          {cust.address}
+                        </span>
+                      </div>
+                      {cust.telp && (
+                        <div className="flex items-center gap-1.5 text-slate-300 font-mono text-[11px]">
+                          <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>{cust.telp}</span>
+                        </div>
+                      )}
+                      {cust.note && (
+                        <div className="flex items-center gap-1.5 text-amber-300/90 text-xs italic">
+                          <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span className="truncate max-w-xs sm:max-w-sm" title={cust.note}>
+                            {cust.note}
                           </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-slate-500 italic text-[11px]">
-                      {isDone ? `Dropcore 120m, ONT 1 unit [Terpasang]` : 'Belum ada material dikeluarkan.'}
-                    </p>
-                  )}
-                  {isDone && (
-                    <div className="pt-1 text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>Status: TERPASANG DI PELANGGAN</span>
+                        </div>
+                      )}
                     </div>
-                  )}
+
+                    {/* Baris 3: Meta Teknisi & Waktu Buat */}
+                    <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-1">
+                      <span className="flex items-center gap-1">
+                        <Wrench className="w-3 h-3 text-slate-500" />
+                        <span>Teknisi: <strong className="text-slate-200">{item.teknisi?.nama_lengkap || 'Belum Diambil (Pool)'}</strong></span>
+                      </span>
+                      <span className="text-slate-600">•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-500" />
+                        <span>Waktu Buat: <strong className="text-slate-300 font-mono">{formatWaktuBuat(item)}</strong></span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tombol BASTP & Status Badge */}
+                  <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 pt-1">
+                    {isDone && (
+                      <button
+                        onClick={() => setSelectedBastpTask(item)}
+                        className="px-3.5 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-500/40 hover:border-rose-400 shadow-[0_0_12px_rgba(225,29,72,0.2)] hover:shadow-[0_0_20px_rgba(225,29,72,0.35)] text-xs font-bold flex items-center gap-1.5 transition-all duration-300 cursor-pointer"
+                        title="Buka Dokumen Resmi BASTP"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Lihat BASTP</span>
+                      </button>
+                    )}
+
+                    <span className={`text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider ${
+                      isDone
+                        ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                        : isProgress
+                        ? 'bg-blue-950/60 text-blue-400 border border-blue-500/30 shadow-[0_0_12px_rgba(59,130,246,0.2)]'
+                        : 'bg-amber-950/60 text-amber-400 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                    }`}>
+                      ● {item.status || 'Open'}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Kolom 3: Foto Dokumentasi Lapangan */}
-                <div className={`p-3 rounded-xl border flex flex-col justify-between ${
-                  isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <span className="font-bold text-slate-400 text-[11px] uppercase tracking-wider block mb-1">
-                    Dokumentasi Lapangan:
-                  </span>
-                  {item.foto_bukti ? (
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={item.foto_bukti}
-                        alt="Foto Bukti"
-                        className="w-14 h-14 object-cover rounded-xl border border-slate-700 shadow-sm cursor-pointer"
-                        onClick={() => setSelectedBastpTask(item)}
-                      />
-                      <div className="text-[11px]">
-                        <span className="text-emerald-500 font-bold block">✓ Terverifikasi Selesai</span>
-                        {item.waktu_selesai && (
-                          <span className="text-slate-400 block text-[10px]">{item.waktu_selesai}</span>
+                {/* Bagian Bawah: Rincian Teknis & Rekonsiliasi Material */}
+                {!isDone ? (
+                  /* Compact Layout untuk Tiket In-Progress / Open */
+                  item.materials?.length > 0 ? (
+                    <div className="p-3 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm text-[11px] flex items-center gap-2">
+                      <Package className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="text-slate-400 font-medium">Material Alokasi Gudang:</span>
+                      <span className="text-amber-300 font-medium truncate">
+                        {item.materials.map(m => `${m.nama_barang} (${m.jumlah} ${m.satuan})`).join(', ')}
+                      </span>
+                    </div>
+                  ) : null
+                ) : (
+                  /* Grid 3-Kolom Rincian Teknis, Material, & Dokumentasi (Hanya saat Done) */
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    {/* Kolom 1: Parameter Teknis (Cyan Accent) */}
+                    <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3.5 backdrop-blur-sm space-y-2">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-cyan-400">
+                        <Radio className="w-3.5 h-3.5" />
+                        <span>Parameter Teknis:</span>
+                      </div>
+                      <div className="text-[11px] space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">ODP / Port:</span>
+                          <strong className="font-mono text-slate-200">{`${odp} (P.${port})`}</strong>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Redaman Optik:</span>
+                          <strong className="font-mono text-emerald-400">{`${dbm} dBm`}</strong>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">SN ONT Modem:</span>
+                          <strong className="font-mono text-purple-400">{sn}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Kolom 2: Rekonsiliasi Material (Amber Accent) */}
+                    <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3.5 backdrop-blur-sm space-y-2">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                        <Package className="w-3.5 h-3.5" />
+                        <span>Rekonsiliasi Material:</span>
+                      </div>
+                      {item.materials?.length > 0 ? (
+                        <ul className="space-y-1 text-[11px]">
+                          {item.materials.map((m, idx) => (
+                            <li key={idx} className="flex items-center justify-between">
+                              <span className="truncate text-slate-300">• {m.nama_barang}</span>
+                              <span className="font-mono font-bold text-amber-400 whitespace-nowrap ml-1">
+                                {m.jumlah} {m.satuan}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-slate-500 italic text-[11px]">
+                          Dropcore 120m, ONT 1 unit [Terpasang]
+                        </p>
+                      )}
+                      <div className="pt-1.5 border-t border-white/5 text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Status: TERPASANG DI PELANGGAN</span>
+                      </div>
+                    </div>
+
+                    {/* Kolom 3: Foto Dokumentasi Lapangan (Emerald Accent) */}
+                    <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3.5 backdrop-blur-sm flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 mb-2">
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>Dokumentasi Lapangan:</span>
+                        </div>
+                        {item.foto_bukti ? (
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={item.foto_bukti}
+                              alt="Foto Bukti"
+                              className="w-14 h-14 object-cover rounded-xl border border-rose-950/60 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                              onClick={() => setSelectedBastpTask(item)}
+                            />
+                            <div className="text-[11px] space-y-0.5">
+                              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>Terverifikasi BASTP</span>
+                              </span>
+                              {item.waktu_selesai && (
+                                <span className="text-slate-400 font-mono text-[10px] block">{item.waktu_selesai}</span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-slate-500 italic text-[11px]">Pekerjaan belum selesai diunggah.</p>
                         )}
                       </div>
                     </div>
-                  ) : (
-                    <p className="text-slate-500 italic text-[11px]">Pekerjaan belum selesai diunggah.</p>
-                  )}
-                </div>
-
+                  </div>
+                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Modal BASTP Digital */}

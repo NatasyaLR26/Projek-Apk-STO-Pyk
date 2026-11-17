@@ -44,6 +44,22 @@ exports.createPermohonan = async (req, res) => {
     return errorResponse(res, 400, 'tugas_id / tugas_ids dan barang wajib diisi');
   }
 
+  // Status Guard: Periksa apakah ada targetTugasIds yang sudah memiliki permohonan aktif ('Pending' atau 'Approved')
+  const { data: activeExisting, error: errCheckActive } = await supabase
+    .from('permohonan')
+    .select('id, tugas_id, status')
+    .in('tugas_id', targetTugasIds)
+    .in('status', ['Pending', 'Approved']);
+
+  if (errCheckActive) {
+    return errorResponse(res, 500, 'Gagal memeriksa status permohonan aktif', errCheckActive.message);
+  }
+
+  if (activeExisting && activeExisting.length > 0) {
+    const blockedIds = Array.from(new Set(activeExisting.map(p => p.tugas_id))).join(', #');
+    return errorResponse(res, 400, `Tiket #${blockedIds} sudah memiliki permohonan material yang sedang diproses`);
+  }
+
   const now = new Date().toISOString();
   const permohonanRows = targetTugasIds.map((tid) => ({
     tugas_id: tid,
@@ -169,6 +185,21 @@ exports.approvePermohonan = async (req, res) => {
     return errorResponse(res, 400, 'ID permohonan tidak valid');
   }
 
+  // Validasi: pastikan permohonan ada dan statusnya saat ini adalah 'Pending'
+  const { data: existingPermohonan, error: errFindPerm } = await supabase
+    .from('permohonan')
+    .select('id, status')
+    .eq('id', parsedId)
+    .single();
+
+  if (errFindPerm || !existingPermohonan) {
+    return errorResponse(res, 404, 'Permohonan tidak ditemukan');
+  }
+
+  if (existingPermohonan.status !== 'Pending') {
+    return errorResponse(res, 400, 'Permohonan sudah disetujui / diproses sebelumnya');
+  }
+
   const { data: permohonanUpdated, error: errUpdatePermohonan } = await supabase
     .from('permohonan')
     .update({ status: 'Approved' })
@@ -237,6 +268,10 @@ exports.releasePermohonan = async (req, res) => {
     return errorResponse(res, 400, 'Material untuk permohonan ini sudah pernah dirilis/diserahkan sebelumnya');
   }
 
+  if (existingPermohonan.status === 'Rejected') {
+    return errorResponse(res, 400, 'Permohonan material ini telah ditolak oleh Pimpinan dan tidak dapat dirilis');
+  }
+
   // Ambil detail item permohonan
   const { data: detail, error: errDetail } = await supabase
     .from('detail_permohonan')
@@ -251,36 +286,46 @@ exports.releasePermohonan = async (req, res) => {
     return errorResponse(res, 404, 'Detail permohonan tidak ditemukan');
   }
 
-  // Cek ketersediaan stok tiap item
+  // 2. Cek ketersediaan stok fisik seluruh item sebelum melakukan pemotongan
   for (const item of detail) {
+    const qtyMinta = parseInt(item.jumlah_minta, 10);
+    if (isNaN(qtyMinta) || qtyMinta <= 0) {
+      return errorResponse(res, 400, `Jumlah permintaan tidak valid untuk barang ID ${item.barang_id}`);
+    }
+
     const { data: barang, error: errBarang } = await supabase
+      .from('barang')
+      .select('stok, nama_barang, satuan')
+      .eq('id', item.barang_id)
+      .single();
+
+    if (errBarang || !barang) {
+      return errorResponse(res, 404, `Barang ID ${item.barang_id} tidak ditemukan di master inventaris`);
+    }
+
+    if (Number(barang.stok) < qtyMinta) {
+      return errorResponse(
+        res,
+        400,
+        `Stok gudang tidak mencukupi untuk ${barang.nama_barang} (Tersedia: ${barang.stok} ${barang.satuan}, Diminta: ${qtyMinta} ${barang.satuan})`
+      );
+    }
+  }
+
+  // 3. Potong stok real di tabel barang secara berurutan
+  for (const item of detail) {
+    const qtyMinta = parseInt(item.jumlah_minta, 10);
+    const { data: barang, error: errGetBarang } = await supabase
       .from('barang')
       .select('stok, nama_barang')
       .eq('id', item.barang_id)
       .single();
 
-    if (errBarang || !barang) {
-      return errorResponse(res, 404, `Barang ID ${item.barang_id} tidak ditemukan`);
+    if (errGetBarang || !barang || Number(barang.stok) < qtyMinta) {
+      return errorResponse(res, 400, `Gagal memotong stok: stok fisik ${barang?.nama_barang || 'Item #' + item.barang_id} tidak mencukupi`);
     }
 
-    if (barang.stok < item.jumlah_minta) {
-      return errorResponse(
-        res,
-        400,
-        `Stok gudang tidak mencukupi untuk ${barang.nama_barang} (Sisa: ${barang.stok}, Diminta: ${item.jumlah_minta})`
-      );
-    }
-  }
-
-  // Potong stok real di tabel barang
-  for (const item of detail) {
-    const { data: barang } = await supabase
-      .from('barang')
-      .select('stok')
-      .eq('id', item.barang_id)
-      .single();
-
-    const stokBaru = Math.max(0, (barang?.stok || 0) - item.jumlah_minta);
+    const stokBaru = Math.max(0, Number(barang.stok) - qtyMinta);
 
     const { error: errUpdateStok } = await supabase
       .from('barang')
@@ -288,7 +333,7 @@ exports.releasePermohonan = async (req, res) => {
       .eq('id', item.barang_id);
 
     if (errUpdateStok) {
-      return errorResponse(res, 500, 'Gagal memotong stok barang', errUpdateStok.message);
+      return errorResponse(res, 500, 'Gagal memotong stok barang di database', errUpdateStok.message);
     }
   }
 

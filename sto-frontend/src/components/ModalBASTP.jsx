@@ -83,9 +83,6 @@ export default function ModalBASTP({ task, onClose }) {
               <h2 className="text-sm sm:text-base font-extrabold">
                 Berita Acara Serah Terima Pekerjaan (BASTP) Resmi
               </h2>
-              <p className="text-[11px] text-slate-400">
-                Dokumen Audit Rekonsiliasi Material & Bukti Penyelesaian Lapangan
-              </p>
             </div>
           </div>
 

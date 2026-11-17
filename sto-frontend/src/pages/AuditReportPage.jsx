@@ -12,6 +12,51 @@ import {
   Wrench
 } from 'lucide-react';
 
+// Helper pembersih data pelanggan agar terstruktur rapi, bebas artefak karakter cacat (• () -), dan tidak duplikat
+const parseCustomerDetails = (item) => {
+  let rawName = (item.pelanggan_nama || '').trim();
+  let rawTelp = (item.pelanggan_telp || item.telepon || '').trim();
+  let rawLoc = (item.lokasi || item.alamat || '').trim();
+
+  const phoneRegex = /(?:\+?62|08)[0-9\-\s]{8,14}/;
+  if (!rawTelp) {
+    const matchName = rawName.match(phoneRegex);
+    const matchLoc = rawLoc.match(phoneRegex);
+    if (matchName) rawTelp = matchName[0].trim();
+    else if (matchLoc) rawTelp = matchLoc[0].trim();
+  }
+
+  let name = rawName
+    .replace(phoneRegex, '')
+    .replace(/[•()—-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!name) name = 'Pelanggan';
+
+  let loc = rawLoc.replace(phoneRegex, '');
+  if (name && name.toLowerCase() !== 'pelanggan') {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    loc = loc.replace(new RegExp(escapedName, 'gi'), ' ');
+  }
+
+  loc = loc
+    .replace(/[•()—]/g, ' ')
+    .replace(/\s*-\s*-\s*/g, ' - ')
+    .replace(/^[-:,\s]+|[-:,\s]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (rawTelp) {
+    rawTelp = rawTelp.replace(/[()—_]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  return {
+    name: name || 'Pelanggan',
+    telp: rawTelp || null,
+    address: loc || 'Lokasi Belum Ditentukan'
+  };
+};
+
 export default function AuditReportPage() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
@@ -115,12 +160,9 @@ export default function AuditReportPage() {
                 <FileText className="w-5 h-5" />
               </span>
               <h1 className={`text-xl sm:text-2xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Laporan Audit Kerja & Evaluasi Lapangan
+                Laporan Audit Kerja &amp; Evaluasi Lapangan
               </h1>
             </div>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-1`}>
-              Rekapitulasi resmi berita acara penanganan tiket, material logistik terpakai, dan dokumentasi foto STO Telkom Akses.
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -140,7 +182,6 @@ export default function AuditReportPage() {
             <div>
               <div className="text-[11px] text-emerald-500 font-semibold uppercase">Tiket Selesai (Done)</div>
               <div className="text-2xl font-extrabold text-emerald-500 mt-1">{completedCount}</div>
-              <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Tervalidasi dokumentasi foto</div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5" />
@@ -151,7 +192,6 @@ export default function AuditReportPage() {
             <div>
               <div className="text-[11px] text-blue-500 font-semibold uppercase">Sedang Dikerjakan</div>
               <div className="text-2xl font-extrabold text-blue-500 mt-1">{inProgressCount}</div>
-              <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Teknisi aktif di lapangan</div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center">
               <Wrench className="w-5 h-5" />
@@ -162,7 +202,6 @@ export default function AuditReportPage() {
             <div>
               <div className="text-[11px] text-amber-500 font-semibold uppercase">Log Alokasi Material</div>
               <div className="text-2xl font-extrabold text-amber-500 mt-1">{totalMaterialsUsed} Item</div>
-              <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Dirilis gudang resmi</div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-amber-600/20 text-amber-500 border border-amber-500/30 flex items-center justify-center">
               <Package className="w-5 h-5" />
@@ -293,9 +332,25 @@ export default function AuditReportPage() {
                         {task.jenis_kerja}
                       </span>
                     </td>
-                    <td className="px-3 py-3 max-w-[200px]">
-                      <div className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark`}>{task.pelanggan_nama}</div>
-                      <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'} truncate`}>{task.lokasi}</div>
+                    <td className="px-3 py-3 max-w-[220px]">
+                      {(() => {
+                        const cust = parseCustomerDetails(task);
+                        return (
+                          <>
+                            <div className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark`}>
+                              {cust.name}
+                            </div>
+                            {cust.telp && (
+                              <div className="text-[11px] text-slate-400 font-mono">
+                                {cust.telp}
+                              </div>
+                            )}
+                            <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'} truncate`} title={cust.address}>
+                              {cust.address}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className={`px-3 py-3 font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'} print-text-dark`}>
                       {task.tech?.nama_lengkap}

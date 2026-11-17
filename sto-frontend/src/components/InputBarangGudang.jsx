@@ -233,9 +233,6 @@ export default function InputBarangGudang() {
                 Logistik STO
               </span>
             </h2>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-              Pilih dari daftar gulir barang gudang atau daftarkan nama material baru.
-            </p>
           </div>
         </div>
 

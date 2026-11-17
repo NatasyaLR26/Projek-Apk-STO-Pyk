@@ -81,10 +81,21 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
       return;
     }
 
+    const lat = parseFloat(odpForm.latitude);
+    const lng = parseFloat(odpForm.longitude);
+    const safeLat = (!isNaN(lat) && lat >= -90 && lat <= 90 && (lat !== 0 || lng !== 0)) ? lat : -0.2285;
+    const safeLng = (!isNaN(lng) && lng >= -180 && lng <= 180 && (lat !== 0 || lng !== 0)) ? lng : 100.6335;
+
+    const payload = {
+      ...odpForm,
+      latitude: safeLat,
+      longitude: safeLng
+    };
+
     if (editingOdp) {
-      await updateOdp(editingOdp.id, odpForm);
+      await updateOdp(editingOdp.id, payload);
     } else {
-      await addOdp(odpForm);
+      await addOdp(payload);
     }
 
     setShowOdpModal(false);
@@ -122,9 +133,6 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
             </span>
             <span>WebGIS Pemetaan Infrastruktur ODP STO Telkom Payakumbuh</span>
           </h1>
-          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Pemetaan titik Optical Distribution Point (ODP), kapasitas port, redaman optik (dBm), dan sebaran tiket penugasan lapangan.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">

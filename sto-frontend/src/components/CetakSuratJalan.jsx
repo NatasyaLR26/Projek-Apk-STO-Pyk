@@ -36,7 +36,6 @@ export default function CetakSuratJalan() {
           </div>
           <div>
             <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>Cetak Surat Jalan & Bukti Serah Terima Material</h2>
-            <p className="text-xs text-slate-400">Dokumen resmi pengeluaran barang fisik dari gudang logistik ke teknisi lapangan.</p>
           </div>
         </div>
 

@@ -375,7 +375,6 @@ export default function DetailTiketTelegram() {
               </span>
               <div>
                 <h3 className="font-extrabold text-sm">Fase 2: Pick-Up Tiket & Permintaan Material</h3>
-                <p className="text-[11px] text-slate-400">Ambil tugas dan pesan material dropcore/ONT ke gudang</p>
               </div>
             </div>
             <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded bg-slate-800 text-slate-300">
@@ -520,7 +519,6 @@ export default function DetailTiketTelegram() {
               </span>
               <div>
                 <h3 className="font-extrabold text-sm">Fase 3: Rilis Gudang & Binding SN ONT</h3>
-                <p className="text-[11px] text-slate-400">Pengikatan barcode ONT modem ke penugasan lapangan</p>
               </div>
             </div>
             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
@@ -555,7 +553,6 @@ export default function DetailTiketTelegram() {
               </span>
               <div>
                 <h3 className="font-extrabold text-sm">Fase 4: Check-In Lokasi & Eksekusi Lapangan</h3>
-                <p className="text-[11px] text-slate-400">Catat koordinat GPS satu kali saat tiba di lokasi</p>
               </div>
             </div>
             <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-300">
@@ -612,9 +609,6 @@ export default function DetailTiketTelegram() {
                   <span>Fase 5: Closing Pekerjaan & WebGIS Magic</span>
                   <span className="text-xs">🔥</span>
                 </h3>
-                <p className="text-[11px] text-slate-400">
-                  Ukur OPM dBm, Tanda Tangan Digital, Tutup Tiket & Auto-Update Port ODP
-                </p>
               </div>
             </div>
             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${

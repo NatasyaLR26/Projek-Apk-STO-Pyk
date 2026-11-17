@@ -28,10 +28,13 @@ import {
   Barcode,
   Wrench,
   Radio,
-  FileText
+  FileText,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { compressImage, formatFileSize } from '../utils/imageCompressor';
 
 // Contoh foto dokumentasi lapangan standar Telkom Akses
 const CONTOH_FOTO_LAPANGAN = [
@@ -66,10 +69,14 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const [rincianKelebihan, setRincianKelebihan] = useState('');
   const [fotoKelebihan, setFotoKelebihan] = useState('');
   const [konfirmasiRetur, setKonfirmasiRetur] = useState(true);
+  const [isCompressingKelebihan, setIsCompressingKelebihan] = useState(false);
+  const [compressionStatsKelebihan, setCompressionStatsKelebihan] = useState(null);
 
   // 2. STATE FOTO DOKUMENTASI
   const [preview, setPreview] = useState(CONTOH_FOTO_LAPANGAN[0].url);
   const [submitting, setSubmitting] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionStats, setCompressionStats] = useState(null);
   const [activeStep, setActiveStep] = useState(1); // Step 1: Teknis & SN, Step 2: Rekonsiliasi Material, Step 3: Foto & Selesai
 
   // 3. DAFTAR MATERIAL YANG AKAN DIREKONSILIASI
@@ -143,68 +150,59 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
     setMaterialList(initialList);
   }, [tugasId, permohonan, detailPermohonan, barang, snOnt]);
 
-  // Handler mengubah jumlah material terpakai
-  // Handler upload file lokal dengan kompresi data URL universal
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
+  // Handler upload file lokal dengan kompresi client-side (HTML Canvas 1280px / JPEG 80%)
+  const handleFileChange = async (e) => {
+    const selected = e.target.files?.[0];
     if (!selected) return;
     if (!selected.type.startsWith('image/')) {
-      showToast('File harus berupa gambar foto', 'error');
+      showToast('File harus berupa gambar foto (JPG/PNG)', 'error');
       return;
     }
+
+    setIsCompressing(true);
     try {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-            const maxDim = 800;
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-            setPreview(dataUrl);
-          } catch {
-            setPreview(ev.target.result);
-          }
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(selected);
-    } catch {
-      setPreview(URL.createObjectURL(selected));
+      const result = await compressImage(selected, 1280, 0.8);
+      setPreview(result.dataUrl);
+      setCompressionStats({
+        original: formatFileSize(result.originalSize),
+        compressed: formatFileSize(result.compressedSize),
+        percent: result.savedPercent
+      });
+      showToast(`⚡ Foto BASTP dikompresi: ${formatFileSize(result.originalSize)} ➔ ${formatFileSize(result.compressedSize)} (Hemat ${result.savedPercent}%)`, 'success');
+    } catch (err) {
+      console.warn('Kompresi gambar gagal:', err);
+      showToast('Gagal memproses kompresi gambar: ' + err.message, 'error');
+    } finally {
+      setIsCompressing(false);
+      e.target.value = '';
     }
   };
 
-  // Handler upload foto bukti fisik sisa / kelebihan material
-  const handleFileKelebihanChange = (e) => {
-    const selected = e.target.files[0];
+  // Handler upload foto bukti fisik sisa / kelebihan material dengan kompresi Canvas
+  const handleFileKelebihanChange = async (e) => {
+    const selected = e.target.files?.[0];
     if (!selected) return;
     if (!selected.type.startsWith('image/')) {
-      showToast('File harus berupa gambar foto', 'error');
+      showToast('File harus berupa gambar foto (JPG/PNG)', 'error');
       return;
     }
+
+    setIsCompressingKelebihan(true);
     try {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setFotoKelebihan(ev.target.result);
-      };
-      reader.readAsDataURL(selected);
-    } catch {
-      setFotoKelebihan(URL.createObjectURL(selected));
+      const result = await compressImage(selected, 1280, 0.8);
+      setFotoKelebihan(result.dataUrl);
+      setCompressionStatsKelebihan({
+        original: formatFileSize(result.originalSize),
+        compressed: formatFileSize(result.compressedSize),
+        percent: result.savedPercent
+      });
+      showToast(`⚡ Foto sisa material dikompresi: ${formatFileSize(result.originalSize)} ➔ ${formatFileSize(result.compressedSize)} (Hemat ${result.savedPercent}%)`, 'success');
+    } catch (err) {
+      console.warn('Kompresi gambar retur gagal:', err);
+      showToast('Gagal mengompresi foto retur: ' + err.message, 'error');
+    } finally {
+      setIsCompressingKelebihan(false);
+      e.target.value = '';
     }
   };
 
@@ -214,7 +212,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
 
   // SUBMIT KLOSING TIKET & REKONSILIASI MATERIAL
   const handleSubmitClosing = async () => {
-    if (submitting) return; // Cegah double submit dari klik cepat
+    if (submitting || isCompressing || isCompressingKelebihan) return; // Cegah double submit dari klik cepat
     setSubmitting(true);
 
     const closingPayload = {
@@ -241,6 +239,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
       onSuccess();
     } catch (err) {
       console.error(err);
+      showToast('Gagal memproses closing tugas: ' + (err.message || 'Error server'), 'error');
       setSubmitting(false);
     }
   };
@@ -468,9 +467,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                     <h3 className="font-bold text-sm flex items-center gap-2">
                       <span>Deklarasi &amp; Bukti Kelebihan Material Lapangan</span>
                     </h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Sesuai SOP STO Telkom Akses: Kelebihan material tidak dihitung per meter, melainkan dicatat dalam bentuk tulisan dan bukti foto fisik untuk dikembalikan ke Sentral STO.
-                    </p>
                   </div>
                   <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
                     SOP Retur Logistik
@@ -506,7 +502,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         : isDark ? 'border-slate-800 bg-slate-900/40 hover:border-slate-700' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between">
                       <span className="font-bold text-xs text-emerald-400 flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4" />
                         <span>Tidak Ada Material Berlebih</span>
@@ -518,9 +514,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         className="accent-emerald-500"
                       />
                     </div>
-                    <p className="text-[11px] text-slate-400">
-                      Seluruh material habis terpakai dan terpasang pas di rumah pelanggan sesuai SOP penarikan FO.
-                    </p>
                   </div>
 
                   <div
@@ -531,7 +524,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         : isDark ? 'border-slate-800 bg-slate-900/40 hover:border-slate-700' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between">
                       <span className="font-bold text-xs text-amber-400 flex items-center gap-1.5">
                         <AlertTriangle className="w-4 h-4" />
                         <span>Ada Material Berlebih / Sisa (Cukup Catatan &amp; Foto)</span>
@@ -543,9 +536,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         className="accent-amber-500"
                       />
                     </div>
-                    <p className="text-[11px] text-slate-400">
-                      Sisa kabel dropcore (misal ~10m) digulung di mobil untuk perbaikan/gangguan, atau barang retur ke gudang. Cukup sertakan catatan &amp; foto fisik.
-                    </p>
                   </div>
                 </div>
 
@@ -603,11 +593,39 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                             ))}
                           </div>
                           <label className={`block py-2 px-3 rounded-xl border text-center cursor-pointer transition ${
-                            isDark ? 'bg-slate-900 hover:bg-slate-800 text-amber-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-amber-600 border-slate-300'
+                            isCompressingKelebihan
+                              ? 'opacity-60 pointer-events-none'
+                              : isDark ? 'bg-slate-900 hover:bg-slate-800 text-amber-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-amber-600 border-slate-300'
                           }`}>
-                            <span className="font-bold text-xs">+ Ambil / Upload Foto Sisa Material</span>
-                            <input type="file" accept="image/*" capture="environment" onChange={handleFileKelebihanChange} className="hidden" />
+                            <span className="font-bold text-xs flex items-center justify-center gap-1.5">
+                              {isCompressingKelebihan ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                                  <span>Mengompresi Foto Sisa...</span>
+                                </>
+                              ) : (
+                                <span>+ Ambil / Upload Foto Sisa Material</span>
+                              )}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              disabled={isCompressingKelebihan || submitting}
+                              onChange={handleFileKelebihanChange}
+                              className="hidden"
+                            />
                           </label>
+
+                          {compressionStatsKelebihan && !isCompressingKelebihan && (
+                            <div className="flex items-center justify-between p-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-mono">
+                              <span className="flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" />
+                                <strong>Terkompresi: {compressionStatsKelebihan.compressed}</strong>
+                              </span>
+                              <span>Asli: {compressionStatsKelebihan.original} (Hemat {compressionStatsKelebihan.percent}%)</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -695,7 +713,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => { setPreview(sample.url); setFile(null); }}
+                      onClick={() => { setPreview(sample.url); setCompressionStats(null); }}
                       className={`p-2 rounded-xl border truncate transition cursor-pointer text-center ${
                         preview === sample.url
                           ? 'bg-burgundy-600 text-white border-burgundy-500 font-bold'
@@ -710,13 +728,46 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {/* Upload File Sendiri */}
-              <label className={`block py-2.5 px-3 rounded-xl border text-center cursor-pointer transition ${
-                isDark ? 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-              }`}>
-                <span className="font-semibold text-xs">Pilih Foto Sendiri dari Perangkat</span>
-                <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
-              </label>
+              {/* Upload File Sendiri dengan Kompresi Otomatis */}
+              <div className="space-y-2">
+                <label className={`block py-2.5 px-3 rounded-xl border text-center cursor-pointer transition ${
+                  isCompressing
+                    ? 'opacity-60 pointer-events-none'
+                    : isDark ? 'bg-slate-800 hover:bg-slate-750 text-slate-300 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                }`}>
+                  <span className="font-semibold text-xs flex items-center justify-center gap-1.5">
+                    {isCompressing ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-burgundy-400" />
+                        <span>Mengompresi Foto Kamera (1280px)...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Pilih Foto Sendiri dari Perangkat (Otomatis Dikompresi)</span>
+                      </>
+                    )}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    disabled={isCompressing || submitting}
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+
+                {compressionStats && !isCompressing && (
+                  <div className="flex items-center justify-between p-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono">
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Terkompresi: {compressionStats.compressed}</span>
+                    </span>
+                    <span>Asli: {compressionStats.original} (Hemat {compressionStats.percent}%)</span>
+                  </div>
+                )}
+              </div>
 
               {/* Catatan Selesai */}
               <div>
@@ -749,18 +800,28 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                 <button
                   type="button"
                   onClick={() => setActiveStep(2)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs cursor-pointer"
+                  disabled={submitting || isCompressing}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs cursor-pointer disabled:opacity-50"
                 >
                   ← Kembali
                 </button>
                 <button
                   type="button"
                   onClick={handleSubmitClosing}
-                  disabled={submitting}
+                  disabled={submitting || isCompressing || isCompressingKelebihan}
                   className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{submitting ? 'Memproses BASTP...' : 'Closing & Terbitkan BASTP'}</span>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Memproses BASTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Closing & Terbitkan BASTP</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

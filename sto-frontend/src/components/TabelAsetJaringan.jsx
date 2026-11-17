@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Radio,
   Search,
@@ -11,7 +11,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 
-export default function TabelAsetJaringan({ onNavigateToWebGis }) {
+export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = false }) {
   const { isDark } = useTheme();
   const { odp, addOdp, updateOdp, deleteOdp, showToast } = useApp();
 
@@ -68,6 +68,17 @@ export default function TabelAsetJaringan({ onNavigateToWebGis }) {
     setEditingItem(null);
     setShowAddModal(true);
   };
+
+  useEffect(() => {
+    const handleExternalAdd = () => handleOpenAdd();
+    const handleExternalExport = () => handleExportCsv();
+    window.addEventListener('sto:open-add-odp', handleExternalAdd);
+    window.addEventListener('sto:export-odp', handleExternalExport);
+    return () => {
+      window.removeEventListener('sto:open-add-odp', handleExternalAdd);
+      window.removeEventListener('sto:export-odp', handleExternalExport);
+    };
+  }, [odp]);
 
   const handleOpenEdit = (item) => {
     setEditingItem(item);
@@ -162,42 +173,35 @@ export default function TabelAsetJaringan({ onNavigateToWebGis }) {
     <div className="space-y-5 animate-in fade-in duration-200">
       
       {/* Header Banner */}
-      <div className={`p-5 sm:p-6 rounded-3xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors`}>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-600/20 text-emerald-400 border border-emerald-500/30">
-              INFRASTRUKTUR JARINGAN
-            </span>
-            <span className="text-xs text-slate-400 font-mono">Tabel Terpisah Supabase: <code>public.odp</code></span>
+      {!hideHeader && (
+        <div className={`p-5 sm:p-6 rounded-3xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors`}>
+          <div>
+            <h2 className={`text-xl sm:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Master Data Titik ODP, Tiang, & ODC Wilayah Payakumbuh
+            </h2>
           </div>
-          <h2 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Master Data Titik ODP, Tiang, & ODC Wilayah Payakumbuh
-          </h2>
-          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-            Daftar lengkap infrastruktur fisik jaringan fiber optic STO Payakumbuh dengan filter kapasitas port dan redaman optik.
-          </p>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Excel (CSV)</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export Excel (CSV)</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-95"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>+ Tambah ODP / Tiang</span>
-          </button>
+            <button
+              type="button"
+              onClick={handleOpenAdd}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-95"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>+ Tambah ODP / Tiang</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Toolbar Filter & Pencarian */}
       <div className={`p-4 rounded-3xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} space-y-3`}>
@@ -284,13 +288,7 @@ export default function TabelAsetJaringan({ onNavigateToWebGis }) {
             <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Daftar Titik Infrastruktur Jaringan Terdata
             </h3>
-            <p className="text-[11px] text-slate-400">
-              Menampilkan {filteredAssets.length} dari total {odp.length} titik aset jaringan Payakumbuh.
-            </p>
           </div>
-          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            Realtime Supabase Sync
-          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -373,9 +371,17 @@ export default function TabelAsetJaringan({ onNavigateToWebGis }) {
                       </td>
 
                       <td className="px-4 py-3 text-center font-mono font-bold text-xs">
-                        <span className={item.redaman_dbm <= -24 ? 'text-rose-400' : 'text-emerald-400'}>
-                          {item.redaman_dbm} dBm
-                        </span>
+                        {(() => {
+                          const rawDbm = item.redaman_dbm;
+                          const hasDbm = rawDbm !== null && rawDbm !== undefined && rawDbm !== '';
+                          const dbmVal = hasDbm ? Number(rawDbm) : -18.5;
+                          const isBad = dbmVal <= -24;
+                          return (
+                            <span className={isBad ? 'text-rose-400' : 'text-emerald-400'}>
+                              {dbmVal.toFixed(1)} dBm
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       <td className="px-4 py-3 text-center">
@@ -437,7 +443,7 @@ export default function TabelAsetJaringan({ onNavigateToWebGis }) {
                   <h3 className="text-sm font-extrabold">
                     {editingItem ? `Edit Aset: ${editingItem.kode_odp}` : 'Registrasi Titik Aset Jaringan Baru'}
                   </h3>
-                  <p className="text-[10px] text-slate-400">Sinkron otomatis ke tabel ODP Supabase & Peta WebGIS</p>
+                  <p className="text-[10px] text-slate-400">Sinkron otomatis ke data inventaris &amp; Peta WebGIS</p>
                 </div>
               </div>
               <button

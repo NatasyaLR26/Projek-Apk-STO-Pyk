@@ -11,5 +11,6 @@ desktop.ini
 # Dokumen Laporan Proposal KP (Local only, do not push)
 *.pdf
 *.odt
-*laporan*
+*laporan*.doc*
 docs/
+!sto-frontend/src/**

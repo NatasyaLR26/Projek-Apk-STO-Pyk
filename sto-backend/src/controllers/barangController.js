@@ -10,10 +10,12 @@ exports.getAllBarang = async (req, res) => {
     .order('nama_barang', { ascending: true });
 
   if (error) {
-    return errorResponse(res, 500, 'Gagal mengambil data barang', error.message);
+    return errorResponse(res, 500, 'Gagal mengambil data barang dari database', error.message);
   }
 
-  return successResponse(res, 200, 'Data barang berhasil diambil', data, { barang: data });
+  // Single Source of Truth: Jika tabel kosong ([]), kembalikan [] apa adanya tanpa fallback mock data
+  const barangList = Array.isArray(data) ? data : [];
+  return successResponse(res, 200, 'Data barang berhasil diambil', barangList, { barang: barangList });
 };
 
 // 2. Tambah master barang baru ke gudang (CRUD Create)

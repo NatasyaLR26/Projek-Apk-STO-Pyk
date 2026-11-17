@@ -241,6 +241,29 @@ exports.updateTugas = async (req, res) => {
     return errorResponse(res, 400, 'ID tugas tidak valid');
   }
 
+  // 1. Ambil status tiket saat ini di database
+  const { data: existingTugas, error: errFind } = await supabase
+    .from('tugas')
+    .select('id, status, teknisi_id')
+    .eq('id', parsedId)
+    .single();
+
+  if (errFind || !existingTugas) {
+    return errorResponse(res, 404, 'Tiket tugas tidak ditemukan');
+  }
+
+  const isDoneStatus = (st) => {
+    const s = String(st || '').toLowerCase().trim();
+    return s === 'done' || s === 'closed' || s === 'selesai';
+  };
+
+  // Validasi Idempotency: Tiket yang sudah Done/Closed tidak dapat diubah statusnya menjadi progress atau open kembali
+  if (isDoneStatus(existingTugas.status)) {
+    if (status !== undefined && !isDoneStatus(status)) {
+      return errorResponse(res, 400, 'Tiket yang sudah selesai (Done/Closed) tidak dapat diubah kembali ke status aktif');
+    }
+  }
+
   const updatePayload = {};
   if (jenis_kerja !== undefined) updatePayload.jenis_kerja = jenis_kerja;
   if (lokasi !== undefined) updatePayload.lokasi = lokasi;
@@ -303,6 +326,12 @@ exports.claimTugas = async (req, res) => {
     return errorResponse(res, 400, 'Teknisi ID wajib disertakan dan harus berupa angka valid');
   }
 
+  const isDoneStatus = (st) => {
+    const s = String(st || '').toLowerCase().trim();
+    return s === 'done' || s === 'closed' || s === 'selesai';
+  };
+
+  // 1. Ambil data tiket tugas saat ini
   const { data: existingTugas, error: errFind } = await supabase
     .from('tugas')
     .select('*')
@@ -313,10 +342,26 @@ exports.claimTugas = async (req, res) => {
     return errorResponse(res, 404, 'Tugas tidak ditemukan');
   }
 
-  if (existingTugas.status === 'Done') {
-    return errorResponse(res, 400, 'Tugas sudah selesai dikerjakan dan tidak dapat diklaim');
+  // Validasi 1: Jangan izinkan klaim tiket yang sudah selesai dikerjakan
+  if (isDoneStatus(existingTugas.status)) {
+    return errorResponse(res, 400, 'Tugas sudah selesai dikerjakan (Done) dan tidak dapat diklaim kembali');
   }
 
+  // Idempotency: Jika teknisi yang sama mengirim request klaim ulang untuk tiketnya sendiri
+  if (existingTugas.teknisi_id && Number(existingTugas.teknisi_id) === parsedTeknisiId) {
+    return successResponse(res, 200, 'Tiket sudah Anda klaim sebelumnya', existingTugas, { tugas: existingTugas });
+  }
+
+  // Validasi 2: Pastikan tiket berstatus 'menunggu' / 'open' dan belum ada teknisi yang mengambil
+  const rawStatus = String(existingTugas.status || '').toLowerCase().trim();
+  const isAvailableStatus = rawStatus === 'menunggu' || rawStatus === 'open';
+
+  if (existingTugas.teknisi_id || !isAvailableStatus) {
+    return errorResponse(res, 409, 'Tiket ini sudah diklaim oleh teknisi lain atau sedang dalam proses pengerjaan');
+  }
+
+  // 2. Cegah Race Condition via Atomic Condition:
+  // Update HANYA jika teknisi_id IS NULL pada database
   const { data, error } = await supabase
     .from('tugas')
     .update({
@@ -324,11 +369,12 @@ exports.claimTugas = async (req, res) => {
       status: 'Progress',
     })
     .eq('id', parsedId)
+    .is('teknisi_id', null)
     .select()
     .single();
 
-  if (error) {
-    return errorResponse(res, 500, 'Gagal mengklaim tugas', error.message);
+  if (error || !data) {
+    return errorResponse(res, 409, 'Tiket gagal diklaim karena baru saja diambil oleh teknisi lain (Race condition dicegah)');
   }
 
   // Dual Broadcast update klaim ke Telegram Grup & instruksikan teknisi ke Gudang STO
@@ -504,22 +550,28 @@ exports.checkInTugas = async (req, res) => {
 
   const waktuWib = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
-  // Simpan koordinat checkin ke Supabase jika tabel mendukung kolomnya
+  // Ambil detail tugas untuk data notifikasi & validasi status
+  let tugasData = { id: parsedId, pelanggan_nama: 'Pelanggan Telkom' };
+  try {
+    const { data: tData } = await supabase.from('tugas').select('*').eq('id', parsedId).single();
+    if (tData) {
+      tugasData = tData;
+      const st = String(tData.status || '').toLowerCase().trim();
+      if (st === 'done' || st === 'closed' || st === 'selesai') {
+        return errorResponse(res, 400, 'Tiket sudah selesai dikerjakan (Done) dan tidak dapat melakukan check-in ulang');
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  // Simpan status In-Progress ke Supabase
   try {
     await supabase.from('tugas').update({
       status: 'In-Progress'
     }).eq('id', parsedId);
   } catch {
     // Ignore fallback
-  }
-
-  // Ambil detail tugas untuk data notifikasi
-  let tugasData = { id: parsedId, pelanggan_nama: 'Pelanggan Telkom' };
-  try {
-    const { data: tData } = await supabase.from('tugas').select('*').eq('id', parsedId).single();
-    if (tData) tugasData = tData;
-  } catch {
-    // fallback
   }
 
   const msg = telegramService.templateCheckIn({

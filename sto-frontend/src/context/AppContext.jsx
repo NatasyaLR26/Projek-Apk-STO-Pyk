@@ -33,7 +33,7 @@
  * ============================================================================
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
 import api from '../api/axiosInstance';
 import { playNotificationChime } from '../utils/soundHelper';
@@ -99,10 +99,10 @@ export function AppProvider({ children }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch {}
     }
-    return initialBarang;
+    return isSupabaseConfigured() ? [] : initialBarang;
   });
 
   const [tugas, setTugas] = useState(() => {
@@ -142,10 +142,17 @@ export function AppProvider({ children }) {
   // GPS Tracking dinonaktifkan sesuai kebutuhan produksi
   const trackingGps = [];
   const setTrackingGps = () => {};
+  const initialTrackingGps = [];
 
   const [odp, setOdp] = useState(() => {
     const saved = localStorage.getItem('sto_odp');
-    return saved ? JSON.parse(saved) : initialOdp;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+    }
+    return isSupabaseConfigured() ? [] : initialOdp;
   });
 
   // Master Data Pelanggan & Audit Kontrak Aset STO Telkom Payakumbuh
@@ -308,8 +315,32 @@ export function AppProvider({ children }) {
         supabase.from('detail_permohonan').select('*')
       ]);
 
-      if (resUsers.data && resUsers.data.length > 0) setUsers(resUsers.data);
-      if (resBarang.data && resBarang.data.length > 0) setBarang(resBarang.data);
+      if (Array.isArray(resUsers.data) && resUsers.data.length > 0) {
+        setUsers((prev) => {
+          if (prev && prev.length === resUsers.data.length && prev[0]?.id === resUsers.data[0]?.id) {
+            return prev;
+          }
+          return resUsers.data;
+        });
+      }
+
+      if (Array.isArray(resBarang.data)) {
+        setBarang((prev) => {
+          if (prev && prev.length === resBarang.data.length) {
+            const isSame = prev.every((oldB, i) => {
+              const newB = resBarang.data[i];
+              return Number(oldB.id) === Number(newB.id) && Number(oldB.stok) === Number(newB.stok);
+            });
+            if (isSame) return prev;
+          }
+          return resBarang.data;
+        });
+        if (resBarang.data.length === 0) {
+          try {
+            localStorage.setItem('sto_barang', '[]');
+          } catch {}
+        }
+      }
 
       // Sinkronisasi data tugas: Supabase Cloud adalah Single Source of Truth
       if (Array.isArray(resTugas.data)) {
@@ -365,14 +396,39 @@ export function AppProvider({ children }) {
             };
           });
 
-          // HANYA gunakan mappedFetched dari database. TIDAK mempertahankan extraLocal agar data yang telah dihapus tidak bangkit kembali!
-          setTugas(mappedFetched);
+          // Optimasi Memori: Cek apakah data tugas berubah sebelum mengganti referensi state
+          setTugas((prev) => {
+            if (prev && prev.length === mappedFetched.length) {
+              const isSame = prev.every((oldT, i) => {
+                const newT = mappedFetched[i];
+                return (
+                  Number(oldT.id) === Number(newT.id) &&
+                  oldT.status === newT.status &&
+                  oldT.material_status === newT.material_status &&
+                  oldT.teknisi_id === newT.teknisi_id &&
+                  oldT.sn_ont === newT.sn_ont &&
+                  Boolean(oldT.checkin) === Boolean(newT.checkin)
+                );
+              });
+              if (isSame) return prev; // Pertahankan referensi lama untuk cegah re-render massal
+            }
+            return mappedFetched;
+          });
         }
       }
 
       // Sinkronisasi permohonan material
       if (Array.isArray(resPermohonan.data)) {
-        setPermohonan(resPermohonan.data);
+        setPermohonan((prev) => {
+          if (prev && prev.length === resPermohonan.data.length) {
+            const isSame = prev.every((oldP, i) => {
+              const newP = resPermohonan.data[i];
+              return Number(oldP.id) === Number(newP.id) && oldP.status === newP.status;
+            });
+            if (isSame) return prev;
+          }
+          return resPermohonan.data;
+        });
         if (resPermohonan.data.length === 0) {
           try {
             localStorage.setItem('sto_permohonan', '[]');
@@ -394,17 +450,22 @@ export function AppProvider({ children }) {
       // 7. Ambil data titik ODP Jaringan Fiber Optic
       try {
         const { data: resOdpData, error: odpErr } = await supabase.from('odp').select('*').order('id', { ascending: true });
-        if (!odpErr && resOdpData && resOdpData.length > 0) {
+        if (!odpErr && Array.isArray(resOdpData)) {
           const mapped = resOdpData.map(o => ({
             ...o,
             alamat: o.alamat || o.nama_lokasi || 'Koto Nan IV Payakumbuh',
             nama_lokasi: o.alamat || o.nama_lokasi || 'Koto Nan IV Payakumbuh'
           }));
           setOdp(mapped);
+          if (mapped.length === 0) {
+            try {
+              localStorage.setItem('sto_odp', '[]');
+            } catch {}
+          }
         } else {
           // Coba dari backend Express API
           const apiOdp = await api.get('/odp');
-          if (apiOdp.data?.data && apiOdp.data.data.length > 0) {
+          if (apiOdp.data?.data && Array.isArray(apiOdp.data.data)) {
             setOdp(apiOdp.data.data);
           }
         }
@@ -451,10 +512,13 @@ export function AppProvider({ children }) {
 
     if (!isSupabaseConfigured()) return;
 
-    // Interval Sinkronisasi Background Otomatis (Setiap 10 Detik)
+    // Interval Sinkronisasi Background Otomatis (Setiap 60 Detik & Hanya Saat Tab Aktif)
     const syncInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return; // Lewati polling jika tab sedang tidak aktif / diminimalkan
+      }
       fetchRealData(true);
-    }, 10000);
+    }, 60000);
 
     // Saluran Real-Time Supabase WebSocket Lintas Seluruh Operasional (Broadcast & Database Sync)
     const channel = supabase
@@ -600,7 +664,7 @@ export function AppProvider({ children }) {
   }, [fetchRealData]);
 
   // Auth Operations
-  const login = (email, password) => {
+  const login = useCallback((email, password) => {
     const found = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
     if (!found) {
       showToast("Email pengguna tidak ditemukan!", "error");
@@ -616,9 +680,9 @@ export function AppProvider({ children }) {
     else if (found.role === 'gudang') setCurrentView('gudang');
     showToast(`Selamat datang kembali, ${found.nama_lengkap}!`, "success");
     return true;
-  };
+  }, [users, showToast]);
 
-  const loginAsRole = (role) => {
+  const loginAsRole = useCallback((role) => {
     const found = users.find(u => u.role === role);
     if (found) {
       setCurrentUser(found);
@@ -627,18 +691,18 @@ export function AppProvider({ children }) {
       else if (role === 'gudang') setCurrentView('gudang');
       showToast(`Beralih ke akun ${found.nama_lengkap} (${found.jabatan || found.role})`, "info");
     }
-  };
+  }, [users, showToast]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('user');
     localStorage.removeItem('sto_currentUser');
     setCurrentUser(null);
     setCurrentView('landing');
     showToast("Anda telah keluar dari sistem.", "info");
-  };
+  }, [showToast]);
 
-    // SOP 1: Pimpinan membuat tiket tugas dan menyiarkan ke pool teknisi secara instan via Supabase Realtime WebSocket & Telegram
-  const createTugas = async (taskData) => {
+  // SOP 1: Pimpinan membuat tiket tugas dan menyiarkan ke pool teknisi secara instan via Supabase Realtime WebSocket & Telegram
+  const createTugas = useCallback(async (taskData) => {
     const newId = tugas.length > 0 ? Math.max(...tugas.map(t => Number(t.id) || 0)) + 1 : 101;
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -673,7 +737,6 @@ export function AppProvider({ children }) {
     };
 
     // 1. Simpan ke database (Prioritaskan Backend API, fallback ke direct Supabase Cloud)
-    // Cegah Double Insert: Hanya panggil salah satu agar tiket tidak terbuat duplikat (#28 dan #29)
     let backendHandled = false;
     try {
       const apiRes = await api.post('/tugas', {
@@ -758,10 +821,10 @@ export function AppProvider({ children }) {
       });
     }
 
-    // 3. Supabase Realtime WebSocket Broadcast: Sinyal langsung masuk ke aplikasi teknisi dalam hitungan milidetik ⚡
+    // 3. Supabase Realtime WebSocket Broadcast
     broadcastLiveSignal('tugas_baru', finalTask);
 
-    // 4. Siarkan Notifikasi ke Grup Telegram via Backend API (Bebas Leak Bot Token Client-Side)
+    // 4. Siarkan Notifikasi ke Grup Telegram via Backend API
     try {
       const odpKode = taskData.odp_kode || 'ODP-PYK-FA/001';
       const assignedUser = users.find(u => Number(u.id) === assignedTeknisiId);
@@ -788,10 +851,10 @@ export function AppProvider({ children }) {
 
     showToast(`Tiket #${finalTask.id} (${taskData.jenis_kerja}) berhasil disiarkan ke aplikasi & Telegram!`, "success");
     return finalTask;
-  };
+  }, [tugas, currentUser, users, showToast, broadcastLiveSignal]);
 
-  // SOP 1.5: Teknisi mengklaim/mengambil tiket yang diumumkan (dengan validasi ketat & dual sync)
-  const claimTugas = async (tugasId, teknisiId = null) => {
+  // SOP 1.5: Teknisi mengklaim/mengambil tiket yang diumumkan (Single Source of Truth via Express API)
+  const claimTugas = useCallback(async (tugasId, teknisiId = null) => {
     const parsedTugasId = parseInt(tugasId, 10);
     const parsedTeknisiId = parseInt(teknisiId, 10) || currentUser?.id || 2;
 
@@ -817,9 +880,13 @@ export function AppProvider({ children }) {
       return false;
     }
 
-    // 1. Sinkronisasi ke Backend Express API jika backend berjalan
+    // 1. Jalur Utama: Sinkronisasi ke Backend Express API (Single Source of Truth)
+    let backendHandled = false;
     try {
-      await api.patch(`/tugas/${parsedTugasId}/claim`, { teknisi_id: parsedTeknisiId });
+      const res = await api.patch(`/tugas/${parsedTugasId}/claim`, { teknisi_id: parsedTeknisiId });
+      if (res.data?.success) {
+        backendHandled = true;
+      }
     } catch (apiErr) {
       console.warn('[claimTugas] Backend Express API notice:', apiErr?.response?.data?.message || apiErr?.message);
     }
@@ -836,27 +903,13 @@ export function AppProvider({ children }) {
       return t;
     }));
 
-    // 3. Sinkronisasi langsung ke Supabase
-    if (isSupabaseConfigured()) {
+    // 3. Offline Fallback: HANYA jika backend API offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
-        const { data: updateRes, error: updateErr } = await supabase.from('tugas').update({
+        await supabase.from('tugas').update({
           teknisi_id: parsedTeknisiId,
           status: 'Progress'
-        }).eq('id', parsedTugasId).select();
-
-        // Jika baris tiket belum ada di Supabase, insert
-        if (!updateErr && (!updateRes || updateRes.length === 0)) {
-          const matched = targetTask;
-          await supabase.from('tugas').insert([{
-            id: parsedTugasId,
-            pimpinan_id: Number(matched.pimpinan_id) || 1,
-            teknisi_id: parsedTeknisiId,
-            jenis_kerja: matched.jenis_kerja || 'Pasang Baru',
-            lokasi: matched.lokasi || 'Koto Nan IV Payakumbuh',
-            status: 'Progress',
-            broadcast_status: 'sent'
-          }]);
-        }
+        }).eq('id', parsedTugasId);
       } catch (err) {
         console.warn('Supabase claim task notice:', err);
       }
@@ -871,7 +924,7 @@ export function AppProvider({ children }) {
       teknisi_nama: techName
     });
 
-    // Notifikasi ke Grup Telegram via Backend API (Bebas Leak Bot Token Client-Side)
+    // Notifikasi ke Grup Telegram via Backend API
     try {
       const claimText = `👷 <b>[TIKET DIAMBIL TEKNISI LAPANGAN]</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -886,10 +939,10 @@ export function AppProvider({ children }) {
 
     showToast(`Tiket #${parsedTugasId} berhasil Anda ambil! Segera ajukan permohonan material ke gudang.`, 'success');
     return true;
-  };
+  }, [tugas, currentUser, showToast, broadcastLiveSignal]);
 
   // SOP 2: Teknisi mengajukan material ke gudang (Mendukung Multi-Tiket / Batch Kolektif)
-  const requestMaterial = async (param1, param2, param3, param4) => {
+  const requestMaterial = useCallback(async (param1, param2, param3, param4) => {
     let tugasId = param1;
     let items = param2;
     let catatan = param3;
@@ -969,7 +1022,7 @@ export function AppProvider({ children }) {
       return t;
     }));
 
-    // 1. Sinkronisasi ke Backend Express API
+    // 1. Sinkronisasi ke Backend Express API (Single Source of Truth)
     let backendHandled = false;
     let realPId = newPermohonans[0]?.id || 501;
 
@@ -992,7 +1045,7 @@ export function AppProvider({ children }) {
       console.warn('[requestMaterial] Backend Express API notice:', apiErr.message);
     }
 
-    // 2. Direct Supabase Fallback (hanya jika Backend API offline)
+    // 2. Direct Supabase Fallback (hanya jika Backend API offline untuk mencegah dual-write)
     if (!backendHandled && isSupabaseConfigured()) {
       try {
         const permohonanRows = validTugasIds.map(tid => ({
@@ -1034,7 +1087,7 @@ export function AppProvider({ children }) {
       }
     }
 
-    // 2. Supabase Realtime WebSocket Broadcast ke Petugas Gudang & Pimpinan
+    // 3. Supabase Realtime WebSocket Broadcast ke Petugas Gudang & Pimpinan
     broadcastLiveSignal('permohonan_baru', {
       id: realPId,
       tugas_id: validTugasIds[0],
@@ -1043,7 +1096,7 @@ export function AppProvider({ children }) {
       items
     });
 
-    // 3. Notifikasi Telegram ke Grup Gudang via Backend API (Bebas Leak Bot Token Client-Side)
+    // 4. Notifikasi Telegram ke Grup Gudang via Backend API (Bebas Leak Bot Token Client-Side)
     try {
       const parentTask = tugas.find(t => Number(t.id) === parsedTugasId);
       const itemListText = items.map(i => `• ${i.nama_barang || 'Barang ID: ' + i.barang_id}: ${i.jumlah_minta} ${i.satuan || 'pcs'}`).join('\n');
@@ -1062,20 +1115,11 @@ export function AppProvider({ children }) {
       api.post('/telegram/send', { text: textGudang }).catch(() => {});
     } catch {}
 
-    // 4. Fire-and-forget ke backend API lokal jika ada
-    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-      api.post('/permohonan', {
-        tugas_id: parsedTugasId,
-        barang: (items || []).map(i => ({ barang_id: parseInt(i.barang_id, 10), jumlah_minta: parseInt(i.jumlah_minta, 10) || 1 })),
-        teknisi_nama: currentUser?.nama_lengkap || 'Teknisi Lapangan'
-      }).catch(() => {});
-    }
-
     showToast(`Permohonan material #${realPId} berhasil diajukan ke Gudang STO!`, "success");
-  };
+  }, [tugas, permohonan, detailPermohonan, currentUser, showToast, broadcastLiveSignal]);
 
   // SOP 3: Pimpinan memberikan persetujuan (approval)
-  const approveMaterial = async (permohonanId) => {
+  const approveMaterial = useCallback(async (permohonanId) => {
     const parsedId = parseInt(permohonanId, 10);
     setPermohonan(prev => prev.map(p => {
       if (Number(p.id) === parsedId) {
@@ -1103,9 +1147,9 @@ export function AppProvider({ children }) {
     }
 
     showToast(`Permohonan #${parsedId} DISETUJUI. Diteruskan ke Gudang untuk rilis barang!`, "success");
-  };
+  }, [showToast]);
 
-  const rejectMaterial = async (permohonanId, reason = "Ditolak oleh Pimpinan") => {
+  const rejectMaterial = useCallback(async (permohonanId, reason = "Ditolak oleh Pimpinan") => {
     const parsedId = parseInt(permohonanId, 10);
     setPermohonan(prev => prev.map(p => {
       if (Number(p.id) === parsedId) {
@@ -1133,10 +1177,10 @@ export function AppProvider({ children }) {
     }
 
     showToast(`Permohonan #${parsedId} DITOLAK.`, "error");
-  };
+  }, [showToast]);
 
   // SOP 4: Gudang merilis barang dan sistem melakukan pemotongan stok otomatis
-  const releaseMaterial = async (permohonanId, sn = null) => {
+  const releaseMaterial = useCallback(async (permohonanId, sn = null) => {
     const parsedId = parseInt(permohonanId, 10);
     const targetPermohonan = permohonan.find(p => Number(p.id) === parsedId);
     if (!targetPermohonan || targetPermohonan.status === 'Released') return;
@@ -1231,7 +1275,10 @@ export function AppProvider({ children }) {
     // 1. Sync ke backend Express API (Jalur utama yang memotong stok di Supabase)
     let backendHandled = false;
     try {
-      const res = await api.patch(`/permohonan/${parsedId}/release`);
+      const res = await api.patch(`/permohonan/${parsedId}/release`, {
+        sn_ont: (typeof sn === 'string' ? sn : (sn && typeof sn === 'object' ? Object.values(sn)[0]?.sn : null)) || null,
+        allocations: typeof sn === 'object' ? sn : null
+      });
       if (res.data?.success) {
         backendHandled = true;
       }
@@ -1254,11 +1301,11 @@ export function AppProvider({ children }) {
     }
 
     showToast(`Barang Permohonan #${parsedId} berhasil dirilis & stok gudang otomatis terpotong!`, "success");
-  };
+  }, [permohonan, detailPermohonan, barang, tugas, showToast]);
 
   // SOP 5: Teknisi menuju lokasi (Sistem melacak koordinat GPS)
-  const updateGpsLocation = () => {};
-  const simulateTechnicianStep = () => {};
+  const updateGpsLocation = useCallback(() => {}, []);
+  const simulateTechnicianStep = useCallback(() => {}, []);
 
   /**
    * ==========================================================================
@@ -1271,7 +1318,7 @@ export function AppProvider({ children }) {
    *    sedangkan material sisa dapat diretur kembali ke inventaris gudang.
    * 4. Menerbitkan Dokumen Digital BASTP (Berita Acara Serah Terima Pekerjaan).
    */
-  const finishTugas = async (tugasId, argPhotoOrPayload, catatanHasil = "") => {
+  const finishTugas = useCallback(async (tugasId, argPhotoOrPayload, catatanHasil = "") => {
     const parsedTugasId = parseInt(tugasId, 10);
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -1371,8 +1418,28 @@ export function AppProvider({ children }) {
       }
     } catch {}
 
-    // 4. Sinkronisasi status selesai ke Supabase Cloud (hanya kolom yang valid di tabel)
-    if (isSupabaseConfigured()) {
+    // 4. Sinkronisasi status selesai: Jalur Utama via Express Backend API (Single Source of Truth)
+    let backendHandled = false;
+    try {
+      const res = await api.put(`/tugas/${parsedTugasId}/close`, {
+        sn_ont: snOnt,
+        odp_id: odpId,
+        port_odp: portOdp,
+        redaman_dbm: redamanDbm,
+        foto_ont: proof,
+        catatan_teknisi: userNote,
+        pelanggan_nama: pelangganNama,
+        reconciliation
+      });
+      if (res.data?.success) {
+        backendHandled = true;
+      }
+    } catch (apiErr) {
+      console.warn('[finishTugas] Backend API notice:', apiErr.message);
+    }
+
+    // 5. Fallback Supabase HANYA jika backend offline (mencegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         const { data: updateRes, error: updateErr } = await supabase.from('tugas').update({
           status: 'Done',
@@ -1398,7 +1465,7 @@ export function AppProvider({ children }) {
       }
     }
 
-    // 5. Broadcast sinyal selesai via Supabase Realtime WebSocket
+    // 6. Broadcast sinyal selesai via Supabase Realtime WebSocket
     broadcastLiveSignal('tugas_selesai', {
       tugas_id: parsedTugasId,
       status: 'Done',
@@ -1472,10 +1539,10 @@ export function AppProvider({ children }) {
 
     showToast(`Tiket #${parsedTugasId} berhasil diselesaikan! Status ONT ${snOnt} di gudang otomatis menjadi TERPASANG.`, "success");
     return bastpData;
-  };
+  }, [tugas, barang, currentUser, broadcastLiveSignal, showToast]);
 
   // CRUD Gudang (Barang)
-  const addBarang = async (item) => {
+  const addBarang = useCallback(async (item) => {
     const newId = barang.length > 0 ? Math.max(...barang.map(b => Number(b.id) || 0)) + 1 : 1;
     const newItem = {
       id: newId,
@@ -1520,9 +1587,9 @@ export function AppProvider({ children }) {
 
     showToast(`Barang '${item.nama_barang}' berhasil ditambahkan ke inventaris!`, "success");
     return newItem;
-  };
+  }, [barang, showToast]);
 
-  const updateBarang = async (id, updatedFields) => {
+  const updateBarang = useCallback(async (id, updatedFields) => {
     const parsedId = parseInt(id, 10);
     setBarang(prev => prev.map(b => {
       if (Number(b.id) === parsedId) {
@@ -1536,15 +1603,19 @@ export function AppProvider({ children }) {
     if (updatedFields.stok !== undefined) payload.stok = parseInt(updatedFields.stok, 10);
     if (updatedFields.satuan !== undefined) payload.satuan = updatedFields.satuan;
 
-    // 1. Sync ke Express Backend API
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
     try {
-      await api.put(`/barang/${parsedId}`, payload);
+      const res = await api.put(`/barang/${parsedId}`, payload);
+      if (res.data?.success) {
+        backendHandled = true;
+      }
     } catch (apiErr) {
       console.warn('[updateBarang] Backend API notice:', apiErr.message);
     }
 
-    // 2. Sync ke Supabase
-    if (isSupabaseConfigured()) {
+    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         await supabase.from('barang').update(payload).eq('id', parsedId);
       } catch (err) {
@@ -1553,9 +1624,9 @@ export function AppProvider({ children }) {
     }
 
     showToast("Data barang berhasil diperbarui!", "success");
-  };
+  }, [showToast]);
 
-  const tambahStokBarang = async (id, jumlah) => {
+  const tambahStokBarang = useCallback(async (id, jumlah) => {
     const parsedId = parseInt(id, 10);
     const parsedJumlah = parseInt(jumlah, 10);
     if (isNaN(parsedId) || isNaN(parsedJumlah) || parsedJumlah <= 0) return;
@@ -1569,15 +1640,19 @@ export function AppProvider({ children }) {
       return b;
     }));
 
-    // 1. Sync ke Express Backend API
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
     try {
-      await api.patch(`/barang/${parsedId}/stok`, { jumlah_tambah: parsedJumlah });
+      const res = await api.patch(`/barang/${parsedId}/stok`, { jumlah_tambah: parsedJumlah });
+      if (res.data?.success) {
+        backendHandled = true;
+      }
     } catch (apiErr) {
       console.warn('[tambahStokBarang] Backend API notice:', apiErr.message);
     }
 
-    // 2. Sync ke Supabase
-    if (isSupabaseConfigured() && targetItem) {
+    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured() && targetItem) {
       try {
         await supabase.from('barang').update({ stok: targetItem.stok }).eq('id', parsedId);
       } catch (err) {
@@ -1586,21 +1661,25 @@ export function AppProvider({ children }) {
     }
 
     showToast(`Stok ${targetItem?.nama_barang || 'barang'} bertambah +${parsedJumlah} ${targetItem?.satuan || 'pcs'}!`, "success");
-  };
+  }, [showToast]);
 
-  const deleteBarang = async (id) => {
+  const deleteBarang = useCallback(async (id) => {
     const parsedId = parseInt(id, 10);
     setBarang(prev => prev.filter(b => Number(b.id) !== parsedId));
 
-    // 1. Sync ke Express Backend API
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
     try {
-      await api.delete(`/barang/${parsedId}`);
+      const res = await api.delete(`/barang/${parsedId}`);
+      if (res.data?.success) {
+        backendHandled = true;
+      }
     } catch (apiErr) {
       console.warn('[deleteBarang] Backend API notice:', apiErr.message);
     }
 
-    // 2. Sync ke Supabase
-    if (isSupabaseConfigured()) {
+    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         await supabase.from('barang').delete().eq('id', parsedId);
       } catch (err) {
@@ -1609,20 +1688,26 @@ export function AppProvider({ children }) {
     }
 
     showToast("Barang dihapus dari inventaris gudang!", "info");
-  };
+  }, [showToast]);
 
   // CRUD Penugasan / Tiket (Tugas)
-  const updateTugas = async (id, updatedFields) => {
+  const updateTugas = useCallback(async (id, updatedFields) => {
     const parsedId = parseInt(id, 10);
     setTugas(prev => prev.map(t => Number(t.id) === parsedId ? { ...t, ...updatedFields } : t));
 
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
     try {
-      await api.put(`/tugas/${parsedId}`, updatedFields);
+      const res = await api.put(`/tugas/${parsedId}`, updatedFields);
+      if (res.data?.success) {
+        backendHandled = true;
+      }
     } catch (apiErr) {
       console.warn('[updateTugas] Backend API notice:', apiErr.message);
     }
 
-    if (isSupabaseConfigured()) {
+    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         await supabase.from('tugas').update(updatedFields).eq('id', parsedId);
       } catch (err) {
@@ -1631,9 +1716,9 @@ export function AppProvider({ children }) {
     }
 
     showToast(`Tiket #${parsedId} berhasil diperbarui!`, "success");
-  };
+  }, [showToast]);
 
-  const deleteTugas = async (id) => {
+  const deleteTugas = useCallback(async (id) => {
     const parsedId = parseInt(id, 10);
     setTugas(prev => prev.filter(t => Number(t.id) !== parsedId));
     setPermohonan(prev => prev.filter(p => Number(p.tugas_id) !== parsedId));
@@ -1647,13 +1732,19 @@ export function AppProvider({ children }) {
     // Siarkan sinyal broadcast realtime ke seluruh teknisi seketika
     broadcastLiveSignal('tugas_dihapus', { tugas_id: parsedId });
 
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
     try {
-      await api.delete(`/tugas/${parsedId}`);
+      const res = await api.delete(`/tugas/${parsedId}`);
+      if (res.data?.success) {
+        backendHandled = true;
+      }
     } catch (apiErr) {
       console.warn('[deleteTugas] Backend API notice:', apiErr.message);
     }
 
-    if (isSupabaseConfigured()) {
+    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         await supabase.from('tugas').delete().eq('id', parsedId);
       } catch (err) {
@@ -1662,9 +1753,9 @@ export function AppProvider({ children }) {
     }
 
     showToast(`Tiket #${parsedId} berhasil dibatalkan / dihapus!`, "info");
-  };
+  }, [broadcastLiveSignal, showToast]);
 
-  const checkInTugas = async (id, coords = {}) => {
+  const checkInTugas = useCallback(async (id, coords = {}) => {
     const parsedId = parseInt(id, 10);
     const lat = coords.latitude || -0.2289;
     const lng = coords.longitude || 100.6322;
@@ -1685,7 +1776,7 @@ export function AppProvider({ children }) {
 
     showToast(`GPS Aktif Terverifikasi! Anda telah sampai di lokasi kerja (${lat.toFixed(4)}, ${lng.toFixed(4)}) pk ${waktu}.`, 'success');
 
-    // 3. Supabase Realtime broadcast & update (Asinkron / Non-blocking)
+    // 3. Supabase Realtime broadcast (Asinkron / Non-blocking)
     broadcastLiveSignal('teknisi_checkin', {
       tugas_id: parsedId,
       lat,
@@ -1694,21 +1785,34 @@ export function AppProvider({ children }) {
       teknisi_nama: currentUser?.nama_lengkap || 'Teknisi Lapangan'
     });
 
-    if (isSupabaseConfigured()) {
-      supabase.from('tugas').update({
-        status: 'Progress'
-      }).eq('id', parsedId).then(() => {}).catch(() => {});
+    // 4. Jalur Utama: Express Backend API (Single Source of Truth)
+    let backendHandled = false;
+    try {
+      const res = await api.post(`/tugas/${parsedId}/checkin`, {
+        latitude: lat,
+        longitude: lng,
+        teknisi_nama: currentUser?.nama_lengkap || 'Teknisi Lapangan'
+      });
+      if (res.data?.success) {
+        backendHandled = true;
+      }
+    } catch (apiErr) {
+      console.warn('[checkInTugas] Backend API notice:', apiErr.message);
     }
 
-    // 4. Fire-and-forget API backend
-    api.post(`/tugas/${parsedId}/checkin`, {
-      latitude: lat,
-      longitude: lng,
-      teknisi_nama: currentUser?.nama_lengkap || 'Teknisi Lapangan'
-    }).catch(() => {});
-  };
+    // 5. Fallback Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
+      try {
+        await supabase.from('tugas').update({
+          status: 'Progress'
+        }).eq('id', parsedId);
+      } catch (err) {
+        console.warn('Supabase checkin error:', err);
+      }
+    }
+  }, [currentUser, broadcastLiveSignal, showToast]);
 
-  const closeTugas = async (id, closingData = {}) => {
+  const closeTugas = useCallback(async (id, closingData = {}) => {
     const parsedId = parseInt(id, 10);
     const targetTask = tugas.find(t => Number(t.id) === parsedId);
     const odpIdOrKode = closingData.odp_id || targetTask?.odp_id || targetTask?.odp_kode || 'ODP-PYK-FA/001';
@@ -1750,32 +1854,41 @@ export function AppProvider({ children }) {
       }
     } catch {}
 
-    // Simpan ke Supabase Cloud
-    if (isSupabaseConfigured()) {
-      try {
-        supabase.from('tugas').update({
-          status: 'Done',
-          foto_bukti: proof
-        }).eq('id', parsedId).then(() => {}).catch(() => {});
-      } catch {}
+    // 3. Jalur Utama: Panggil Express Backend API (Single Source of Truth)
+    let backendHandled = false;
+    try {
+      const res = await api.put(`/tugas/${parsedId}/close`, {
+        ...closingData,
+        odp_id: odpIdOrKode,
+        pelanggan_nama: targetTask?.pelanggan_nama
+      });
+      if (res.data?.success) {
+        backendHandled = true;
+        if (res.data?.data?.odp_updated) {
+          setOdp(prev => prev.map(o => o.id === res.data.data.odp_updated.id ? res.data.data.odp_updated : o));
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[closeTugas] Backend API notice:', apiErr.message);
     }
 
-    // 3. Panggil Express Backend jika ada
-    api.put(`/tugas/${parsedId}/close`, {
-      ...closingData,
-      odp_id: odpIdOrKode,
-      pelanggan_nama: targetTask?.pelanggan_nama
-    }).then(res => {
-      if (res.data?.data?.odp_updated) {
-        setOdp(prev => prev.map(o => o.id === res.data.data.odp_updated.id ? res.data.data.odp_updated : o));
+    // 4. Fallback ke Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
+      try {
+        await supabase.from('tugas').update({
+          status: 'Done',
+          foto_bukti: proof
+        }).eq('id', parsedId);
+      } catch (err) {
+        console.warn('Supabase close tugas error:', err);
       }
-    }).catch(() => {});
+    }
 
     showToast(`🔥 Tiket #${parsedId} Resmi Ditutup (Selesai)! Port ODP bertambah & WebGIS telah diperbarui!`, 'success');
-  };
+  }, [tugas, showToast]);
 
   // CRUD WebGIS ODP (Optical Distribution Point)
-  const addOdp = async (odpData) => {
+  const addOdp = useCallback(async (odpData) => {
     const newId = odp.length > 0 ? Math.max(...odp.map(o => Number(o.id) || 0)) + 1 : 1;
     const newOdpItem = {
       id: newId,
@@ -1831,19 +1944,25 @@ export function AppProvider({ children }) {
 
     showToast(`Titik ODP '${newOdpItem.kode_odp}' berhasil didaftarkan ke WebGIS!`, "success");
     return newOdpItem;
-  };
+  }, [odp, showToast]);
 
-  const updateOdp = async (id, updatedFields) => {
+  const updateOdp = useCallback(async (id, updatedFields) => {
     const parsedId = parseInt(id, 10);
     setOdp(prev => prev.map(o => Number(o.id) === parsedId ? { ...o, ...updatedFields } : o));
 
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
     try {
-      await api.put(`/odp/${parsedId}`, updatedFields);
+      const res = await api.put(`/odp/${parsedId}`, updatedFields);
+      if (res.data?.success) {
+        backendHandled = true;
+      }
     } catch (apiErr) {
       console.warn('[updateOdp] Backend API notice:', apiErr.message);
     }
 
-    if (isSupabaseConfigured()) {
+    // 2. Fallback Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         const supabaseUpdate = {};
         if (updatedFields.kode_odp !== undefined) supabaseUpdate.kode_odp = updatedFields.kode_odp;
@@ -1862,19 +1981,25 @@ export function AppProvider({ children }) {
     }
 
     showToast("Data titik ODP berhasil diperbarui!", "success");
-  };
+  }, [showToast]);
 
-  const deleteOdp = async (id) => {
+  const deleteOdp = useCallback(async (id) => {
     const parsedId = parseInt(id, 10);
     setOdp(prev => prev.filter(o => Number(o.id) !== parsedId));
 
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
     try {
-      await api.delete(`/odp/${parsedId}`);
+      const res = await api.delete(`/odp/${parsedId}`);
+      if (res.data?.success) {
+        backendHandled = true;
+      }
     } catch (apiErr) {
       console.warn('[deleteOdp] Backend API notice:', apiErr.message);
     }
 
-    if (isSupabaseConfigured()) {
+    // 2. Fallback Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         await supabase.from('odp').delete().eq('id', parsedId);
       } catch (err) {
@@ -1883,10 +2008,10 @@ export function AppProvider({ children }) {
     }
 
     showToast("Titik ODP berhasil dihapus dari WebGIS!", "info");
-  };
+  }, [showToast]);
 
   // User Management & Verifikasi Registrasi Pegawai STO
-  const addUser = async (userData) => {
+  const addUser = useCallback(async (userData) => {
     const newId = users.length > 0 ? Math.max(...users.map(u => Number(u.id) || 0)) + 1 : 1;
     const isCodeValid = userData.auth_code?.trim() === STO_CORPORATE_TOKEN || userData.auth_code?.trim() === 'STO2026';
     const statusVerifikasi = userData.status_verifikasi || (isCodeValid ? 'Verified' : 'Pending Approval');
@@ -1951,9 +2076,9 @@ export function AppProvider({ children }) {
     }
 
     return newUser;
-  };
+  }, [users, showToast]);
 
-  const approveUser = (userId) => {
+  const approveUser = useCallback((userId) => {
     const target = users.find(u => Number(u.id) === Number(userId));
     setUsers(prev => prev.map(u => {
       if (Number(u.id) === Number(userId)) {
@@ -1962,16 +2087,28 @@ export function AppProvider({ children }) {
       return u;
     }));
     showToast(`Akun ${target?.nama_lengkap || `#${userId}`} berhasil DISETUJUI & diverifikasi Pimpinan!`, 'success');
-  };
+  }, [users, showToast]);
 
-  const rejectUser = (userId) => {
+  const rejectUser = useCallback((userId) => {
     const target = users.find(u => Number(u.id) === Number(userId));
     setUsers(prev => prev.filter(u => Number(u.id) !== Number(userId)));
     showToast(`Registrasi akun ${target?.nama_lengkap || `#${userId}`} telah ditolak.`, 'info');
-  };
+  }, [users, showToast]);
+
+  const removeGpsEntry = useCallback((teknisiId) => {
+    const parsedId = parseInt(teknisiId, 10);
+    setTrackingGps(prev => prev.filter(g => Number(g.teknisi_id) !== parsedId));
+    showToast(`Teknisi #${parsedId} berhasil dihapus dari radar armada`, 'info');
+  }, [showToast]);
+
+  const resetGpsTracking = useCallback(() => {
+    localStorage.removeItem('sto_trackingGps');
+    setTrackingGps(initialTrackingGps);
+    showToast('Seluruh data GPS armada berhasil di-reset dan dibersihkan dari duplikasi!', 'success');
+  }, [showToast]);
 
   // Reset State to Default Factory
-  const resetToFactoryDefault = () => {
+  const resetToFactoryDefault = useCallback(() => {
     localStorage.clear();
     setUsers(initialUsers);
     setBarang(initialBarang);
@@ -1983,79 +2120,190 @@ export function AppProvider({ children }) {
     setCurrentUser(initialUsers[0]);
     setCurrentView('pimpinan');
     showToast("Semua data berhasil direset ke pengaturan awal pabrik!", "info");
-  };
+  }, [showToast]);
+
+  // =========================================================================
+  // MEMOIZED HIGH-PERFORMANCE COMPUTATIONS (useMemo)
+  // =========================================================================
+  const openTasks = useMemo(() => {
+    return tugas.filter(t => {
+      const s = String(t.status || '').toLowerCase().trim();
+      return s === 'open' || s === 'menunggu';
+    });
+  }, [tugas]);
+
+  const myActiveTasks = useMemo(() => {
+    if (!currentUser?.id) return [];
+    return tugas.filter(t => {
+      const isMyTask = Number(t.teknisi_id) === Number(currentUser.id);
+      const s = String(t.status || '').toLowerCase().trim();
+      return isMyTask && (s === 'progress' || s === 'in_progress' || s === 'assigned' || s === 'menunggu_material' || s === 'pengerjaan');
+    });
+  }, [tugas, currentUser?.id]);
+
+  const doneTasks = useMemo(() => {
+    return tugas.filter(t => {
+      const s = String(t.status || '').toLowerCase().trim();
+      return s === 'done' || s === 'closed' || s === 'selesai';
+    });
+  }, [tugas]);
+
+  const stokKritis = useMemo(() => {
+    return barang.filter(b => (Number(b.stok) || 0) <= 10);
+  }, [barang]);
+
+  const summaryKpi = useMemo(() => {
+    const totalTugas = tugas.length;
+    const totalDone = doneTasks.length;
+    const totalOpen = openTasks.length;
+    const totalProgress = tugas.filter(t => {
+      const s = String(t.status || '').toLowerCase().trim();
+      return s === 'progress' || s === 'in_progress';
+    }).length;
+    const totalPermohonanPending = permohonan.filter(p => p.status === 'Pending').length;
+    const totalPermohonanApproved = permohonan.filter(p => p.status === 'Approved').length;
+    const totalBarangKritis = stokKritis.length;
+
+    return {
+      totalTugas,
+      totalDone,
+      totalOpen,
+      totalProgress,
+      persentaseSelesai: totalTugas > 0 ? Math.round((totalDone / totalTugas) * 100) : 0,
+      totalPermohonanPending,
+      totalPermohonanApproved,
+      totalBarangKritis
+    };
+  }, [tugas, doneTasks.length, openTasks.length, permohonan, stokKritis.length]);
+
+  // =========================================================================
+  // MEMOIZED CONTEXT VALUE OBJECT
+  // =========================================================================
+  const contextValue = useMemo(() => ({
+    isOnline,
+    syncStatus,
+    lastSyncedAt,
+    refreshData: fetchRealData,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    toggleSidebar,
+    currentUser,
+    setCurrentUser,
+    currentView,
+    setCurrentView,
+    users,
+    setUsers,
+    addUser,
+    approveUser,
+    rejectUser,
+    STO_CORPORATE_TOKEN,
+    pelanggan,
+    setPelanggan,
+    saldoTeknisi,
+    setSaldoTeknisi,
+    barang,
+    tugas,
+    setTugas,
+    claimTugas,
+    checkInTugas,
+    closeTugas,
+    updateTugas,
+    deleteTugas,
+    permohonan,
+    detailPermohonan,
+    trackingGps,
+    odp,
+    setOdp,
+    addOdp,
+    updateOdp,
+    deleteOdp,
+    STO_COORDINATES,
+    notification,
+    setNotification,
+    showToast,
+    login,
+    loginAsRole,
+    logout,
+    createTugas,
+    requestMaterial,
+    approveMaterial,
+    rejectMaterial,
+    releaseMaterial,
+    updateGpsLocation,
+    simulateTechnicianStep,
+    removeGpsEntry,
+    resetGpsTracking,
+    finishTugas,
+    addBarang,
+    updateBarang,
+    tambahStokBarang,
+    deleteBarang,
+    resetToFactoryDefault,
+    // Memoized helpers for child components
+    openTasks,
+    myActiveTasks,
+    doneTasks,
+    stokKritis,
+    summaryKpi
+  }), [
+    isOnline,
+    syncStatus,
+    lastSyncedAt,
+    fetchRealData,
+    sidebarCollapsed,
+    toggleSidebar,
+    currentUser,
+    currentView,
+    users,
+    addUser,
+    approveUser,
+    rejectUser,
+    pelanggan,
+    saldoTeknisi,
+    barang,
+    tugas,
+    setTugas,
+    claimTugas,
+    checkInTugas,
+    closeTugas,
+    updateTugas,
+    deleteTugas,
+    permohonan,
+    detailPermohonan,
+    trackingGps,
+    odp,
+    addOdp,
+    updateOdp,
+    deleteOdp,
+    notification,
+    showToast,
+    login,
+    loginAsRole,
+    logout,
+    createTugas,
+    requestMaterial,
+    approveMaterial,
+    rejectMaterial,
+    releaseMaterial,
+    updateGpsLocation,
+    simulateTechnicianStep,
+    removeGpsEntry,
+    resetGpsTracking,
+    finishTugas,
+    addBarang,
+    updateBarang,
+    tambahStokBarang,
+    deleteBarang,
+    resetToFactoryDefault,
+    openTasks,
+    myActiveTasks,
+    doneTasks,
+    stokKritis,
+    summaryKpi
+  ]);
 
   return (
-    <AppContext.Provider
-      value={{
-        isOnline,
-        syncStatus,
-        lastSyncedAt,
-        refreshData: fetchRealData,
-        sidebarCollapsed,
-        setSidebarCollapsed,
-        toggleSidebar,
-        currentUser,
-        setCurrentUser,
-        currentView,
-        setCurrentView,
-        users,
-        setUsers,
-        addUser,
-        approveUser,
-        rejectUser,
-        STO_CORPORATE_TOKEN,
-        pelanggan,
-        setPelanggan,
-        saldoTeknisi,
-        setSaldoTeknisi,
-        barang,
-        tugas,
-        claimTugas,
-        checkInTugas,
-        closeTugas,
-        updateTugas,
-        deleteTugas,
-        permohonan,
-        detailPermohonan,
-        trackingGps,
-        odp,
-        setOdp,
-        addOdp,
-        updateOdp,
-        deleteOdp,
-        STO_COORDINATES,
-        notification,
-        setNotification,
-        showToast,
-        login,
-        loginAsRole,
-        logout,
-        createTugas,
-        requestMaterial,
-        approveMaterial,
-        rejectMaterial,
-        releaseMaterial,
-        updateGpsLocation,
-        simulateTechnicianStep,
-        removeGpsEntry: (teknisiId) => {
-          const parsedId = parseInt(teknisiId, 10);
-          setTrackingGps(prev => prev.filter(g => Number(g.teknisi_id) !== parsedId));
-          showToast(`Teknisi #${parsedId} berhasil dihapus dari radar armada`, 'info');
-        },
-        resetGpsTracking: () => {
-          localStorage.removeItem('sto_trackingGps');
-          setTrackingGps(initialTrackingGps);
-          showToast('Seluruh data GPS armada berhasil di-reset dan dibersihkan dari duplikasi!', 'success');
-        },
-        finishTugas,
-        addBarang,
-        updateBarang,
-        tambahStokBarang,
-        deleteBarang,
-        resetToFactoryDefault
-      }}
-    >
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

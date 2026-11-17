@@ -176,9 +176,6 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
                   </span>
                 )}
               </h2>
-              <p className={`text-[10px] sm:text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                SOP Sentral STO Telkom Akses Payakumbuh
-              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer">
@@ -207,10 +204,6 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
                 {selectedTaskIds.length} dari {myActiveTasks.length} Tiket
               </span>
             </div>
-
-            <p className="text-[10px] text-slate-400 leading-relaxed">
-              Anda dapat mencentang beberapa tiket sekaligus agar tidak perlu bolak-balik ke gudang STO. Unit dan Serial Number (SN) ONT spesifik per pelanggan akan ditentukan oleh petugas gudang.
-            </p>
 
             <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
               {myActiveTasks.map((t) => {
@@ -278,9 +271,6 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
                 <div className="font-bold text-purple-400">{saldoTeknisi.klem_segitiga || 0} Pcs</div>
               </div>
             </div>
-            <p className="text-[10px] text-amber-300/70 pt-1 italic leading-tight">
-              ⚠️ Utamakan pemakaian sisa material di bagasi kendaraan Anda. Kehilangan material tanpa berita acara resmi menjadi tanggung jawab ganti rugi teknisi.
-            </p>
           </div>
         )}
 

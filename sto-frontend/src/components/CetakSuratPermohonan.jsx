@@ -46,9 +46,6 @@ export default function CetakSuratPermohonan() {
             <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Cetak Fisik Surat Permohonan Material Gudang
             </h2>
-            <p className="text-xs text-slate-400">
-              Dokumen pengesahan fisik pengambilan barang untuk serah terima ke petugas logistik gudang STO.
-            </p>
           </div>
         </div>
 

@@ -27,6 +27,9 @@ import InputBarangGudang from '../components/InputBarangGudang';
 import CetakSuratJalan from '../components/CetakSuratJalan';
 import ModalBASTP from '../components/ModalBASTP';
 import TabelPelangganAset from '../components/TabelPelangganAset';
+import TabelPermohonanGudang from '../components/gudang/TabelPermohonanGudang';
+import TabelKatalogBarang from '../components/gudang/TabelKatalogBarang';
+import TabelRiwayatMutasi from '../components/gudang/TabelRiwayatMutasi';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -92,27 +95,11 @@ export default function GudangDashboard() {
     window.addEventListener('sto:reset-dashboard-tab', handleReset);
     return () => window.removeEventListener('sto:reset-dashboard-tab', handleReset);
   }, []);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [ontSearchQuery, setOntSearchQuery] = useState('');
   const [ontStatusFilter, setOntStatusFilter] = useState('all');
 
   // Modals & Subtabs
-  const [editingItem, setEditingItem] = useState(null);
   const [bastpModalTask, setBastpModalTask] = useState(null);
-  const [snOntInputs, setSnOntInputs] = useState({});
-  const [batchSnInputs, setBatchSnInputs] = useState({});
-  const [batchModelInputs, setBatchModelInputs] = useState({});
-  const [releasingId, setReleasingId] = useState(null);
-
-  // Form State for Add / Edit
-  const [barangForm, setBarangForm] = useState({
-    nama_barang: '',
-    stok: 10,
-    satuan: 'pcs',
-    kategori: 'Aksesoris',
-    kode: ''
-  });
 
   useEffect(() => {
     if (!user || user.role !== 'gudang') {
@@ -220,91 +207,6 @@ export default function GudangDashboard() {
       circumference
     };
   }, [barang]);
-
-  // Filtered inventory dengan mapping data Supabase realtime
-  const filteredBarang = barang.map(b => ({
-    ...b,
-    kategori: resolveKategori(b),
-    kode: b.kode || `SKU-TEL-${String(b.id).padStart(3, '0')}`
-  })).filter(b => {
-    const matchQuery = (b.nama_barang || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       (b.kode || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchCat = categoryFilter === 'all' || b.kategori === categoryFilter;
-    return matchQuery && matchCat;
-  });
-
-  const categories = [
-    'all',
-    'Kabel & Serat Optik',
-    'Perangkat Aktif (ONT)',
-    'Perangkat Pasif',
-    'Consumable & Aksesoris'
-  ];
-
-  const handleQuickAddStock = async (item, amount) => {
-    if (tambahStokBarang) {
-      await tambahStokBarang(item.id, amount);
-    } else if (updateBarang) {
-      await updateBarang(item.id, { stok: Number(item.stok) + amount });
-      showToast(`Stok ${item.nama_barang} bertambah +${amount} ${item.satuan || 'pcs'}!`, 'success');
-    }
-  };
-
-  const handleDeleteBarang = async (item) => {
-    if (window.confirm(`Hapus ${item.nama_barang} dari katalog master gudang?`)) {
-      if (deleteBarang) {
-        await deleteBarang(item.id);
-        showToast(`Material ${item.nama_barang} berhasil dihapus.`, 'info');
-      }
-    }
-  };
-
-  const handleEditSubmit = (e) => {
-    e.preventDefault();
-    if (!editingItem) return;
-    updateBarang(editingItem.id, barangForm);
-    setEditingItem(null);
-  };
-
-  const startEdit = (item) => {
-    setEditingItem(item);
-    setBarangForm({
-      nama_barang: item.nama_barang,
-      stok: item.stok,
-      satuan: item.satuan,
-      kategori: resolveKategori(item),
-      kode: item.kode || `SKU-TEL-${String(item.id).padStart(3, '0')}`
-    });
-  };
-
-  const handleRelease = async (reqId) => {
-    if (releasingId) return;
-    setReleasingId(reqId);
-
-    try {
-      const target = permohonan.find(p => Number(p.id) === Number(reqId));
-      if (!target || target.status === 'Released') return;
-
-      const isBatch = target?.is_batch || (target?.tugas_ids && target.tugas_ids.length > 1);
-
-      if (isBatch && target.tugas_ids && target.tugas_ids.length > 0) {
-        const allocations = {};
-        target.tugas_ids.forEach(tid => {
-          const key = `${reqId}_${tid}`;
-          const sn = batchSnInputs[key] || `ZTEGC8B${Math.random().toString(16).substring(2, 7).toUpperCase()}`;
-          const model = batchModelInputs[key] || 'Modem ONT ZTE F670L Dual Band';
-          allocations[tid] = { sn, model };
-        });
-        await releaseMaterial(reqId, allocations);
-      } else {
-        const sn = snOntInputs[reqId] || null;
-        await releaseMaterial(reqId, sn);
-      }
-      showToast('Barang berhasil diserahkan ke teknisi! Status: Dalam Perjalanan.', 'success');
-    } finally {
-      setReleasingId(null);
-    }
-  };
 
   // Data Audit Lifecycle ONT (Di Gudang -> Di Perjalanan / In-Transit -> Terpasang / Active)
   const ontInventoryList = React.useMemo(() => {
@@ -501,13 +403,7 @@ export default function GudangDashboard() {
             isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
           } flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors`}>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-600/20 text-amber-400 border border-amber-500/30">
-                  PORTAL GUDANG & LOGISTIK
-                </span>
-                <span className="text-xs text-slate-400 font-mono">Petugas: {user.nama_lengkap}</span>
-              </div>
-              <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {activeMenu === 'dashboard-gudang' && 'Dashboard Gudang'}
                 {activeMenu === 'tabel-material' && 'Tabel Material'}
                 {activeMenu === 'output-barang' && 'Persetujuan Barang Keluar'}
@@ -516,15 +412,6 @@ export default function GudangDashboard() {
                 {activeMenu === 'penarikan-aset' && 'Dismantle & Recovery Aset STO'}
                 {activeMenu === 'cetak-surat-jalan' && 'Cetak Surat Jalan & BASTP'}
               </h1>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                {activeMenu === 'dashboard-gudang' && 'Monitoring inventaris & pergerakan material.'}
-                {activeMenu === 'tabel-material' && 'Master inventaris & stok material fisik.'}
-                {activeMenu === 'output-barang' && 'Rilis barang & alokasi SN ONT ke teknisi.'}
-                {activeMenu === 'input-barang' && 'Registrasi pengadaan material masuk.'}
-                {activeMenu === 'audit-ont' && 'Pelacakan ONT terpasang di pelanggan.'}
-                {activeMenu === 'penarikan-aset' && 'Penarikan perangkat pelanggan putus kontrak.'}
-                {activeMenu === 'cetak-surat-jalan' && 'Dokumen fisik resmi serah terima barang.'}
-              </p>
             </div>
           </div>
 
@@ -567,7 +454,6 @@ export default function GudangDashboard() {
                   <div>
                     <div className="text-[11px] text-amber-500 font-semibold uppercase">Siap Rilis (SOP 4)</div>
                     <div className="text-2xl font-extrabold text-amber-500 mt-1">{pendingReleaseCount}</div>
-                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Disetujui pimpinan</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-amber-600/20 text-amber-500 border border-amber-500/30 flex items-center justify-center">
                     <Send className="w-5 h-5" />
@@ -581,7 +467,6 @@ export default function GudangDashboard() {
                   <div>
                     <div className="text-[11px] text-emerald-500 font-semibold uppercase">Total Jenis Barang</div>
                     <div className={`text-2xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'} mt-1`}>{totalItemCount}</div>
-                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Katalog aktif</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center">
                     <Boxes className="w-5 h-5" />
@@ -595,7 +480,6 @@ export default function GudangDashboard() {
                   <div>
                     <div className="text-[11px] text-burgundy-500 font-semibold uppercase">Stok Menipis (≤ 20)</div>
                     <div className="text-2xl font-extrabold text-burgundy-500 mt-1">{lowStockItems}</div>
-                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Perlu pengadaan baru</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-burgundy-600/20 text-burgundy-500 border border-burgundy-500/30 flex items-center justify-center">
                     <TrendingDown className="w-5 h-5" />
@@ -609,7 +493,6 @@ export default function GudangDashboard() {
                   <div>
                     <div className="text-[11px] text-blue-500 font-semibold uppercase">Total Serah Terima</div>
                     <div className="text-2xl font-extrabold text-blue-500 mt-1">{totalReleasedCount}</div>
-                    <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>Telah dirilis ke teknisi</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center">
                     <ClipboardCheck className="w-5 h-5" />
@@ -832,7 +715,6 @@ export default function GudangDashboard() {
                   </div>
                   <div>
                     <h4 className="font-bold text-xs">Tabel Master Material</h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Kelola stok fisik, edit barang, &amp; tambah kuota logistik.</p>
                   </div>
                 </div>
 
@@ -854,7 +736,6 @@ export default function GudangDashboard() {
                   </div>
                   <div>
                     <h4 className="font-bold text-xs">Persetujuan Barang Keluar</h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Verifikasi rilis barang teknisi &amp; alokasi SN ONT.</p>
                   </div>
                 </div>
 
@@ -874,7 +755,6 @@ export default function GudangDashboard() {
                   </div>
                   <div>
                     <h4 className="font-bold text-xs">Audit &amp; Pelacakan ONT</h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Lacak ONT di gudang, teknisi, &amp; terpasang di pelanggan.</p>
                   </div>
                 </div>
 
@@ -894,7 +774,6 @@ export default function GudangDashboard() {
                   </div>
                   <div>
                     <h4 className="font-bold text-xs">Dismantle &amp; Recovery Aset</h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Penarikan modem pelanggan putus kontrak.</p>
                   </div>
                 </div>
               </div>
@@ -910,483 +789,23 @@ export default function GudangDashboard() {
 
           {/* TAB 2: OUTPUT BARANG (RILIS & SERAH TERIMA SOP 4) */}
           {activeMenu === 'output-barang' && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div className={`flex items-center justify-between text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                <p>
-                  Menampilkan permohonan material yang telah disetujui Pimpinan. Klik <strong>Rilis Barang</strong> untuk melakukan serah terima fisik dan memotong stok gudang otomatis.
-                </p>
-                <span className="text-[10px] uppercase font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/30">
-                  Serah Terima Material
-                </span>
-              </div>
-
-              {approvedRequests.length === 0 ? (
-                <div className={`${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl p-12 text-center flex flex-col items-center justify-center`}>
-                  <CheckCircle2 className="w-12 h-12 text-emerald-500/40 mb-3" />
-                  <div className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Tidak ada antrean serah terima</div>
-                  <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-1`}>Semua permohonan yang disetujui pimpinan sudah dirilis.</div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {approvedRequests.map(req => (
-                    <div
-                      key={req.id}
-                      className={`${isDark ? 'bg-slate-900/90 border-slate-800 hover:border-amber-500/50' : 'bg-white border-slate-200 shadow-md hover:border-amber-500/70'} border rounded-3xl p-5 space-y-4 transition`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-extrabold text-sm text-amber-500">Permohonan #{req.id}</span>
-                          <div className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
-                            Tiket #{req.tugas_id} - {req.parentTask?.jenis_kerja}
-                          </div>
-                        </div>
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-                          req.status === 'Approved'
-                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                            : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                        }`}>
-                          {req.status === 'Approved' ? 'Disetujui Pimpinan' : 'Permohonan Baru dari Teknisi'}
-                        </span>
-                      </div>
-
-                      <div className={`text-xs ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'} p-3 rounded-2xl border space-y-1`}>
-                        <div><strong>Teknisi Pengambil:</strong> {req.tech?.nama_lengkap}</div>
-                        <div><strong>Lokasi Pekerjaan:</strong> {req.parentTask?.lokasi}</div>
-                        <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'} italic`}>"{req.catatan_teknisi}"</div>
-                      </div>
-
-                      {/* Items to Release */}
-                      <div className="space-y-2">
-                        <div className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'} uppercase tracking-wider`}>
-                          Daftar Barang yang Diminta:
-                        </div>
-                        <div className="space-y-1.5">
-                          {req.details.map(d => (
-                            <div
-                              key={d.id}
-                              className={`flex items-center justify-between p-2.5 rounded-xl ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'} text-xs border`}
-                            >
-                              <div>
-                                <span className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{d.item?.nama_barang || 'Barang'}</span>
-                                <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                  Stok Gudang: <span className={d.item?.stok < d.jumlah_minta ? 'text-burgundy-500 font-bold' : 'text-emerald-500 font-bold'}>{d.item?.stok} {d.item?.satuan}</span>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className="font-bold text-amber-500 text-sm">
-                                  {d.jumlah_minta} {d.item?.satuan}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Input SN ONT (Mendukung Batch Multi-Pelanggan & Tunggal) */}
-                      {(req.is_batch || (req.tugas_ids && req.tugas_ids.length > 1)) ? (
-                        <div className="p-3.5 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-3 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-purple-400 flex items-center gap-1.5">
-                              <Barcode className="w-4 h-4" />
-                              <span>Alokasi SN ONT per Pelanggan (Gudang Menentukan):</span>
-                            </span>
-                            <span className="text-[10px] text-purple-300 font-mono bg-purple-900/60 px-2 py-0.5 rounded border border-purple-500/40">
-                              Batch {req.tugas_ids?.length || 1} Pelanggan
-                            </span>
-                          </div>
-                          <div className="space-y-2">
-                            {(req.tugas_ids || [req.tugas_id]).map((tid) => {
-                              const tsk = tugas.find((t) => Number(t.id) === Number(tid));
-                              const key = `${req.id}_${tid}`;
-                              return (
-                                <div key={tid} className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-                                  <div className="flex items-center justify-between text-[11px]">
-                                    <span className="font-bold text-slate-200">
-                                      Tiket #{tid}: {tsk?.pelanggan_nama || `Pelanggan #${tid}`}
-                                    </span>
-                                    <span className="text-[10px] text-slate-400 font-mono">{tsk?.lokasi}</span>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    <div className="flex gap-1.5">
-                                      <input
-                                        type="text"
-                                        placeholder="Scan Barcode / SN ONT..."
-                                        value={batchSnInputs[key] || ''}
-                                        onChange={(e) =>
-                                          setBatchSnInputs((prev) => ({
-                                            ...prev,
-                                            [key]: e.target.value.toUpperCase(),
-                                          }))
-                                        }
-                                        className="flex-1 p-2 rounded-lg border border-purple-600/40 bg-slate-900 text-white font-mono text-[11px] uppercase"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setBatchSnInputs((prev) => ({
-                                            ...prev,
-                                            [key]: `ZTEGC8B${Math.random().toString(16).substring(2, 7).toUpperCase()}`,
-                                          }))
-                                        }
-                                        className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] cursor-pointer"
-                                      >
-                                        Auto
-                                      </button>
-                                    </div>
-                                    <select
-                                      value={batchModelInputs[key] || 'Modem ONT ZTE F670L Dual Band'}
-                                      onChange={(e) =>
-                                        setBatchModelInputs((prev) => ({
-                                          ...prev,
-                                          [key]: e.target.value,
-                                        }))
-                                      }
-                                      className="p-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-[11px] cursor-pointer"
-                                    >
-                                      <option value="Modem ONT ZTE F670L Dual Band">Modem ONT ZTE F670L Dual Band</option>
-                                      <option value="Modem ONT Huawei HG8245H5">Modem ONT Huawei HG8245H5</option>
-                                      <option value="Modem ONT FiberHome AN5506-04">Modem ONT FiberHome AN5506-04</option>
-                                      <option value="STB Android TV IndiHome 4K">STB Android TV IndiHome 4K</option>
-                                    </select>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ) : (
-                        req.details.some(d => d.item?.nama_barang?.toLowerCase().includes('ont') || d.item?.nama_barang?.toLowerCase().includes('modem')) && (
-                          <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-2 text-xs">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-purple-400">Nomor Seri (SN) Modem ONT (Alokasi Gudang):</span>
-                              <button
-                                type="button"
-                                onClick={() => setSnOntInputs(prev => ({ ...prev, [req.id]: 'ZTEGC8B' + Math.random().toString(16).substring(2, 7).toUpperCase() }))}
-                                className="text-[10px] text-purple-300 hover:underline font-bold"
-                              >
-                                Buat SN Otomatis
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="Scan barcode dus ONT atau ketik SN (misal: ZTEGC8B90112)"
-                              value={snOntInputs[req.id] || ''}
-                              onChange={e => setSnOntInputs(prev => ({ ...prev, [req.id]: e.target.value.toUpperCase() }))}
-                              className="w-full p-2.5 rounded-xl border border-purple-600/50 bg-slate-950 text-white font-mono text-xs uppercase"
-                            />
-                          </div>
-                        )
-                      )}
-
-                      {/* Release Button & Optional Cetak Surat Jalan */}
-                      <div className="pt-2 space-y-2">
-                        <button
-                          onClick={() => handleRelease(req.id)}
-                          disabled={!req.canRelease || releasingId === req.id}
-                          className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-lg cursor-pointer ${
-                            req.canRelease && releasingId !== req.id
-                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-950 active:scale-98'
-                              : isDark ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                          }`}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>
-                            {releasingId === req.id
-                              ? 'Memproses Rilis Barang...'
-                              : req.canRelease
-                              ? '📦 Serahkan & Rilis Barang ke Teknisi'
-                              : 'Stok Gudang Tidak Cukup'}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSetActiveMenu('cetak-surat-jalan')}
-                          className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition cursor-pointer"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>🖨️ Cetak Surat Jalan / Tanda Terima (Opsional)</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* SUB-SECTION: AUDIT REKONSILIASI MATERIAL LAPANGAN (KONSUMSI NYATA) */}
-              <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-base font-extrabold flex items-center gap-2">
-                      <span className="p-1.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                        <ShieldCheck className="w-4 h-4" />
-                      </span>
-                      <span>Audit Rekonsiliasi Material Lapangan (Status Konsumsi Riil)</span>
-                    </h3>
-                    <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Verifikasi bahwa material yang dirilis dari gudang telah terpasang permanen di rumah pelanggan (dengan Serial Number & BASTP terdata).
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 self-start sm:self-auto">
-                    {releasedRequests.length} Transaksi Serah Terima
-                  </span>
-                </div>
-
-                {releasedRequests.length === 0 ? (
-                  <div className={`p-8 text-center rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200'} text-xs text-slate-400`}>
-                    Belum ada riwayat material yang dirilis ke teknisi.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {releasedRequests.map((rel) => {
-                      const isDone = rel.parentTask?.status === 'Done';
-                      const odp = rel.parentTask?.odp_id || rel.parentTask?.bastp?.odp_id || 'ODP-PYK-FA/014';
-                      const sn = rel.parentTask?.sn_ont || rel.parentTask?.bastp?.sn_ont || 'ZTEGC8B90112';
-
-                      return (
-                        <div
-                          key={rel.id}
-                          className={`p-5 rounded-3xl border transition-all space-y-3.5 ${
-                            isDone
-                              ? isDark ? 'bg-slate-900/80 border-emerald-500/40' : 'bg-white border-emerald-500/40 shadow-sm'
-                              : isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="font-mono text-xs font-bold text-slate-400">Permohonan #{rel.id}</span>
-                              <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
-                                Tiket #{rel.tugas_id || (Array.isArray(rel.tugas_ids) ? rel.tugas_ids.join(', #') : '')} — {rel.parentTask?.pelanggan_nama || 'Pelanggan Telkom'}
-                              </div>
-                              <div className="text-[11px] text-slate-400">Teknisi: <strong>{rel.tech?.nama_lengkap}</strong></div>
-                            </div>
-                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-                              isDone
-                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                            }`}>
-                              {isDone ? '✓ TERPASANG DI PELANGGAN' : 'Dipegang Teknisi (On-Hand)'}
-                            </span>
-                          </div>
-
-                          {/* Material items released */}
-                          <div className={`p-3 rounded-2xl text-xs space-y-1.5 ${isDark ? 'bg-slate-950/70 border border-slate-850' : 'bg-slate-50 border border-slate-200'}`}>
-                            <span className="font-bold text-slate-400 text-[10px] uppercase tracking-wider block">
-                              Material yang Dikeluarkan & Status Akhir:
-                            </span>
-                            {rel.details.map((d) => (
-                              <div key={d.id} className="flex items-center justify-between">
-                                <span>• {d.item?.nama_barang}</span>
-                                <strong className="font-mono text-amber-500">
-                                  {d.jumlah_minta} {d.item?.satuan}
-                                </strong>
-                              </div>
-                            ))}
-
-                            {isDone && (
-                              <div className="pt-2 border-t border-slate-800/60 text-[11px] space-y-0.5">
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400">SN ONT Terpasang:</span>
-                                  <span className="font-mono font-bold text-purple-400">{sn}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400">Terminasi ODP:</span>
-                                  <span className="font-mono text-slate-300">{odp}</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {isDone && rel.parentTask && (
-                            <button
-                              type="button"
-                              onClick={() => setBastpModalTask(rel.parentTask)}
-                              className="w-full py-2 px-3 rounded-xl bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Lihat Berita Acara & Rekonsiliasi (BASTP)</span>
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
+            <div className="space-y-8 animate-in fade-in duration-200">
+              <TabelPermohonanGudang
+                onNavigateToSuratJalan={() => handleSetActiveMenu('cetak-surat-jalan')}
+                onViewBastp={setBastpModalTask}
+              />
+              <TabelRiwayatMutasi
+                onViewBastp={setBastpModalTask}
+              />
             </div>
           )}
 
           {/* TAB: TABEL MASTER MATERIAL (STOK & INVENTARIS GUDANG) */}
           {activeMenu === 'tabel-material' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              {/* Toolbar Pencarian, Filter Kategori & Tombol Input Material Baru (RESPONSIVE & RAPI) */}
-              <div className={`flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} p-4 rounded-3xl border`}>
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-1 min-w-0">
-                  <div className="relative w-full md:w-72 shrink-0">
-                    <Search className={`w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'} absolute left-3 top-1/2 -translate-y-1/2`} />
-                    <input
-                      type="text"
-                      placeholder="Cari nama barang atau kode..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className={`w-full pl-9 pr-3 py-2 ${isDark ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500 focus:border-emerald-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-emerald-500'} border rounded-xl text-xs focus:outline-none`}
-                    />
-                  </div>
-
-                  {/* Chips Filter Kategori Flex-Wrap (No Overflow) */}
-                  <div className="flex flex-wrap items-center gap-1.5 flex-1">
-                    {categories.map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setCategoryFilter(cat)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                          categoryFilter === cat
-                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                            : isDark ? 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800' : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200'
-                        }`}
-                      >
-                        {cat === 'all' ? 'Semua Kategori' : cat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tombol Action Toolbar: Export Excel & Tambah Material Baru */}
-                <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 xl:pt-0 border-t xl:border-t-0 border-slate-800">
-                  <button
-                    type="button"
-                    onClick={handleExportExcel}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs border border-slate-700 shadow transition cursor-pointer whitespace-nowrap"
-                    title="Export Audit Gudang ke Excel (CSV)"
-                  >
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                    <span>Export Excel (.csv)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSetActiveMenu('input-barang')}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition cursor-pointer whitespace-nowrap"
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                    <span>+ Registrasi Material Baru</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Tabel Lengkap Master Barang di Gudang */}
-              <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl overflow-hidden shadow-xl`}>
-                <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
-                  <div>
-                    <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Daftar Tabel Seluruh Material yang Ada di Gudang STO
-                    </h3>
-                    <p className="text-[11px] text-slate-400">
-                      Total material terdata: <strong>{filteredBarang.length} item</strong> ({lowStockItems} berstatus kritis).
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Live Supabase
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    <thead className={`${isDark ? 'bg-slate-950/80 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
-                      <tr>
-                        <th className="px-4 py-3">ID SKU</th>
-                        <th className="px-4 py-3">Nama Material</th>
-                        <th className="px-4 py-3">Kategori</th>
-                        <th className="px-4 py-3 text-right">Stok Fisik Gudang</th>
-                        <th className="px-4 py-3">Satuan</th>
-                        <th className="px-4 py-3 text-center">Status Ketersediaan</th>
-                        <th className="px-4 py-3 text-right">Aksi & Quick Input</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
-                      {filteredBarang.map(item => {
-                        const isCritical = item.stok <= 10;
-                        const isLow = item.stok > 10 && item.stok <= 20;
-
-                        return (
-                          <tr key={item.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
-                            <td className="px-4 py-3 font-mono text-xs font-bold text-slate-400">
-                              #{item.id}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                {item.nama_barang}
-                              </div>
-                              {item.kode && (
-                                <span className="font-mono text-[10px] text-slate-400">{item.kode}</span>
-                              )}
-                            </td>
-                            <td className={`px-4 py-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              {item.kategori || 'Umum'}
-                            </td>
-                            <td className="px-4 py-3 text-right font-black text-sm">
-                              <span className={isCritical ? 'text-rose-500 font-mono' : isLow ? 'text-amber-500 font-mono' : 'text-emerald-500 font-mono'}>
-                                {item.stok.toLocaleString()}
-                              </span>
-                            </td>
-                            <td className={`px-4 py-3 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                              {item.satuan}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                isCritical
-                                  ? 'bg-rose-500/20 text-rose-500 border-rose-500/30'
-                                  : isLow
-                                  ? 'bg-amber-500/20 text-amber-500 border-amber-500/30'
-                                  : 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30'
-                              }`}>
-                                {isCritical ? 'Kritis (≤ 10)' : isLow ? 'Menipis (≤ 20)' : 'Tersedia Aman'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickAddStock(item, 10)}
-                                  className={`px-2 py-1 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400' : 'bg-slate-100 hover:bg-slate-200 text-emerald-600'} text-[10px] font-bold transition cursor-pointer`}
-                                  title="Tambah stok cepat +10"
-                                >
-                                  +10
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickAddStock(item, 50)}
-                                  className={`px-2 py-1 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400' : 'bg-slate-100 hover:bg-slate-200 text-emerald-600'} text-[10px] font-bold transition cursor-pointer`}
-                                  title="Tambah stok cepat +50"
-                                >
-                                  +50
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => startEdit(item)}
-                                  className={`p-1.5 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-100 hover:bg-slate-200'} text-blue-500 transition cursor-pointer`}
-                                  title="Edit Data Barang"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteBarang(item)}
-                                  className={`p-1.5 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-rose-950/50' : 'bg-slate-100 hover:bg-rose-50'} text-rose-500 transition cursor-pointer`}
-                                  title="Hapus Barang"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
+            <div className="animate-in fade-in duration-200">
+              <TabelKatalogBarang
+                onNavigateToInputBarang={() => handleSetActiveMenu('input-barang')}
+              />
             </div>
           )}
 
@@ -1403,9 +822,6 @@ export default function GudangDashboard() {
                       <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         Audit &amp; Pelacakan Aset Perangkat ONT Lapangan
                       </h3>
-                      <p className="text-xs text-slate-400">
-                        Pelacakan alur fisik ONT: Di Rak Gudang &rarr; Dalam Perjalanan (Teknisi) &rarr; Terpasang di Pelanggan (Validasi SN Barcode, Foto Bukti &amp; BASTP).
-                      </p>
                     </div>
                   </div>
 
@@ -1591,74 +1007,6 @@ export default function GudangDashboard() {
 
         </div>
       </main>
-
-      {/* Modal: Edit Barang */}
-      {editingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className={`${isDark ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800 shadow-2xl'} border w-full max-w-md rounded-2xl shadow-2xl p-6 text-xs transition-colors`}>
-            <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'} mb-4`}>
-              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'} text-sm flex items-center gap-2`}>
-                <Edit2 className="w-4 h-4 text-blue-500" />
-                Ubah Data Barang #{editingItem.id}
-              </h3>
-              <button onClick={() => setEditingItem(null)} className={`${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} cursor-pointer`}>✕</button>
-            </div>
-
-            <form onSubmit={handleEditSubmit} className="space-y-3">
-              <div>
-                <label className={`block font-semibold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Nama Barang</label>
-                <input
-                  type="text"
-                  required
-                  value={barangForm.nama_barang}
-                  onChange={e => setBarangForm({ ...barangForm, nama_barang: e.target.value })}
-                  className={`w-full ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} border rounded-xl p-2.5 focus:outline-none focus:border-blue-500`}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={`block font-semibold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Stok Gudang</label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={barangForm.stok}
-                    onChange={e => setBarangForm({ ...barangForm, stok: e.target.value })}
-                    className={`w-full ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} border rounded-xl p-2.5 focus:outline-none focus:border-blue-500`}
-                  />
-                </div>
-                <div>
-                  <label className={`block font-semibold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Satuan</label>
-                  <input
-                    type="text"
-                    required
-                    value={barangForm.satuan}
-                    onChange={e => setBarangForm({ ...barangForm, satuan: e.target.value })}
-                    className={`w-full ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} border rounded-xl p-2.5 focus:outline-none focus:border-blue-500`}
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingItem(null)}
-                  className={`px-4 py-2 rounded-xl ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'} transition font-medium cursor-pointer`}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition shadow-lg shadow-blue-600/30 active:scale-95 cursor-pointer"
-                >
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Modal BASTP & Rekonsiliasi Material Digital */}
       {bastpModalTask && (

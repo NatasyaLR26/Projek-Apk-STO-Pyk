@@ -79,27 +79,25 @@ let memoryOdpList = [
 
 // 1. Ambil semua data titik ODP (WebGIS Infrastruktur Jaringan)
 exports.getAllOdp = async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('odp')
-      .select('*')
-      .order('id', { ascending: true });
+  const { data, error } = await supabase
+    .from('odp')
+    .select('*')
+    .order('id', { ascending: true });
 
-    if (!error && Array.isArray(data)) {
-      // Database terhubung & mengembalikan data (termasuk jika kosong []). Single source of truth.
-      const mapped = data.map(o => ({
-        ...o,
-        nama_lokasi: o.alamat || o.nama_lokasi || 'Koto Nan IV Payakumbuh',
-        alamat: o.alamat || o.nama_lokasi || 'Koto Nan IV Payakumbuh'
-      }));
-      return successResponse(res, 200, 'Data ODP berhasil diambil dari database Supabase', mapped, { odp: mapped });
-    }
-  } catch (err) {
-    console.warn('[getAllOdp] Supabase error, fallback to memory cache:', err.message);
+  if (error) {
+    return errorResponse(res, 500, 'Gagal mengambil data titik ODP dari database', error.message);
   }
 
-  // Fallback ke data memory HANYA jika terjadi error koneksi / unreachable
-  return successResponse(res, 200, 'Data ODP berhasil dimuat (Offline Fallback)', memoryOdpList, { odp: memoryOdpList });
+  // Database Supabase adalah Single Source of Truth.
+  // Jika database kosong ([]), respon tetap berupa array kosong [] apa adanya tanpa fallback ke mock data.
+  const odpList = Array.isArray(data) ? data : [];
+  const mapped = odpList.map(o => ({
+    ...o,
+    nama_lokasi: o.alamat || o.nama_lokasi || 'Koto Nan IV Payakumbuh',
+    alamat: o.alamat || o.nama_lokasi || 'Koto Nan IV Payakumbuh'
+  }));
+
+  return successResponse(res, 200, 'Data ODP berhasil diambil dari database Supabase', mapped, { odp: mapped });
 };
 
 // 2. Tambah titik ODP baru (CRUD Create)
@@ -230,24 +228,37 @@ exports.incrementPortOdpInternal = async (odpIdOrKode) => {
   let odp = null;
   const parsedId = parseInt(odpIdOrKode, 10);
 
-  let idx = -1;
-  if (!isNaN(parsedId)) {
-    idx = memoryOdpList.findIndex(o => Number(o.id) === parsedId);
-  }
-  if (idx === -1 && typeof odpIdOrKode === 'string') {
-    idx = memoryOdpList.findIndex(o => o.kode_odp?.toUpperCase() === odpIdOrKode.toUpperCase().trim());
+  // Ambil data ODP langsung dari Supabase
+  try {
+    let query = supabase.from('odp').select('*');
+    if (!isNaN(parsedId) && parsedId > 0) {
+      query = query.eq('id', parsedId);
+    } else if (typeof odpIdOrKode === 'string' && odpIdOrKode.trim()) {
+      query = query.eq('kode_odp', odpIdOrKode.trim().toUpperCase());
+    } else {
+      query = query.limit(1);
+    }
+    const { data: dbOdp } = await query.single();
+    if (dbOdp) odp = dbOdp;
+  } catch (err) {
+    console.warn('[incrementPortOdpInternal] Supabase find error:', err.message);
   }
 
-  if (idx >= 0) {
-    odp = memoryOdpList[idx];
-  } else if (memoryOdpList.length > 0) {
-    idx = 0;
-    odp = memoryOdpList[0];
+  // Fallback in-memory jika belum ditemukan
+  let idx = -1;
+  if (!odp) {
+    if (!isNaN(parsedId)) {
+      idx = memoryOdpList.findIndex(o => Number(o.id) === parsedId);
+    }
+    if (idx === -1 && typeof odpIdOrKode === 'string') {
+      idx = memoryOdpList.findIndex(o => o.kode_odp?.toUpperCase() === odpIdOrKode.toUpperCase().trim());
+    }
+    if (idx >= 0) odp = memoryOdpList[idx];
   }
 
   if (!odp) {
     return {
-      id: 1,
+      id: parsedId || 1,
       kode_odp: odpIdOrKode || 'ODP-PYK-FA/001',
       kapasitas_port: 8,
       port_terpakai: 7,
@@ -273,15 +284,17 @@ exports.incrementPortOdpInternal = async (odpIdOrKode) => {
     status: newStatus
   };
 
-  memoryOdpList[idx] = updatedOdp;
+  if (idx >= 0) {
+    memoryOdpList[idx] = updatedOdp;
+  }
 
   try {
     await supabase.from('odp').update({
       port_terpakai: newPortTerpakai,
       status: newStatus
     }).eq('id', updatedOdp.id);
-  } catch {
-    // Fallback in-memory
+  } catch (err) {
+    console.warn('[incrementPortOdpInternal] Supabase update notice:', err.message);
   }
 
   return updatedOdp;

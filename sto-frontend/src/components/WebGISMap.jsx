@@ -166,6 +166,21 @@ const MAP_LAYERS = {
   }
 };
 
+// Helper validasi koordinat GPS aman (-90 s/d 90 dan -180 s/d 180, bukan 0,0)
+export function isValidCoord(lat, lng) {
+  const pLat = parseFloat(lat);
+  const pLng = parseFloat(lng);
+  return (
+    !isNaN(pLat) &&
+    !isNaN(pLng) &&
+    pLat >= -90 &&
+    pLat <= 90 &&
+    pLng >= -180 &&
+    pLng <= 180 &&
+    (pLat !== 0 || pLng !== 0)
+  );
+}
+
 // Helper menentukan zona wilayah ODP
 function getOdpWilayah(point) {
   const loc = (point.alamat || point.nama_lokasi || '').toLowerCase();
@@ -189,6 +204,7 @@ export default function WebGISMap({
   const mapInstanceRef = useRef(null);
   const currentTileLayerRef = useRef(null);
   const layerGroupRef = useRef(null);
+  const odpMarkersRef = useRef({});
 
   const {
     odp = [],
@@ -297,15 +313,31 @@ export default function WebGISMap({
     currentTileLayerRef.current = tileLayer;
   }, []);
 
-  // Inisialisasi Peta Leaflet
+  // Inisialisasi Peta Leaflet (Aman dari "Map container is already initialized" & Memory Leak)
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+    if (!mapRef.current) return;
+
+    // Bersihkan instance lama jika ada (cegah "Map container is already initialized")
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.off();
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+
+    // Bersihkan ID internal Leaflet dari DOM container jika tersisa
+    if (mapRef.current._leaflet_id) {
+      delete mapRef.current._leaflet_id;
+    }
 
     const initialLayer = localStorage.getItem('sto_selected_map_layer') || 'satellite';
 
+    const safeCenterLat = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lat : -0.2285;
+    const safeCenterLng = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lng : 100.6335;
+
     const map = L.map(mapRef.current, {
-      center: [STO_COORDINATES.lat, STO_COORDINATES.lng],
+      center: [safeCenterLat, safeCenterLng],
       zoom: 14,
+      preferCanvas: true, // Optimasi performa render canvas untuk puluhan/ratusan marker ODP & vector
       zoomControl: false,
       attributionControl: false
     });
@@ -319,15 +351,26 @@ export default function WebGISMap({
     mapInstanceRef.current = map;
 
     // Percepat load tampilan peta & cegah lag/blank grey tiles
-    setTimeout(() => {
+    const resizeTimer = setTimeout(() => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.invalidateSize();
       }
     }, 150);
 
     return () => {
-      map.remove();
-      mapInstanceRef.current = null;
+      clearTimeout(resizeTimer);
+      if (layerGroupRef.current) {
+        layerGroupRef.current.clearLayers();
+        layerGroupRef.current = null;
+      }
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.off();
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+      if (mapRef.current && mapRef.current._leaflet_id) {
+        delete mapRef.current._leaflet_id;
+      }
     };
   }, [STO_COORDINATES, applyTileLayer]);
 
@@ -388,11 +431,18 @@ export default function WebGISMap({
 
     setIsSubmittingOdp(true);
     try {
+      const safeLat = isValidCoord(pinpointCoords.lat, pinpointCoords.lng)
+        ? pinpointCoords.lat
+        : (STO_COORDINATES?.lat || -0.2285);
+      const safeLng = isValidCoord(pinpointCoords.lat, pinpointCoords.lng)
+        ? pinpointCoords.lng
+        : (STO_COORDINATES?.lng || 100.6335);
+
       const payload = {
         kode_odp: pinpointForm.kode_odp.toUpperCase().trim(),
         alamat: pinpointForm.alamat.trim(),
-        latitude: pinpointCoords.lat || STO_COORDINATES.lat,
-        longitude: pinpointCoords.lng || STO_COORDINATES.lng,
+        latitude: safeLat,
+        longitude: safeLng,
         kapasitas_port: parseInt(pinpointForm.kapasitas_port, 10) || 8,
         port_terpakai: parseInt(pinpointForm.port_terpakai, 10) || 0,
         status: pinpointForm.status || 'Tersedia'
@@ -401,10 +451,8 @@ export default function WebGISMap({
       await addOdp(payload);
       setShowPinpointModal(false);
 
-      const pLat = parseFloat(payload.latitude);
-      const pLng = parseFloat(payload.longitude);
-      if (mapInstanceRef.current && !isNaN(pLat) && !isNaN(pLng) && pLat !== 0 && pLng !== 0) {
-        mapInstanceRef.current.flyTo([pLat, pLng], 16, {
+      if (mapInstanceRef.current && isValidCoord(safeLat, safeLng)) {
+        mapInstanceRef.current.flyTo([safeLat, safeLng], 16, {
           duration: 1.2
         });
       }
@@ -423,11 +471,18 @@ export default function WebGISMap({
     if (!editingOdp) return;
 
     try {
+      const safeLat = isValidCoord(editingOdp.latitude, editingOdp.longitude)
+        ? parseFloat(editingOdp.latitude)
+        : (STO_COORDINATES?.lat || -0.2285);
+      const safeLng = isValidCoord(editingOdp.latitude, editingOdp.longitude)
+        ? parseFloat(editingOdp.longitude)
+        : (STO_COORDINATES?.lng || 100.6335);
+
       await updateOdp(editingOdp.id, {
         kode_odp: editingOdp.kode_odp,
         alamat: editingOdp.alamat || editingOdp.nama_lokasi,
-        latitude: parseFloat(editingOdp.latitude),
-        longitude: parseFloat(editingOdp.longitude),
+        latitude: safeLat,
+        longitude: safeLng,
         kapasitas_port: parseInt(editingOdp.kapasitas_port, 10),
         port_terpakai: parseInt(editingOdp.port_terpakai, 10),
         status: editingOdp.status
@@ -441,16 +496,18 @@ export default function WebGISMap({
     }
   };
 
-  // Fly to ODP dari drawer / list
+  // Fly to ODP dari drawer / list dengan validasi koordinat aman
   const flyToOdp = (point) => {
     if (mapInstanceRef.current && point) {
       const lat = parseFloat(point.latitude);
       const lng = parseFloat(point.longitude);
-      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      if (isValidCoord(lat, lng)) {
         mapInstanceRef.current.flyTo([lat, lng], 17, {
           duration: 1.2
         });
         onSelectOdp(point.id);
+      } else {
+        showToast('Koordinat titik ODP tidak valid!', 'warning');
       }
     }
   };
@@ -462,8 +519,12 @@ export default function WebGISMap({
     if (!map || !layerGroup) return;
 
     layerGroup.clearLayers();
+    odpMarkersRef.current = {};
 
     // 1. PENANDA KANTOR PUSAT STO TELKOM PAYAKUMBUH
+    const stoLat = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lat : -0.2285;
+    const stoLng = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lng : 100.6335;
+
     const stoIcon = L.divIcon({
       className: 'custom-sto-icon',
       html: `
@@ -484,13 +545,13 @@ export default function WebGISMap({
       iconAnchor: [20, 56]
     });
 
-    const stoMarker = L.marker([STO_COORDINATES.lat, STO_COORDINATES.lng], { icon: stoIcon })
+    const stoMarker = L.marker([stoLat, stoLng], { icon: stoIcon })
       .bindPopup(`
         <div class="p-3 text-xs min-w-[240px] text-slate-800 dark:text-slate-100">
           <div class="font-extrabold text-rose-600 text-sm flex items-center gap-1.5 pb-1 border-b border-slate-200 dark:border-slate-700">
-            <span>●</span> ${STO_COORDINATES.name}
+            <span>●</span> ${STO_COORDINATES?.name || 'Sentral STO Payakumbuh'}
           </div>
-          <p class="text-slate-600 dark:text-slate-300 mt-2 leading-relaxed text-[11px]">${STO_COORDINATES.alamat}</p>
+          <p class="text-slate-600 dark:text-slate-300 mt-2 leading-relaxed text-[11px]">${STO_COORDINATES?.alamat || 'Jl. Soekarno Hatta No. 12, Koto Nan IV'}</p>
           <div class="mt-2.5 text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-2 rounded-xl">
             Pusat Sentral Jaringan & Distribusi Logistik Telkom Akses Payakumbuh
           </div>
@@ -503,7 +564,7 @@ export default function WebGISMap({
       odp.forEach(point => {
         const lat = parseFloat(point.latitude);
         const lng = parseFloat(point.longitude);
-        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
+        if (!isValidCoord(lat, lng)) return;
 
         if (odpStatusFilter !== 'all' && point.status !== odpStatusFilter) {
           return;
@@ -537,7 +598,7 @@ export default function WebGISMap({
         const odpIcon = L.divIcon({
           className: 'custom-odp-icon',
           html: `
-            <div class="flex flex-col items-center cursor-pointer transition-transform ${isSelected ? 'scale-125 z-50' : 'hover:scale-110'}" style="transform: translate(-50%, -100%);">
+            <div id="odp-marker-node-${point.id}" class="odp-marker-node flex flex-col items-center cursor-pointer transition-transform hover:scale-110" style="transform: translate(-50%, -100%);">
               <div class="px-2 py-0.5 rounded-full ${statusBadge} text-white font-extrabold text-[9px] shadow-lg whitespace-nowrap mb-1 flex items-center gap-1 border border-white/60">
                 <span>${point.kode_odp}</span>
                 <span class="bg-black/30 px-1 rounded text-[8px]">${usedPort}/${totalPort}</span>
@@ -609,6 +670,7 @@ export default function WebGISMap({
           onSelectOdp(point.id);
         });
 
+        odpMarkersRef.current[point.id] = odpMarker;
         layerGroup.addLayer(odpMarker);
       });
     }
@@ -618,7 +680,7 @@ export default function WebGISMap({
       tugas.forEach(task => {
         const tLat = parseFloat(task.target_lat);
         const tLng = parseFloat(task.target_lng);
-        if (isNaN(tLat) || isNaN(tLng) || tLat === 0 || tLng === 0) return;
+        if (!isValidCoord(tLat, tLng)) return;
 
         const isDone = task.status === 'Done';
         const isGangguan = (task.jenis_kerja || '').toLowerCase().includes('gangguan') || (task.jenis_kerja || '').toLowerCase().includes('kabel');
@@ -654,7 +716,44 @@ export default function WebGISMap({
       });
     }
 
-  }, [odp, tugas, STO_COORDINATES, odpStatusFilter, showTasks, showOdpPoints, selectedOdpId, isPimpinan, onSelectOdp, onSelectTugas]);
+    // Cleanup layer group saat effect me-render ulang atau unmount
+    return () => {
+      if (layerGroupRef.current) {
+        layerGroupRef.current.clearLayers();
+      }
+      odpMarkersRef.current = {};
+    };
+  }, [odp, tugas, STO_COORDINATES, odpStatusFilter, showTasks, showOdpPoints, isPimpinan, onSelectOdp, onSelectTugas]);
+
+  // Efek Seleksi ODP Ringan: Cukup buka popup & panTo tanpa re-render layer (Mendongkrak FPS)
+  useEffect(() => {
+    if (!selectedOdpId) {
+      document.querySelectorAll('.odp-selected-node').forEach(el => {
+        el.classList.remove('odp-selected-node', 'scale-125', 'z-50');
+      });
+      return;
+    }
+
+    const markers = odpMarkersRef.current;
+    const targetMarker = markers[selectedOdpId];
+
+    document.querySelectorAll('.odp-selected-node').forEach(el => {
+      el.classList.remove('odp-selected-node', 'scale-125', 'z-50');
+    });
+
+    const activeNode = document.getElementById(`odp-marker-node-${selectedOdpId}`);
+    if (activeNode) {
+      activeNode.classList.add('odp-selected-node', 'scale-125', 'z-50');
+    }
+
+    if (targetMarker && mapInstanceRef.current) {
+      targetMarker.openPopup();
+      const latlng = targetMarker.getLatLng();
+      if (latlng) {
+        mapInstanceRef.current.panTo(latlng, { animate: true, duration: 0.5 });
+      }
+    }
+  }, [selectedOdpId]);
 
   return (
     <div className="relative w-full h-full min-h-[480px] rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800">
@@ -957,9 +1056,6 @@ export default function WebGISMap({
                   <h3 className="font-extrabold text-sm text-white">
                     Tambah Titik ODP Baru (Menu Pimpinan)
                   </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Data akan otomatis tersimpan ke tabel <code>odp</code> di Supabase Cloud.
-                  </p>
                 </div>
               </div>
               <button
@@ -1082,9 +1178,6 @@ export default function WebGISMap({
                   <h3 className="font-extrabold text-sm text-white">
                     Edit Data ODP: {editingOdp.kode_odp}
                   </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Perubahan akan langsung ter-update di tabel <code>odp</code> Supabase.
-                  </p>
                 </div>
               </div>
               <button

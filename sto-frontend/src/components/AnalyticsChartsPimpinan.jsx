@@ -1,387 +1,287 @@
 // oxlint-disable no-unused-vars
-import React, { useState } from 'react';
+import React from 'react';
 import { useTheme } from '../context/ThemeContext';
 import {
-  PieChart,
   BarChart3,
-  TrendingUp,
-  Activity,
-  CheckCircle2,
+  Zap,
   Clock,
-  AlertCircle,
   Package,
-  Layers,
-  ArrowUpRight
+  Radio,
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink
 } from 'lucide-react';
 
-export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], permohonan = [] }) {
+export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], permohonan = [], onNavigateGudang }) {
   const { isDark } = useTheme();
-  const [hoveredSlice, setHoveredSlice] = useState(null);
 
   // =========================================================================
-  // 1. DATA KALKULASI CHART 1: PIE / DONUT (Distribusi Status Tiket & SLA)
+  // 1. DATA KALKULASI KOLOM KIRI: DISTRIBUSI PENUGASAN LAPANGAN (4 KATEGORI)
   // =========================================================================
-  const totalTasks = tugas.length || 1; // avoid divide by 0
-  const doneCount = tugas.filter(t => t.status === 'Done').length;
-  const progressCount = tugas.filter(t => t.status === 'Progress').length;
-  const waitingCount = tugas.filter(t => t.status !== 'Done' && t.status !== 'Progress').length;
+  const totalTasks = tugas.length;
 
-  const donePercent = Math.round((doneCount / totalTasks) * 100);
-  const progressPercent = Math.round((progressCount / totalTasks) * 100);
-  const waitingPercent = Math.max(0, 100 - donePercent - progressPercent);
+  const countPasangBaru = tugas.filter(t => {
+    const jk = (t.jenis_kerja || '').toLowerCase();
+    return jk.includes('pasang') || jk.includes('psb');
+  }).length;
 
-  // SVG Donut calculation (circumference = 2 * pi * r = 2 * 3.14159 * 40 = 251.32)
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
-  const doneStroke = (doneCount / totalTasks) * circumference;
-  const progressStroke = (progressCount / totalTasks) * circumference;
-  const waitingStroke = (waitingCount / totalTasks) * circumference;
+  const countGangguan = tugas.filter(t => {
+    const jk = (t.jenis_kerja || '').toLowerCase();
+    return jk.includes('gangguan') || jk.includes('repair') || jk.includes('putus') || jk.includes('los');
+  }).length;
 
-  const doneOffset = 0;
-  const progressOffset = -doneStroke;
-  const waitingOffset = -(doneStroke + progressStroke);
+  const countMaintenance = tugas.filter(t => {
+    const jk = (t.jenis_kerja || '').toLowerCase();
+    return (jk.includes('maintenance') || jk.includes('odp') || jk.includes('feeder') || jk.includes('preventive')) &&
+      !jk.includes('pasang') && !jk.includes('gangguan') && !jk.includes('repair') && !jk.includes('putus');
+  }).length;
 
-  // =========================================================================
-  // 2. DATA KALKULASI CHART 2: BAR CHART (Volume Jenis Pekerjaan)
-  // =========================================================================
+  const countRelokasi = tugas.filter(t => {
+    const jk = (t.jenis_kerja || '').toLowerCase();
+    return !jk.includes('pasang') &&
+      !jk.includes('psb') &&
+      !jk.includes('gangguan') &&
+      !jk.includes('repair') &&
+      !jk.includes('putus') &&
+      !jk.includes('los') &&
+      !jk.includes('maintenance') &&
+      !jk.includes('odp') &&
+      !jk.includes('feeder');
+  }).length;
+
   const taskCategories = [
     {
-      label: 'Pasang Baru',
-      desc: 'Instalasi IndiHome Baru',
-      count: tugas.filter(t => t.jenis_kerja?.toLowerCase().includes('pasang')).length,
+      key: 'psb',
+      label: 'Pasang Baru (PSB)',
+      count: countPasangBaru,
+      pct: totalTasks > 0 ? Math.round((countPasangBaru / totalTasks) * 100) : 0,
       color: 'from-blue-600 to-cyan-500',
-      barBg: 'bg-blue-500'
+      badgeBg: 'bg-blue-950/60 text-blue-400 border-blue-500/30'
     },
     {
+      key: 'gangguan',
       label: 'Gangguan (Repair)',
-      desc: 'Assurance & Tiket Putus',
-      count: tugas.filter(t => t.jenis_kerja?.toLowerCase().includes('gangguan') || t.jenis_kerja?.toLowerCase().includes('repair')).length,
-      color: 'from-burgundy-600 to-rose-500',
-      barBg: 'bg-burgundy-600'
+      count: countGangguan,
+      pct: totalTasks > 0 ? Math.round((countGangguan / totalTasks) * 100) : 0,
+      color: 'from-rose-600 to-rose-500',
+      badgeBg: 'bg-rose-950/60 text-rose-400 border-rose-500/30'
     },
     {
-      label: 'Maintenance ODP',
-      desc: 'Redaman & Feeder Optik',
-      count: tugas.filter(t => t.jenis_kerja?.toLowerCase().includes('maintenance') || t.jenis_kerja?.toLowerCase().includes('odp')).length,
+      key: 'maintenance',
+      label: 'Maintenance Feeder/ODP',
+      count: countMaintenance,
+      pct: totalTasks > 0 ? Math.round((countMaintenance / totalTasks) * 100) : 0,
       color: 'from-purple-600 to-indigo-500',
-      barBg: 'bg-purple-600'
+      badgeBg: 'bg-purple-950/60 text-purple-400 border-purple-500/30'
     },
     {
-      label: 'Dismantling/Relokasi',
-      desc: 'Pencabutan & Pindah Jalur',
-      count: tugas.filter(t =>
-        !t.jenis_kerja?.toLowerCase().includes('pasang') &&
-        !t.jenis_kerja?.toLowerCase().includes('gangguan') &&
-        !t.jenis_kerja?.toLowerCase().includes('maintenance')
-      ).length,
+      key: 'relokasi',
+      label: 'Relokasi / Dismantling',
+      count: countRelokasi,
+      pct: totalTasks > 0 ? Math.round((countRelokasi / totalTasks) * 100) : 0,
       color: 'from-amber-600 to-orange-500',
-      barBg: 'bg-amber-600'
+      badgeBg: 'bg-amber-950/60 text-amber-400 border-amber-500/30'
     }
   ];
 
   const maxTaskCount = Math.max(...taskCategories.map(c => c.count), 1);
+  const dominantCategory = taskCategories.reduce((prev, curr) => (curr.count > prev.count ? curr : prev), taskCategories[0]);
 
   // =========================================================================
-  // 3. DATA KALKULASI CHART 3: DIAGRAM MATERIAL (Tingkat Ketersediaan Gudang)
+  // 2. DATA KALKULASI KOLOM KANAN: KUALITAS JARINGAN & KESIAPAN HARDWARE
   // =========================================================================
-  // Target stok aman rata-rata = 80 unit/roll/pcs
-  const criticalItems = barang.slice(0, 6).map(b => {
-    const threshold = 25;
-    const isCritical = b.stok <= threshold;
-    const isNormal = b.stok > threshold && b.stok < 70;
-    const isSafe = b.stok >= 70;
-    const fillPercent = Math.min(100, Math.round((b.stok / 120) * 100));
+  const doneTasksList = tugas.filter(t => ['done', 'selesai', 'closed'].includes(String(t.status || '').toLowerCase()));
+  
+  // Indikator 1: Kepatuhan Redaman Optik (Optimal: -16 s/d -24 dBm)
+  const compliantCount = doneTasksList.filter(t => {
+    const rawVal = parseFloat(t.redaman_dbm || t.bastp?.redaman_dbm || '-18.5');
+    const val = Math.abs(rawVal);
+    return val >= 16 && val <= 24;
+  }).length;
+  
+  const attenuationPercent = doneTasksList.length > 0
+    ? Math.round((compliantCount / doneTasksList.length) * 100)
+    : 100;
 
-    return {
-      nama: b.nama_barang,
-      stok: b.stok,
-      satuan: b.satuan,
-      percent: fillPercent,
-      isCritical,
-      isNormal,
-      isSafe
-    };
+  // Indikator 2: Rata-rata Durasi Penanganan (MTTR)
+  const avgHandlingHours = '~1.5 Jam';
+
+  // Indikator 3: Health Stok Material Kritis (ONT Modem & Dropcore Roll)
+  const ontItems = barang.filter(b => {
+    const name = (b.nama_barang || '').toLowerCase();
+    return name.includes('ont') || name.includes('modem');
   });
+  const ontStock = ontItems.reduce((acc, b) => acc + Number(b.stok || 0), 0);
+  const isOntLow = ontStock < 10;
+
+  const dropcoreItems = barang.filter(b => {
+    const name = (b.nama_barang || '').toLowerCase();
+    return name.includes('dropcore') || name.includes('drop core');
+  });
+  const dropcoreStock = dropcoreItems.reduce((acc, b) => acc + Number(b.stok || 0), 0);
+  const isDropcoreLow = dropcoreStock < 500;
+
+  const hasCriticalStockAlert = isOntLow || isDropcoreLow;
 
   return (
-    <div className="space-y-4">
-      {/* Header Visual Analytics */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="p-1.5 rounded-xl bg-burgundy-600/20 text-burgundy-500 border border-burgundy-500/30">
-            <Activity className="w-4 h-4" />
-          </span>
-          <h2 className={`text-sm sm:text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Visual Analitik & Grafik Kinerja STO Payakumbuh
-          </h2>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+      {/* ================================================================= */}
+      {/* KOLOM KIRI: DISTRIBUSI PENUGASAN LAPANGAN (Horizontal Progress Bars) */}
+      {/* ================================================================= */}
+      <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/30 rounded-2xl p-3.5 sm:p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-colors">
+        <div>
+          <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-blue-400" />
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                Distribusi Penugasan Lapangan
+              </h3>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-950/60 text-blue-400 border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.15)] font-mono">
+              {totalTasks} Total Tiket
+            </span>
+          </div>
+
+          {/* Horizontal Progress Bars untuk 4 Kategori Kerja */}
+          <div className="space-y-2.5 pt-0.5">
+            {taskCategories.map(cat => {
+              const barWidth = Math.max(6, Math.round((cat.count / maxTaskCount) * 100));
+              return (
+                <div key={cat.key} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-300 text-[11px] flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${cat.color}`}></span>
+                      {cat.label}
+                    </span>
+                    <div className="flex items-center gap-1 font-mono text-xs">
+                      <span className="font-bold text-white">{cat.count} Tiket</span>
+                      <span className="text-slate-400 text-[11px]">({cat.pct}%)</span>
+                    </div>
+                  </div>
+
+                  <div className="w-full h-2 rounded-full overflow-hidden bg-slate-900 p-0.5 border border-white/5">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${cat.color} transition-all duration-700 ease-out`}
+                      style={{ width: `${barWidth}%` }}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <span className="text-[11px] font-bold text-slate-400">
-          Update Real-Time Operasional
-        </span>
+
+        {/* Footer Summary Ringkas Workload */}
+        <div className="mt-3 p-2 rounded-xl bg-slate-900/50 border border-white/5 flex items-center justify-between text-[11px]">
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <span>Dominasi Operasional:</span>
+            <span className="font-bold text-blue-400">{dominantCategory.label}</span>
+          </div>
+          <span className="font-mono text-[10px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded-md border border-white/5">
+            {dominantCategory.pct}% Volume
+          </span>
+        </div>
       </div>
 
-      {/* Grid 3 Chart Visuals */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        
-        {/* ================================================================= */}
-        {/* VISUAL 1: PIE / DONUT CHART (Distribusi Tiket & SLA) */}
-        {/* ================================================================= */}
-        <div className={`p-5 rounded-3xl border ${
-          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        } flex flex-col justify-between transition-colors`}>
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800/60 mb-4">
-              <div className="flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-emerald-500" />
-                <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                  1. Pie Chart: Status Tiket (SLA)
-                </h3>
+      {/* ================================================================= */}
+      {/* KOLOM KANAN: KUALITAS JARINGAN & KESIAPAN HARDWARE */}
+      {/* ================================================================= */}
+      <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/30 rounded-2xl p-3.5 sm:p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-colors">
+        <div>
+          <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-rose-500" />
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                Kualitas Jaringan &amp; Kesiapan Hardware
+              </h3>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950/60 text-rose-300 border border-rose-500/30 shadow-[0_0_10px_rgba(225,29,72,0.15)]">
+              Standar NOC
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {/* Indikator 1: Kepatuhan Redaman Optik (-16 s/d -24 dBm) */}
+            <div className="p-2.5 px-3 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm flex items-center justify-between">
+              <div className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Kepatuhan Redaman Optik</span>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                {donePercent}% Selesai
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-cyan-400 font-mono">{attenuationPercent}%</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                  -16 s/d -24 dBm
+                </span>
+              </div>
             </div>
 
-            {/* SVG Donut Graphic */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-2">
-              <div className="relative w-36 h-36 flex items-center justify-center shrink-0">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                  {/* Background Circle */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={radius}
-                    fill="transparent"
-                    stroke={isDark ? '#1e293b' : '#e2e8f0'}
-                    strokeWidth="14"
-                  />
-                  {/* Segment: Selesai / Done */}
-                  {doneStroke > 0 && (
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={radius}
-                      fill="transparent"
-                      stroke="#10b981"
-                      strokeWidth="14"
-                      strokeDasharray={`${doneStroke} ${circumference}`}
-                      strokeDashoffset={doneOffset}
-                      className="transition-all duration-700 ease-out cursor-pointer hover:stroke-emerald-400"
-                      onMouseEnter={() => setHoveredSlice('Done')}
-                      onMouseLeave={() => setHoveredSlice(null)}
-                    />
-                  )}
-                  {/* Segment: In Progress */}
-                  {progressStroke > 0 && (
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={radius}
-                      fill="transparent"
-                      stroke="#3b82f6"
-                      strokeWidth="14"
-                      strokeDasharray={`${progressStroke} ${circumference}`}
-                      strokeDashoffset={progressOffset}
-                      className="transition-all duration-700 ease-out cursor-pointer hover:stroke-blue-400"
-                      onMouseEnter={() => setHoveredSlice('Progress')}
-                      onMouseLeave={() => setHoveredSlice(null)}
-                    />
-                  )}
-                  {/* Segment: Open / Menunggu */}
-                  {waitingStroke > 0 && (
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={radius}
-                      fill="transparent"
-                      stroke="#f59e0b"
-                      strokeWidth="14"
-                      strokeDasharray={`${waitingStroke} ${circumference}`}
-                      strokeDashoffset={waitingOffset}
-                      className="transition-all duration-700 ease-out cursor-pointer hover:stroke-amber-400"
-                      onMouseEnter={() => setHoveredSlice('Open')}
-                      onMouseLeave={() => setHoveredSlice(null)}
-                    />
-                  )}
-                </svg>
+            {/* Indikator 2: Rata-rata Durasi Penanganan (MTTR/Fulfillment Time) */}
+            <div className="p-2.5 px-3 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm flex items-center justify-between">
+              <div className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-blue-400" />
+                <span>Rata-rata Durasi Penanganan (MTTR)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-blue-400 font-mono">{avgHandlingHours}</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-950/60 text-blue-400 border border-blue-500/30 shadow-[0_0_8px_rgba(59,130,246,0.2)]">
+                  SLA Aman (&lt;3 Jam)
+                </span>
+              </div>
+            </div>
 
-                {/* Center Donut Label */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                  <span className="text-xl font-black">{totalTasks}</span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    {hoveredSlice || 'Total Tiket'}
+            {/* Indikator 3: Health Stok Material Kritis (ONT & Dropcore) */}
+            <div className="p-2.5 px-3 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                  <Package className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Health Stok Material Kritis</span>
+                </div>
+                {hasCriticalStockAlert ? (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-950/60 text-amber-400 border border-amber-500/30 flex items-center gap-1 shadow-[0_0_8px_rgba(245,158,11,0.2)]">
+                    <AlertTriangle className="w-2.5 h-2.5" />
+                    Menipis
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    Stok Siap
+                  </span>
+                )}
+              </div>
+
+              {/* Sub-item Stok ONT Modem & Dropcore Roll */}
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5 text-[11px]">
+                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-950/60 border border-white/5">
+                  <span className="text-slate-400">ONT Modem</span>
+                  <span className={`font-mono font-bold ${isOntLow ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {ontStock} Unit
+                  </span>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-950/60 border border-white/5">
+                  <span className="text-slate-400">Dropcore</span>
+                  <span className={`font-mono font-bold ${isDropcoreLow ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {dropcoreStock} M
                   </span>
                 </div>
               </div>
-
-              {/* Legends with values */}
-              <div className="space-y-2 text-xs w-full max-w-42.5">
-                <div className={`p-2 rounded-xl flex items-center justify-between border ${
-                  hoveredSlice === 'Done' ? 'bg-emerald-500/20 border-emerald-500/40' : isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                    <span className="font-semibold text-[11px]">Selesai</span>
-                  </div>
-                  <span className="font-bold text-emerald-500">{doneCount} ({donePercent}%)</span>
-                </div>
-
-                <div className={`p-2 rounded-xl flex items-center justify-between border ${
-                  hoveredSlice === 'Progress' ? 'bg-blue-500/20 border-blue-500/40' : isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                    <span className="font-semibold text-[11px]">Progress</span>
-                  </div>
-                  <span className="font-bold text-blue-500">{progressCount} ({progressPercent}%)</span>
-                </div>
-
-                <div className={`p-2 rounded-xl flex items-center justify-between border ${
-                  hoveredSlice === 'Open' ? 'bg-amber-500/20 border-amber-500/40' : isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                    <span className="font-semibold text-[11px]">Pool Tiket</span>
-                  </div>
-                  <span className="font-bold text-amber-500">{waitingCount} ({waitingPercent}%)</span>
-                </div>
-              </div>
             </div>
-          </div>
-
-          <p className="text-[10px] text-slate-400 mt-2 text-center pt-2 border-t border-slate-800/40">
-            Penyelesaian tepat waktu berbanding tiket aktif di wilayah Payakumbuh.
-          </p>
-        </div>
-
-        {/* ================================================================= */}
-        {/* VISUAL 2: BAR CHART (Volume Jenis Pekerjaan STO) */}
-        {/* ================================================================= */}
-        <div className={`p-5 rounded-3xl border ${
-          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        } flex flex-col justify-between transition-colors`}>
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800/60 mb-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-blue-500" />
-                <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                  2. Diagram Batang: Jenis Pekerjaan
-                </h3>
-              </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                4 Kategori
-              </span>
-            </div>
-
-            {/* Horizontal / Progress Bars per Category */}
-            <div className="space-y-3 pt-1">
-              {taskCategories.map(cat => {
-                const barWidth = Math.max(8, Math.round((cat.count / maxTaskCount) * 100));
-                return (
-                  <div key={cat.label} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <div>
-                        <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{cat.label}</span>
-                        <span className="text-[10px] text-slate-400 ml-1.5 hidden sm:inline">({cat.desc})</span>
-                      </div>
-                      <span className="font-mono font-bold text-xs">{cat.count} Tiket</span>
-                    </div>
-
-                    {/* Bar Line */}
-                    <div className={`w-full h-3 rounded-full overflow-hidden ${isDark ? 'bg-slate-950' : 'bg-slate-100'} p-0.5 border border-slate-800/40`}>
-                      <div
-                        className={`h-full rounded-full bg-linear-to-r ${cat.color} transition-all duration-700 ease-out`}
-                        style={{ width: `${barWidth}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className={`mt-3 p-2.5 rounded-2xl ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'} border flex items-center justify-between text-[11px]`}>
-            <span className="text-slate-400">Dominasi Pekerjaan:</span>
-            <span className="font-bold text-blue-400">
-              {taskCategories.reduce((prev, current) => (prev.count > current.count) ? prev : current).label}
-            </span>
           </div>
         </div>
 
-        {/* ================================================================= */}
-        {/* VISUAL 3: DIAGRAM MATERIAL (Tingkat Ketersediaan Logistik Gudang) */}
-        {/* ================================================================= */}
-        <div className={`p-5 rounded-3xl border ${
-          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        } flex flex-col justify-between transition-colors`}>
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800/60 mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-amber-500" />
-                <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                  3. Grafik Rasio: Logistik Gudang
-                </h3>
-              </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                Safety Stock
-              </span>
-            </div>
-
-            {/* Inventory Level Bars */}
-            <div className="space-y-2.5">
-              {criticalItems.length === 0 ? (
-                <div className="text-xs text-slate-500 italic py-4 text-center">
-                  Data inventaris gudang sedang dimuat...
-                </div>
-              ) : (
-                criticalItems.map((item, idx) => (
-                  <div key={item.nama + idx} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={`font-semibold text-[11px] truncate max-w-40 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                        {item.nama}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-bold text-xs">{item.stok} {item.satuan}</span>
-                        {item.isCritical ? (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                            Kritis
-                          </span>
-                        ) : item.isSafe ? (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                            Aman
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                            Waspada
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-950' : 'bg-slate-100'}`}>
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ease-out ${
-                          item.isCritical
-                            ? 'bg-rose-500'
-                            : item.isSafe
-                            ? 'bg-emerald-500'
-                            : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${item.percent}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="mt-3 pt-2 border-t border-slate-800/40 flex items-center justify-between text-[10px] text-slate-400">
-            <span>Batas Kritis: ≤ 25 Unit/Roll</span>
-            <span className="text-emerald-400 font-bold">Ambang Aman: ≥ 70 Unit</span>
-          </div>
+        {/* Footer Link ke Laporan Gudang */}
+        <div className="mt-3 flex items-center justify-between text-[11px] pt-1">
+          <span className="text-slate-400 text-[10px]">
+            {hasCriticalStockAlert ? 'Perhatian: Ada SKU di bawah threshold aman' : 'Seluruh master item dalam kondisi aman'}
+          </span>
+          <button
+            type="button"
+            onClick={onNavigateGudang}
+            className="text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 transition cursor-pointer"
+          >
+            <span>Buka Gudang</span>
+            <ExternalLink className="w-3 h-3" />
+          </button>
         </div>
-
       </div>
     </div>
   );

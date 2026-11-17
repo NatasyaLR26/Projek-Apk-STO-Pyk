@@ -11,7 +11,7 @@ import { useTheme } from '../context/ThemeContext';
 
 function FormTugas({ onCreated }) {
   const { isDark } = useTheme();
-  const { createTugas, odp = [], showToast } = useApp();
+  const { createTugas, odp = [], users = [], showToast } = useApp();
 
   const [jenisKerja, setJenisKerja] = useState('Pasang Baru');
   const [selectedTeknisiId, setSelectedTeknisiId] = useState('99');
@@ -115,9 +115,6 @@ function FormTugas({ onCreated }) {
                 Realtime WebSocket
               </span>
             </h1>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Pimpinan menerbitkan penugasan baru. Tiket langsung disiarkan secara instan ke seluruh teknisi lapangan untuk diambil secara terbuka.
-            </p>
           </div>
         </div>
       </div>
@@ -127,10 +124,7 @@ function FormTugas({ onCreated }) {
         <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
           <div className="flex-1">
-            <div className="font-extrabold text-sm mb-0.5">{pesan}</div>
-            <div className="text-[11px] opacity-90">
-              Tiket otomatis masuk ke antrean tugas terbuka di aplikasi seluruh teknisi yang sedang siaga tanpa perlu refresh.
-            </div>
+            <div className="font-extrabold text-sm">{pesan}</div>
           </div>
         </div>
       )}

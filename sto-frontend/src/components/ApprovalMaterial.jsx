@@ -88,9 +88,6 @@ function ApprovalMaterial() {
             </span>
             <span>Persetujuan Permohonan Material</span>
           </h1>
-          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Pimpinan memverifikasi kebutuhan suku cadang & perangkat yang diajukan teknisi sebelum dirilis oleh logistik gudang.
-          </p>
         </div>
 
         <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">

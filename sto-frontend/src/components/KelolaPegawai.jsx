@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Users,
   UserPlus,
   Shield,
   Wrench,
@@ -10,16 +9,23 @@ import {
   Clock,
   Key,
   Check,
-  CheckCircle2
+  Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 
-export default function KelolaPegawai() {
+export default function KelolaPegawai({
+  hideHeader = false,
+  showAddModal: externalShowModal,
+  setShowAddModal: externalSetShowModal
+}) {
   const { isDark } = useTheme();
   const { users, addUser, approveUser, rejectUser, showToast } = useApp();
 
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [internalShowModal, setInternalShowModal] = useState(false);
+  const isAddModalOpen = externalShowModal !== undefined ? externalShowModal : internalShowModal;
+  const setAddModalOpen = externalSetShowModal || setInternalShowModal;
+
   const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('password123');
@@ -46,7 +52,7 @@ export default function KelolaPegawai() {
         role
       });
 
-      setShowAddModal(false);
+      setAddModalOpen(false);
       setNama('');
       setEmail('');
       setPassword('password123');
@@ -66,30 +72,27 @@ export default function KelolaPegawai() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner */}
-      <div className={`p-6 rounded-3xl border ${
-        isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-      } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-xl bg-burgundy-600/20 text-burgundy-500 border border-burgundy-500/30">
-              <Users className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl font-black">Kelola Akun & Hak Akses Pegawai</h1>
+      {/* Header Banner (Hanya jika bukan di dalam tab terintegrasi) */}
+      {!hideHeader && (
+        <div className={`p-6 rounded-3xl border ${
+          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+        } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+          <div>
+            <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Kelola Akun &amp; Hak Akses Pegawai</h1>
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Pimpinan dapat mendaftarkan akun baru, mengatur role (Teknisi / Gudang / Pimpinan), dan memantau status staf di STO Payakumbuh.
+            </p>
           </div>
-          <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Pimpinan dapat mendaftarkan akun baru, mengatur role (Teknisi / Gudang / Pimpinan), dan memantau status staf di STO Payakumbuh.
-          </p>
-        </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-burgundy-600 hover:bg-burgundy-700 text-white font-bold text-xs shadow-lg shadow-burgundy-600/30 transition cursor-pointer active:scale-95 whitespace-nowrap"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Tambah Akun Pegawai</span>
-        </button>
-      </div>
+          <button
+            onClick={() => setAddModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition cursor-pointer active:scale-95 whitespace-nowrap"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Tambah Akun Pegawai</span>
+          </button>
+        </div>
+      )}
 
       {/* Persetujuan Registrasi Pegawai Baru (Pending Approval) */}
       {pendingUsers.length > 0 && (
@@ -106,9 +109,6 @@ export default function KelolaPegawai() {
                     {pendingUsers.length} Permintaan
                   </span>
                 </h2>
-                <p className="text-xs text-slate-400">
-                  Calon pegawai mendaftar tanpa kode otorisasi dan memerlukan verifikasi manual dari Pimpinan STO sebelum dapat login.
-                </p>
               </div>
             </div>
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-mono text-amber-300">
@@ -166,40 +166,34 @@ export default function KelolaPegawai() {
         </div>
       )}
 
-      {/* Corporate OTP Banner */}
-      <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2.5">
-          <Key className="w-4 h-4 text-blue-400 shrink-0" />
-          <div>
-            <span className="font-bold text-blue-400">Kode Otorisasi Korporat Internal STO Payakumbuh:</span>
-            <span className="ml-2 font-mono font-black text-amber-400 bg-black/40 px-2 py-0.5 rounded border border-amber-500/40">STO-PYK-2026</span>
-          </div>
+      {/* Role Filter Tabs & Corporate OTP Badge */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {[
+            { key: 'all', label: `Semua Pegawai (${users.length})` },
+            { key: 'teknisi', label: `Teknisi (${users.filter(u => u.role === 'teknisi').length})` },
+            { key: 'gudang', label: `Gudang (${users.filter(u => u.role === 'gudang').length})` },
+            { key: 'pimpinan', label: `Pimpinan (${users.filter(u => u.role === 'pimpinan').length})` }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setFilterRole(tab.key)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                filterRole === tab.key
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : isDark ? 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white' : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <p className="text-[11px] text-slate-400">
-          Berikan kode ini kepada teknisi baru agar registrasi langsung aktif tanpa menunggu approval manual.
-        </p>
-      </div>
 
-      {/* Role Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {[
-          { key: 'all', label: `Semua Pegawai (${users.length})` },
-          { key: 'teknisi', label: `Teknisi Lapangan (${users.filter(u => u.role === 'teknisi').length})` },
-          { key: 'gudang', label: `Petugas Gudang (${users.filter(u => u.role === 'gudang').length})` },
-          { key: 'pimpinan', label: `Pimpinan (${users.filter(u => u.role === 'pimpinan').length})` }
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setFilterRole(tab.key)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-              filterRole === tab.key
-                ? 'bg-burgundy-600 text-white shadow-md'
-                : isDark ? 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white' : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs shrink-0 self-start sm:self-auto" title="Kode registrasi langsung aktif bagi teknisi baru">
+          <Key className="w-3.5 h-3.5 text-amber-400" />
+          <span className="text-[11px] text-slate-400">Kode OTP Reg:</span>
+          <span className="font-mono font-bold text-amber-400 bg-slate-950 px-2 py-0.5 rounded border border-amber-500/30">STO-PYK-2026</span>
+        </div>
       </div>
 
       {/* Employee List Table */}
@@ -213,8 +207,8 @@ export default function KelolaPegawai() {
                 <th className="px-4 py-3">Nama Pegawai</th>
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Peran / Role</th>
-                <th className="px-4 py-3">ID Akun</th>
-                <th className="px-4 py-3 text-center">Status Database</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -236,41 +230,39 @@ export default function KelolaPegawai() {
                   </td>
 
                   <td className="px-4 py-3.5">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                      u.role === 'pimpinan' ? 'bg-burgundy-600/20 text-burgundy-500 border-burgundy-500/30' :
-                      u.role === 'teknisi' ? 'bg-blue-600/20 text-blue-500 border-blue-500/30' :
-                      'bg-emerald-600/20 text-emerald-500 border-emerald-500/30'
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                      u.role === 'pimpinan' ? 'bg-rose-600/15 text-rose-500 border-rose-500/30' :
+                      u.role === 'teknisi' ? 'bg-blue-600/15 text-blue-500 border-blue-500/30' :
+                      'bg-emerald-600/15 text-emerald-500 border-emerald-500/30'
                     }`}>
-                      {u.role}
+                      {u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : 'Pegawai'}
                     </span>
-                  </td>
-
-                  <td className="px-4 py-3.5 font-mono text-xs font-bold text-slate-400">
-                    #{u.id}
                   </td>
 
                   <td className="px-4 py-3.5">
-                    {u.jabatan || (u.role === 'pimpinan' ? 'Manager STO' : u.role === 'teknisi' ? 'Teknisi Lapangan' : 'Staff Gudang')}
+                    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Aktif
+                    </span>
                   </td>
 
-                  <td className="px-4 py-3.5 text-center">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-flex items-center gap-1 ${
-                      u.status_verifikasi === 'Pending Approval'
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                        : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                    }`}>
-                      {u.status_verifikasi === 'Pending Approval' ? (
-                        <>
-                          <Clock className="w-3 h-3" />
-                          <span>Pending Approval</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>Aktif (Verified)</span>
-                        </>
-                      )}
-                    </span>
+                  <td className="px-4 py-3.5 text-right">
+                    {u.role !== 'pimpinan' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Yakin ingin menghapus akun pegawai ${u.nama_lengkap}?`)) {
+                            rejectUser(u.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-rose-600/20 text-slate-400 hover:text-rose-400 hover:border-rose-500/40 transition cursor-pointer inline-flex items-center justify-center"
+                        title={`Hapus ${u.nama_lengkap}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="text-slate-600 text-xs italic">-</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -280,7 +272,7 @@ export default function KelolaPegawai() {
       </div>
 
       {/* Modal Tambah Pegawai Baru */}
-      {showAddModal && (
+      {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
           <div className={`w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl border ${
             isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
@@ -292,7 +284,7 @@ export default function KelolaPegawai() {
                 <h3 className="font-extrabold text-base">Tambah Akun Pegawai STO</h3>
               </div>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => setAddModalOpen(false)}
                 className="p-1 rounded-xl text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -370,7 +362,7 @@ export default function KelolaPegawai() {
               <div className="flex items-center gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => setAddModalOpen(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-xs cursor-pointer"
                 >
                   Batal

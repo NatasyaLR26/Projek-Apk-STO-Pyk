@@ -1,5 +1,5 @@
 // oxlint-disable no-unused-vars react-hooks/exhaustive-deps react/refs
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ModernSidebar from '../components/ModernSidebar';
 import RequestBarangModal from '../components/RequestBarangModal';
@@ -42,6 +42,25 @@ import {
  * 6. Closing pekerjaan: validasi ODP, redaman dBm, SN ONT, rekonsiliasi material & cetak BASTP.
  * ============================================================================
  */
+// Helper pembersih lokasi agar tidak mengulang nama/no telepon pelanggan
+const cleanLocation = (rawLoc, custName) => {
+  if (!rawLoc) return '-';
+  let loc = String(rawLoc);
+  const phoneRegex = /(?:\+?62|08)[0-9\-\s]{8,14}/g;
+  loc = loc.replace(phoneRegex, ' ');
+  if (custName && custName.toLowerCase() !== 'pelanggan') {
+    const escapedName = custName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    loc = loc.replace(new RegExp(escapedName, 'gi'), ' ');
+  }
+  loc = loc
+    .replace(/[•()—]/g, ' ')
+    .replace(/\s*-\s*-\s*/g, ' - ')
+    .replace(/^[-:,\s]+|[-:,\s]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return loc || rawLoc;
+};
+
 export default function DashboardTeknisi() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
@@ -50,6 +69,7 @@ export default function DashboardTeknisi() {
     setTugas,
     claimTugas,
     checkInTugas,
+    updateTugas,
     permohonan,
     detailPermohonan,
     barang,
@@ -136,20 +156,22 @@ export default function DashboardTeknisi() {
   
   // Filter daftar tugas:
   // 1. Tiket terbuka yang disiarkan Pimpinan (pool terbuka atau siapapun teknisi dapat mengambil)
-  const openTasks = tugas.filter(t => {
-    const isPool = !t.teknisi_id || Number(t.teknisi_id) === 99 || Number(t.teknisi_id) === 0 || t.teknisi_id === 'null' || t.teknisi_id === '0';
-    const st = String(t.status || '').toLowerCase().trim();
-    const isOpen = st === 'open' || st === 'menunggu' || st === '' || st === 'open pool' || st === 'pending';
-    return isPool && isOpen;
-  });
+  const openTasks = useMemo(() => {
+    return tugas.filter(t => {
+      const isPool = !t.teknisi_id || Number(t.teknisi_id) === 99 || Number(t.teknisi_id) === 0 || t.teknisi_id === 'null' || t.teknisi_id === '0';
+      const st = String(t.status || '').toLowerCase().trim();
+      const isOpen = st === 'open' || st === 'menunggu' || st === '' || st === 'open pool' || st === 'pending';
+      return isPool && isOpen;
+    });
+  }, [tugas]);
 
-  const isDoneStatus = (status) => {
+  const isDoneStatus = useCallback((status) => {
     const st = String(status || '').toLowerCase().trim();
     return st === 'done' || st === 'selesai' || st === 'closed';
-  };
+  }, []);
 
   // Tangkap seluruh lifecycle tiket aktif: assigned, in_progress, progress, menunggu_material, material_approved, pengerjaan, bastp_ready, open, menunggu
-  const isActiveLifecycle = (status) => {
+  const isActiveLifecycle = useCallback((status) => {
     const st = String(status || '').toLowerCase().trim();
     const activeLifecycles = [
       'progress',
@@ -165,21 +187,31 @@ export default function DashboardTeknisi() {
       'proses'
     ];
     return activeLifecycles.includes(st) || (!isDoneStatus(st) && st !== '');
-  };
+  }, [isDoneStatus]);
 
-  // 2. Tiket yang diambil oleh teknisi ini
-  const myTasks = tugas.filter(t => Number(t.teknisi_id) === currentTechId);
-  const myActiveTasks = myTasks.filter(t => !isDoneStatus(t.status) && isActiveLifecycle(t.status));
-  const myDoneTasks = myTasks.filter(t => isDoneStatus(t.status));
+  // 2. Tiket yang diambil oleh teknisi ini (Memoized)
+  const myTasks = useMemo(() => {
+    return tugas.filter(t => Number(t.teknisi_id) === currentTechId);
+  }, [tugas, currentTechId]);
+
+  const myActiveTasks = useMemo(() => {
+    return myTasks.filter(t => !isDoneStatus(t.status) && isActiveLifecycle(t.status));
+  }, [myTasks, isDoneStatus, isActiveLifecycle]);
+
+  const myDoneTasks = useMemo(() => {
+    return myTasks.filter(t => isDoneStatus(t.status));
+  }, [myTasks, isDoneStatus]);
 
   // Tiket aktif untuk navigasi pengerjaan (hanya tiket yang belum selesai)
   const activeTasks = myActiveTasks;
 
-  // Permohonan material yang diajukan oleh teknisi ini
-  const myRequests = permohonan.filter(p => {
-    const parent = tugas.find(t => Number(t.id) === Number(p.tugas_id));
-    return Number(parent?.teknisi_id) === currentTechId;
-  });
+  // Permohonan material yang diajukan oleh teknisi ini (Memoized)
+  const myRequests = useMemo(() => {
+    return permohonan.filter(p => {
+      const parent = tugas.find(t => Number(t.id) === Number(p.tugas_id));
+      return Number(parent?.teknisi_id) === currentTechId;
+    });
+  }, [permohonan, tugas, currentTechId]);
 
     const activeTasksRef = useRef(activeTasks);
   activeTasksRef.current = activeTasks;
@@ -223,13 +255,6 @@ export default function DashboardTeknisi() {
                 {activeMenu === 'status-approval' && 'Persetujuan & Gudang'}
                 {activeMenu === 'pengerjaan' && 'Pemasangan & BASTP Digital'}
               </h1>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                {activeMenu === 'tiket' && 'Daftar tiket tugas lapangan & pengambilan pekerjaan.'}
-                {activeMenu === 'surat-permohonan' && 'Formulir pengajuan kebutuhan barang ke gudang.'}
-                {activeMenu === 'cetak-surat' && 'Cetak dokumen surat permohonan material.'}
-                {activeMenu === 'status-approval' && 'Status persetujuan pimpinan & rilis gudang.'}
-                {activeMenu === 'pengerjaan' && 'Check-in GPS, closing pekerjaan, & penerbitan BASTP.'}
-              </p>
             </div>
 
             {/* Quick Status Info */}
@@ -257,9 +282,6 @@ export default function DashboardTeknisi() {
                         <span>Mobile Stock di Kendaraan (Sisa Material Sebelumnya)</span>
                         <span className="px-2 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 font-mono">Tercatat</span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Kabel dropcore berlebih digulung di mobil operasional dan diprioritaskan untuk penanganan perbaikan / kabel putus. Cukup sertakan tulisan &amp; foto bukti saat closing.
-                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 font-mono text-xs">
@@ -350,7 +372,7 @@ export default function DashboardTeknisi() {
                         <div className={`p-3.5 rounded-2xl text-xs space-y-2 ${isDark ? 'bg-slate-950/70 border border-slate-800 text-slate-300' : 'bg-slate-50 border border-slate-200 text-slate-700'}`}>
                           <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                            <span className="truncate">{t.lokasi}</span>
+                            <span className="truncate">{cleanLocation(t.lokasi, t.pelanggan_nama)}</span>
                           </div>
                           {t.pelanggan_telp && (
                             <div className="flex items-center gap-2">
@@ -443,7 +465,7 @@ export default function DashboardTeknisi() {
                         <div className={`p-3 rounded-2xl text-xs space-y-1.5 ${isDark ? 'bg-slate-950/60 border border-slate-850 text-slate-300' : 'bg-slate-50 border border-slate-200 text-slate-700'}`}>
                           <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                            <span className="truncate">{t.lokasi}</span>
+                            <span className="truncate">{cleanLocation(t.lokasi, t.pelanggan_nama)}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -479,48 +501,6 @@ export default function DashboardTeknisi() {
                                 </div>
                               )}
 
-                              {/* Indikator Status Tahapan Terkini */}
-                              {!taskPerm && !isSelfSpliced && (
-                                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-semibold flex items-center gap-2">
-                                  <Package className="w-4 h-4 shrink-0" />
-                                  <span>
-                                    {isTroubleOrSplicing
-                                      ? 'Pekerjaan Gangguan: Splicing kabel mandiri atau order material gudang.'
-                                      : 'Tahap 1: Kebutuhan material belum diajukan ke gudang.'}
-                                  </span>
-                                </div>
-                              )}
-                              {isSelfSpliced && !isCheckedIn && (
-                                <div className="p-2.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-300 text-xs font-semibold flex items-center gap-2">
-                                  <Wrench className="w-4 h-4 shrink-0 text-teal-400" />
-                                  <span>Splicing Mandiri: Tanpa material gudang. Langsung Check-In GPS di lokasi!</span>
-                                </div>
-                              )}
-                              {isPending && (
-                                <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold flex items-center gap-2">
-                                  <Clock className="w-4 h-4 shrink-0 animate-spin" />
-                                  <span>Tahap 2: Menunggu persetujuan material dari Pimpinan STO.</span>
-                                </div>
-                              )}
-                              {isApproved && !isReleased && (
-                                <div className="p-2.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-2">
-                                  <CheckCircle2 className="w-4 h-4 shrink-0 text-purple-400" />
-                                  <span>Tahap 3: Disetujui Pimpinan! Segera ambil material di Gudang STO.</span>
-                                </div>
-                              )}
-                              {isReleased && !isCheckedIn && (
-                                <div className="p-2.5 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-semibold flex items-center gap-2">
-                                  <Truck className="w-4 h-4 shrink-0 text-sky-400" />
-                                  <span>Tahap 4: Material diterima. Dalam Perjalanan menuju lokasi pelanggan.</span>
-                                </div>
-                              )}
-                              {isCheckedIn && (
-                                <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2">
-                                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                                  <span>Tahap 5: Sudah Check-In di lokasi. Siap closing & BASTP.</span>
-                                </div>
-                              )}
-
                               {/* Tombol Aksi Utama Berdasarkan Alur SOP */}
                               <div className="space-y-2">
                                 {!taskPerm && !isSelfSpliced && (
@@ -530,11 +510,13 @@ export default function DashboardTeknisi() {
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            setTugas(prev => prev.map(item => Number(item.id) === Number(t.id) ? {
-                                              ...item,
-                                              material_status: 'Splicing Mandiri (Tanpa Order Gudang)',
-                                              status: 'Progress'
-                                            } : item));
+                                            if (typeof setTugas === 'function') {
+                                              setTugas(prev => prev.map(item => Number(item.id) === Number(t.id) ? {
+                                                ...item,
+                                                material_status: 'Splicing Mandiri (Tanpa Order Gudang)',
+                                                status: 'Progress'
+                                              } : item));
+                                            }
                                             showToast(`Tiket #${t.id} siap diselesaikan via Splicing Mandiri! Langsung aktifkan GPS saat tiba.`, 'success');
                                           }}
                                           className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
@@ -767,15 +749,10 @@ export default function DashboardTeknisi() {
           {/* TAB 4: STATUS PERSETUJUAN PIMPINAN & AMBIL BARANG GUDANG */}
           {activeMenu === 'status-approval' && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="text-xs text-slate-400">
-                Pantau proses approval oleh Pimpinan STO. Jika status sudah <strong>"Approved"</strong>, Anda dapat langsung mengambil material fisik di gudang.
-              </div>
-
               {myRequests.length === 0 ? (
                 <div className={`p-12 text-center rounded-3xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                   <Clock className="w-12 h-12 text-slate-600 mx-auto mb-3" />
                   <div className="text-sm font-bold text-white">Belum Ada Pengajuan Material</div>
-                  <p className="text-xs text-slate-400 mt-1">Gunakan tombol "Ajukan Barang" pada tiket pekerjaan Anda.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -878,9 +855,6 @@ export default function DashboardTeknisi() {
                     Standar Telkom Akses
                   </span>
                 </div>
-                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Pastikan setiap penutupan tiket telah melalui pengukuran redaman kabel optik (OPM dBm), pencatatan Serial Number ONT modem, dan upload foto bukti lapangan untuk penerbitan dokumen BASTP resmi.
-                </p>
               </div>
 
               {/* Work Orders to Finish */}

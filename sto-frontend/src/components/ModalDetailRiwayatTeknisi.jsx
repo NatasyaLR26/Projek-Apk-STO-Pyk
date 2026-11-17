@@ -243,9 +243,6 @@ export default function ModalDetailRiwayatTeknisi({
                     {techTasks.length} Riwayat
                   </span>
                 </h4>
-                <p className="text-[11px] text-slate-400">
-                  Data ini tersimpan langsung di tabel <code>tugas</code> Supabase. Anda dapat menghapus data testing sebelum menggunakan data riil.
-                </p>
               </div>
 
               {techTasks.length > 0 && (

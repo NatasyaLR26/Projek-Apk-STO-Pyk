@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Layers,
@@ -6,17 +6,14 @@ import {
   CheckCircle2,
   AlertTriangle,
   PlusCircle,
-  Package,
   MapPin,
   ArrowRight,
   FileText,
   User,
   Users,
-  Search,
   Download,
-  Boxes,
-  Send,
-  Check
+  Printer,
+  UserPlus
 } from 'lucide-react';
 import ModernSidebar from '../components/ModernSidebar';
 import FormTugas from '../components/FormTugas';
@@ -30,38 +27,187 @@ import TabelAsetJaringan from '../components/TabelAsetJaringan';
 import TabelPelangganAset from '../components/TabelPelangganAset';
 import AnalyticsChartsPimpinan from '../components/AnalyticsChartsPimpinan';
 import ModalDetailRiwayatTeknisi from '../components/ModalDetailRiwayatTeknisi';
+import LaporanGudangPimpinan from '../components/LaporanGudangPimpinan';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
+
+// ============================================================================
+// 1. DATA PARSING & SANITIZATION HELPER (TELECOM OPERATIONAL STANDARD)
+// ============================================================================
+export const parseTelecomTaskDetails = (task) => {
+  if (!task) {
+    return { name: 'Pelanggan STO', telp: null, address: 'Payakumbuh', note: null };
+  }
+
+  let rawName = (task.pelanggan_nama || '').trim();
+  let rawTelp = (task.pelanggan_telp || task.telepon || '').trim();
+  let rawLoc = (task.lokasi || task.alamat || '').trim();
+  let rawNotes = (task.keterangan || task.catatan || '').trim();
+
+  // Pola regex nomor telepon fleksibel (6 s/d 16 digit: 08, +62, 0)
+  const phonePattern = /(?:\+?62|08|0)[0-9\-\s]{6,16}/g;
+
+  // 1. Ekstraksi nomor telepon jika belum tersedia
+  if (!rawTelp) {
+    const matchName = rawName.match(phonePattern);
+    const matchLoc = rawLoc.match(phonePattern);
+    const matchNotes = rawNotes.match(phonePattern);
+    if (matchName) rawTelp = matchName[0].trim();
+    else if (matchLoc) rawTelp = matchLoc[0].trim();
+    else if (matchNotes) rawTelp = matchNotes[0].trim();
+  }
+
+  // 2. Ekstraksi pola backend "Telp:\s*...", "Pelanggan:\s*...", "Catatan:\s*..."
+  const pipeTelpMatch = rawLoc.match(/Telp:\s*([^|•]+)/i);
+  if (pipeTelpMatch) {
+    if (!rawTelp) rawTelp = pipeTelpMatch[1].trim();
+    rawLoc = rawLoc.replace(/Telp:\s*[^|•]+/gi, '').trim();
+  }
+
+  const pipePelangganMatch = rawLoc.match(/Pelanggan:\s*([^|•]+)/i);
+  if (pipePelangganMatch) {
+    if (!rawName || rawName.toLowerCase() === 'pelanggan' || rawName.toLowerCase() === 'pelanggan sto' || rawName.toLowerCase() === 'pelanggan telkom') {
+      rawName = pipePelangganMatch[1].trim();
+    }
+    rawLoc = rawLoc.replace(/Pelanggan:\s*[^|•]+/gi, '').trim();
+  }
+
+  const pipeNoteMatch = rawLoc.match(/Catatan:\s*([^|]+)/i);
+  if (pipeNoteMatch) {
+    if (!rawNotes) rawNotes = pipeNoteMatch[1].trim();
+    rawLoc = rawLoc.replace(/\|\s*Catatan:\s*[^|]+/gi, '').trim();
+  }
+
+  // 3. Ekstraksi kurung siku catatan [catatan]
+  const bracketNoteMatch = rawLoc.match(/\[(.*?)\]/);
+  if (bracketNoteMatch) {
+    if (!rawNotes) rawNotes = bracketNoteMatch[1].trim();
+    rawLoc = rawLoc.replace(/\[(.*?)\]/g, '').trim();
+  }
+
+  // 4. Bersihkan nomor telepon
+  const digitsOnly = (rawTelp || '').replace(/[^0-9]/g, '');
+  const cleanTelp = digitsOnly.length >= 7 ? rawTelp.replace(/[()—_]/g, '').replace(/\s+/g, ' ').trim() : null;
+
+  // 5. Bersihkan nama dari digit telepon, kurung, dan simbol artefak
+  let name = rawName
+    .replace(phonePattern, '')
+    .replace(/[0-9]{6,}/g, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\[\s*\]/g, '')
+    .replace(/[|•()—-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleanTelp) {
+    const rawDigits = cleanTelp.replace(/[^0-9]/g, '');
+    if (rawDigits.length >= 7) {
+      name = name.replace(new RegExp(rawDigits, 'g'), '').trim();
+    }
+  }
+
+  // Fallback nama jika kosong atau generik
+  if (!name || name.toLowerCase() === 'pelanggan' || name.toLowerCase() === 'pelanggan sto' || name.toLowerCase() === 'pelanggan telkom') {
+    if (rawLoc.includes(' - ')) {
+      const parts = rawLoc.split(' - ');
+      const possibleName = parts[0]
+        .replace(phonePattern, '')
+        .replace(/[0-9]{6,}/g, '')
+        .replace(/[•()—]/g, '')
+        .trim();
+      if (
+        possibleName &&
+        !possibleName.toLowerCase().startsWith('jl') &&
+        !possibleName.toLowerCase().startsWith('jalan') &&
+        !possibleName.toLowerCase().startsWith('kel') &&
+        !possibleName.toLowerCase().startsWith('kec') &&
+        possibleName.length < 35
+      ) {
+        name = possibleName;
+        rawLoc = parts.slice(1).join(' - ');
+      }
+    }
+  }
+  if (!name) name = 'Pelanggan STO';
+
+  // 6. Bersihkan alamat dari nomor telepon dan nama pelanggan berulang
+  let address = rawLoc
+    .replace(phonePattern, '')
+    .replace(/[0-9]{6,}/g, '');
+
+  if (name && name.toLowerCase() !== 'pelanggan' && name.toLowerCase() !== 'pelanggan sto' && name.toLowerCase() !== 'pelanggan telkom') {
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    address = address.replace(new RegExp(escapedName, 'gi'), ' ');
+  }
+
+  address = address
+    .replace(/\(\s*\)/g, '')
+    .replace(/\[\s*\]/g, '')
+    .replace(/[|•]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s,.-]+|[\s,.-]+$/g, '')
+    .trim();
+
+  if (!address) address = 'Wilayah STO Payakumbuh';
+
+  return {
+    name,
+    telp: cleanTelp,
+    address,
+    note: rawNotes || null
+  };
+};
 
 // Helper badge konfigurasi jenis penugasan teknisi
 const getTaskTypeConfig = (jenisKerja) => {
   const jk = (jenisKerja || '').toLowerCase();
   if (jk.includes('pasang') || jk.includes('psb')) {
     return {
-      label: 'Pasang Baru (PSB)',
-      badgeBg: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      label: 'Pasang Baru',
+      badgeBg: 'bg-blue-950/60 text-blue-400 border border-blue-500/30',
       badgeText: 'Pasang Baru'
     };
   }
-  if (jk.includes('kabel') || jk.includes('putus') || jk.includes('dropcore')) {
+  if (jk.includes('kabel') || jk.includes('putus') || jk.includes('dropcore') || jk.includes('gangguan') || jk.includes('repair') || jk.includes('los')) {
     return {
-      label: 'Kabel Putus',
-      badgeBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-      badgeText: 'Kabel Putus'
-    };
-  }
-  if (jk.includes('gangguan') || jk.includes('los')) {
-    return {
-      label: 'Gangguan (LOS)',
-      badgeBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+      label: 'Gangguan',
+      badgeBg: 'bg-rose-950/60 text-rose-400 border border-rose-500/30',
       badgeText: 'Gangguan'
     };
   }
+  if (jk.includes('maintenance') || jk.includes('odp') || jk.includes('feeder')) {
+    return {
+      label: 'Maintenance',
+      badgeBg: 'bg-purple-950/60 text-purple-400 border border-purple-500/30',
+      badgeText: 'Maintenance'
+    };
+  }
   return {
-    label: 'Penugasan Lapangan',
-    badgeBg: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    badgeText: 'Perbaikan'
+    label: 'Relokasi',
+    badgeBg: 'bg-amber-950/60 text-amber-400 border border-amber-500/30',
+    badgeText: 'Relokasi'
   };
+};
+
+// Helper pembeda nama teknisi agar tidak ada badge kembar membingungkan (contoh: "Reza R." dan "Reza T.")
+const getTechDisplayName = (tech, allTechs = []) => {
+  if (!tech?.nama_lengkap) return 'Teknisi';
+  const fullName = tech.nama_lengkap.trim();
+  const parts = fullName.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+
+  const firstName = parts[0];
+  const hasDuplicateFirstName = allTechs.some(t =>
+    Number(t.id) !== Number(tech.id) &&
+    t.nama_lengkap?.trim().toLowerCase().split(/\s+/)[0] === firstName.toLowerCase()
+  );
+
+  if (hasDuplicateFirstName) {
+    const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+    return `${firstName} ${lastInitial}.`;
+  }
+
+  return parts.length > 1 ? `${firstName} ${parts[parts.length - 1].charAt(0)}.` : firstName;
 };
 
 function DashboardPimpinan() {
@@ -94,14 +240,10 @@ function DashboardPimpinan() {
   }, []);
 
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [showAddPegawaiModal, setShowAddPegawaiModal] = useState(false);
   const [bastpModalTask, setBastpModalTask] = useState(null);
   const [selectedTrackingTaskId, setSelectedTrackingTaskId] = useState(null);
   const [selectedTechnician, setSelectedTechnician] = useState(null);
-
-  // State untuk Laporan Logistik & Gudang Pimpinan (100% Real Supabase Database)
-  const [searchGudang, setSearchGudang] = useState('');
-  const [filterKategoriGudang, setFilterKategoriGudang] = useState('all');
-  const [subTabGudang, setSubTabGudang] = useState('master'); // 'master' | 'mutasi'
 
   const navigate = useNavigate();
   const { isDark } = useTheme();
@@ -112,76 +254,6 @@ function DashboardPimpinan() {
     users = [],
     sidebarCollapsed
   } = useApp();
-
-  // Resolusi Kategori Standar Telkom Akses (Real Database Mapping)
-  const resolveKategori = (b) => {
-    if (b.kategori && b.kategori !== 'Umum' && b.kategori !== 'Material') return b.kategori;
-    const name = (b.nama_barang || '').toLowerCase();
-    if (name.includes('kabel') || name.includes('dropcore') || name.includes('fo') || name.includes('fiber') || name.includes('serat')) {
-      return 'Kabel & Serat Optik';
-    }
-    if (name.includes('ont') || name.includes('modem') || name.includes('zte') || name.includes('huawei') || name.includes('fiberhome')) {
-      return 'Perangkat Aktif (ONT)';
-    }
-    if (name.includes('roset') || name.includes('patchcord') || name.includes('splitter') || name.includes('adapter') || name.includes('odp')) {
-      return 'Perangkat Pasif';
-    }
-    return 'Consumable & Aksesoris';
-  };
-
-  const totalUnitFisikGudang = barang.reduce((acc, b) => acc + (Number(b.stok) || 0), 0);
-  const releasedMutations = permohonan.filter(p => p.status === 'Released');
-
-  const filteredPimpinanBarang = barang.map(b => ({
-    ...b,
-    kategori: resolveKategori(b),
-    kode: b.kode || `SKU-TEL-${String(b.id).padStart(3, '0')}`
-  })).filter(b => {
-    const matchSearch = (b.nama_barang || '').toLowerCase().includes(searchGudang.toLowerCase()) ||
-                        (b.kode || '').toLowerCase().includes(searchGudang.toLowerCase());
-    const matchCat = filterKategoriGudang === 'all' || b.kategori === filterKategoriGudang;
-    return matchSearch && matchCat;
-  });
-
-  const handleExportPimpinanGudang = () => {
-    const headers = ['Kode SKU', 'Nama Material', 'Kategori', 'Stok Fisik', 'Satuan', 'Status Gudang'];
-    const rows = filteredPimpinanBarang.map(b => [
-      `"${b.kode}"`,
-      `"${b.nama_barang}"`,
-      `"${b.kategori}"`,
-      b.stok,
-      `"${b.satuan}"`,
-      `"${b.stok <= 20 ? 'Perlu Restock' : 'Aman'}"`
-    ]);
-
-    const mutasiTitle = ['\n\n=== RIWAYAT PENGELUARAN MATERIAL KE TEKNISI (SUPABASE REALTIME) ===', '', '', '', '', ''];
-    const mutasiHeaders = ['ID Permohonan', 'Tanggal Rilis', 'Teknisi Penerima', 'Tiket / Pelanggan', 'Material Diberikan', 'Status'];
-    const mutasiRows = releasedMutations.map(m => [
-      `"REQ-${m.id}"`,
-      `"${m.waktu_rilis || m.tanggal || '-'}"`,
-      `"${m.tech?.nama_lengkap || m.teknisi_nama || '-'}"`,
-      `"${m.parentTask ? `#${m.parentTask.id} - ${m.parentTask.pelanggan_nama}` : '-'}"`,
-      `"${m.items ? m.items.map(it => `${it.nama_barang || it.nama} (${it.jumlah} ${it.satuan || 'pcs'})`).join(', ') : '-'}"`,
-      `"${m.status}"`
-    ]);
-
-    const csvContent = '\uFEFF' + [
-      headers.join(';'),
-      ...rows.map(r => r.join(';')),
-      mutasiTitle.join(';'),
-      mutasiHeaders.join(';'),
-      ...mutasiRows.map(r => r.join(';'))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Laporan_Logistik_Gudang_STO_Telkom_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   // Proteksi sesi pimpinan
   useEffect(() => {
@@ -195,233 +267,507 @@ function DashboardPimpinan() {
     }
   }, [navigate]);
 
-  // Daftar teknisi lapangan
-  const fieldTechnicians = users.filter(u => u.role === 'teknisi');
+  // Daftar teknisi lapangan asli
+  const fieldTechnicians = useMemo(() => {
+    return users.filter(u =>
+      u.role === 'teknisi' &&
+      Number(u.id) !== 99 &&
+      !String(u.nama_lengkap || '').toLowerCase().includes('pool')
+    );
+  }, [users]);
 
-  // Helper normalisasi status tiket (case-insensitive & multi-status)
-  const isDoneTask = (status) => ['done', 'selesai', 'closed'].includes(String(status || '').toLowerCase());
-  const isProgressTask = (status) => ['progress', 'in_progress', 'assigned', 'pengerjaan'].includes(String(status || '').toLowerCase());
+  // Helper normalisasi status tiket
+  const isDoneTask = useCallback((status) => ['done', 'selesai', 'closed'].includes(String(status || '').toLowerCase()), []);
+  const isProgressTask = useCallback((status) => ['progress', 'in_progress', 'assigned', 'pengerjaan'].includes(String(status || '').toLowerCase()), []);
 
-  // KPI Calculations
+  // =========================================================================
+  // SECTION 1: EXECUTIVE KPI STRIP METRICS
+  // =========================================================================
   const totalTasks = tugas.length;
-  const progressTasks = tugas.filter(t => isProgressTask(t.status)).length;
-  const doneTasks = tugas.filter(t => isDoneTask(t.status)).length;
-  const pendingRequests = permohonan.filter(p => String(p.status || '').toLowerCase() === 'pending').length;
-  const totalBarangCount = barang.length;
-  const lowStockCount = barang.filter(b => b.stok <= 20).length;
-  const activeTechCount = fieldTechnicians.filter(tech =>
-    tugas.some(t => Number(t.teknisi_id) === Number(tech.id) && !isDoneTask(t.status))
-  ).length;
+  const progressTasks = useMemo(() => tugas.filter(t => isProgressTask(t.status)).length, [tugas, isProgressTask]);
+  const doneTasks = useMemo(() => tugas.filter(t => isDoneTask(t.status)).length, [tugas, isDoneTask]);
+  const pendingRequests = useMemo(() => permohonan.filter(p => String(p.status || '').toLowerCase() === 'pending').length, [permohonan]);
+
+  // Breakdown mikro Kolom 1: Pasang Baru vs Gangguan
+  const psbCount = useMemo(() => {
+    return tugas.filter(t => {
+      const jk = (t.jenis_kerja || '').toLowerCase();
+      return jk.includes('pasang') || jk.includes('psb');
+    }).length;
+  }, [tugas]);
+
+  const gangguanCount = useMemo(() => {
+    return tugas.filter(t => {
+      const jk = (t.jenis_kerja || '').toLowerCase();
+      return jk.includes('gangguan') || jk.includes('repair') || jk.includes('putus') || jk.includes('los');
+    }).length;
+  }, [tugas]);
+
+  // Breakdown mikro Kolom 2: Teknisi Aktif
+  const activeTechCount = useMemo(() => {
+    return fieldTechnicians.filter(tech =>
+      tugas.some(t => Number(t.teknisi_id) === Number(tech.id) && isProgressTask(t.status))
+    ).length;
+  }, [fieldTechnicians, tugas, isProgressTask]);
+
+  // Breakdown mikro Kolom 3: % Kepatuhan Redaman Optik Ideal (-16 s/d -24 dBm)
+  const doneTasksList = useMemo(() => tugas.filter(t => isDoneTask(t.status)), [tugas, isDoneTask]);
+  const attenuationPercent = useMemo(() => {
+    if (doneTasksList.length === 0) return 100;
+    const compliant = doneTasksList.filter(t => {
+      const rawVal = parseFloat(t.redaman_dbm || t.bastp?.redaman_dbm || '-18.5');
+      const val = Math.abs(rawVal);
+      return val >= 16 && val <= 24;
+    }).length;
+    return Math.round((compliant / doneTasksList.length) * 100);
+  }, [doneTasksList]);
+
+  // Pembagian Teknisi: Sedang Bertugas vs Siaga di Posko
+  const activeTechAssignments = useMemo(() => {
+    const list = [];
+    fieldTechnicians.forEach(tech => {
+      const currentTask = tugas.find(t =>
+        Number(t.teknisi_id) === Number(tech.id) && isProgressTask(t.status)
+      );
+      if (currentTask) {
+        list.push({ tech, currentTask });
+      }
+    });
+    return list;
+  }, [fieldTechnicians, tugas, isProgressTask]);
+
+  const idleTechnicians = useMemo(() => {
+    return fieldTechnicians.filter(tech =>
+      !tugas.some(t => Number(t.teknisi_id) === Number(tech.id) && isProgressTask(t.status))
+    );
+  }, [fieldTechnicians, tugas, isProgressTask]);
 
   return (
-    <div className={`min-h-screen flex flex-col lg:flex-row ${
-      isDark ? 'bg-[#0a0f1d] text-white' : 'bg-slate-50 text-slate-900'
-    } transition-colors duration-300`}>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#0a0f1d] text-white transition-colors duration-300">
       
       {/* Left Sidebar Layout */}
       <ModernSidebar activeTab={activeMenu} onTabChange={handleSetActiveMenu} />
 
       {/* Main Content Area beside Sidebar */}
       <main className={`flex-1 min-w-0 flex flex-col ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'} transition-all duration-300`}>
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6 flex-1 max-w-7xl w-full mx-auto">
+        <div className="p-2.5 sm:p-4 space-y-3 flex-1 max-w-7xl w-full mx-auto">
           
-          {/* Header Banner */}
-          <div className={`p-5 sm:p-6 rounded-3xl border ${
-            isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-          } flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors`}>
+          {/* Header Banner (Enterprise Telecom Standard) */}
+          <div className="p-3 sm:p-3.5 rounded-2xl border bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors">
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-600/20 text-rose-400 border border-rose-500/30">
-                  COMMAND CENTER PIMPINAN
-                </span>
-                <span className="text-xs text-slate-400 font-mono">STO Telkom Akses Payakumbuh (Koto Nan IV)</span>
+                <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+                <h1 className="text-lg font-extrabold text-white tracking-tight">
+                  {activeMenu === 'dashboard' && 'Dashboard Pimpinan'}
+                  {activeMenu === 'tracking' && 'Peta WebGIS & Radar Armada'}
+                  {activeMenu === 'tabel-odp' && 'Inventarisasi Aset Jaringan'}
+                  {activeMenu === 'kelola-tugas' && 'Kelola Tiket Tugas'}
+                  {activeMenu === 'approval' && 'Persetujuan Material'}
+                  {activeMenu === 'laporan-kerja' && 'Laporan Kerja Lapangan'}
+                  {activeMenu === 'laporan-gudang' && 'Laporan Logistik Gudang'}
+                  {activeMenu === 'tabel-pelanggan' && 'Data Pelanggan & Aset'}
+                  {activeMenu === 'kelola-pegawai' && 'Kelola Pegawai'}
+                </h1>
               </div>
-              <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeMenu === 'dashboard' && 'Dashboard Pimpinan'}
-                {activeMenu === 'tracking' && 'Peta WebGIS & Radar Armada'}
-                {activeMenu === 'tabel-odp' && 'Inventarisasi Aset Jaringan'}
-                {activeMenu === 'kelola-tugas' && 'Kelola Tiket Tugas'}
-                {activeMenu === 'approval' && 'Persetujuan Material'}
-                {activeMenu === 'laporan-kerja' && 'Laporan Kerja Lapangan'}
-                {activeMenu === 'laporan-gudang' && 'Laporan Logistik Gudang'}
-                {activeMenu === 'tabel-pelanggan' && 'Data Pelanggan & Aset'}
-                {activeMenu === 'kelola-pegawai' && 'Kelola Pegawai'}
-              </h1>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                {activeMenu === 'dashboard' && 'Monitoring operasional tiket & performa tim.'}
-                {activeMenu === 'tracking' && 'Pemetaan ODP dan pelacakan GPS armada teknisi.'}
-                {activeMenu === 'tabel-odp' && 'Master data ODP, tiang FO, dan kapasitas splitter.'}
-                {activeMenu === 'kelola-tugas' && 'Penerbitan dan pengawasan penugasan kerja.'}
-                {activeMenu === 'approval' && 'Validasi permohonan pengeluaran barang teknisi.'}
-                {activeMenu === 'laporan-kerja' && 'Rekapitulasi BASTP digital dan hasil kerja.'}
-                {activeMenu === 'laporan-gudang' && 'Monitoring inventaris dan alokasi material.'}
-                {activeMenu === 'tabel-pelanggan' && 'Master data pelanggan dan audit aset STO.'}
-                {activeMenu === 'kelola-pegawai' && 'Verifikasi akun dan hak akses pegawai.'}
-              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowCreateTaskModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition cursor-pointer active:scale-95 whitespace-nowrap"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Buat Tiket Baru</span>
-              </button>
+            <div className="flex items-center gap-2">
+              {activeMenu === 'kelola-pegawai' ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAddPegawaiModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>+ Tambah Pegawai</span>
+                </button>
+              ) : activeMenu === 'laporan-gudang' ? (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('sto:export-gudang'))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export CSV</span>
+                </button>
+              ) : activeMenu === 'tabel-pelanggan' ? (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('sto:export-pelanggan'))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export Data</span>
+                </button>
+              ) : activeMenu === 'laporan-kerja' ? (
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 shadow-sm transition cursor-pointer active:scale-95 whitespace-nowrap"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak Rekap</span>
+                </button>
+              ) : activeMenu === 'tabel-odp' ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('sto:export-odp'))}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition cursor-pointer active:scale-95 whitespace-nowrap"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Export</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('sto:open-add-odp'))}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>+ ODP</span>
+                  </button>
+                </div>
+              ) : activeMenu === 'approval' ? null : (
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTaskModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Tiket Baru</span>
+                </button>
+              )}
             </div>
           </div>
 
           {/* TAB 1: DASHBOARD LENGKAP */}
           {activeMenu === 'dashboard' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              {/* KPI Stat Cards Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className={`p-4 rounded-2xl border transition-all ${
-                  isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Tiket</span>
-                    <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
-                      <Layers className="w-4 h-4" />
+            <div className="space-y-3 animate-in fade-in duration-200">
+              
+              {/* ============================================================= */}
+              {/* SECTION 1: EXECUTIVE KPI STRIP (4 Key Pillars) */}
+              {/* ============================================================= */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+                
+                {/* 1. Kolom 1 (Total Operasi) */}
+                <div className="p-3 sm:p-3.5 rounded-xl border bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Total Operasi
+                      </span>
+                      <div className="w-6 h-6 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center text-slate-300">
+                        <Layers className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-black text-white mt-1 font-mono tracking-tight">
+                      {totalTasks}
                     </div>
                   </div>
-                  <div className="text-2xl font-black mt-2">{totalTasks}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Semua wilayah STO</div>
+                  <div className="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-white/5 text-[10px] font-mono">
+                    <span className="text-blue-400 font-bold">{psbCount} PSB</span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-rose-400 font-bold">{gangguanCount} Gangguan</span>
+                  </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border transition-all ${
-                  isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-blue-500 uppercase tracking-wider">Dalam Progress</span>
-                    <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                      <Clock className="w-4 h-4" />
+                {/* 2. Kolom 2 (In-Flight Operations) */}
+                <div className="p-3 sm:p-3.5 rounded-xl border bg-slate-950/70 backdrop-blur-xl border-blue-950/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
+                        In-Flight Operations
+                      </span>
+                      <div className="w-6 h-6 rounded-lg bg-blue-950/60 border border-blue-500/30 text-blue-400 flex items-center justify-center shadow-[0_0_8px_rgba(59,130,246,0.2)]">
+                        <Clock className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-black text-blue-400 mt-1 font-mono tracking-tight">
+                      {progressTasks}
                     </div>
                   </div>
-                  <div className="text-2xl font-black text-blue-500 mt-2">{progressTasks}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Teknisi aktif di lapangan</div>
+                  <div className="flex items-center gap-1 mt-2 pt-1.5 border-t border-white/5 text-[10px]">
+                    <span className="relative flex h-1.5 w-1.5 mr-0.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-emerald-400 font-bold font-mono">{activeTechCount} Teknisi</span>
+                    <span className="text-slate-400">On-Duty</span>
+                  </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border transition-all ${
-                  isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">Selesai (Done)</span>
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                      <CheckCircle2 className="w-4 h-4" />
+                {/* 3. Kolom 3 (Resolved & QC Passed) */}
+                <div className="p-3 sm:p-3.5 rounded-xl border bg-slate-950/70 backdrop-blur-xl border-emerald-950/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                        Resolved &amp; QC Passed
+                      </span>
+                      <div className="w-6 h-6 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1 font-mono tracking-tight">
+                      {doneTasks}
                     </div>
                   </div>
-                  <div className="text-2xl font-black text-emerald-500 mt-2">{doneTasks}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Tervalidasi foto & BASTP</div>
+                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/5 text-[10px]">
+                    <span className="text-slate-400">Kepatuhan Redaman:</span>
+                    <span className="font-mono font-bold text-cyan-400">{attenuationPercent}% Optimal</span>
+                  </div>
                 </div>
 
-                <div className={`p-4 rounded-2xl border transition-all ${
-                  isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">Approval Pending</span>
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                      <AlertTriangle className="w-4 h-4" />
+                {/* 4. Kolom 4 (Approval Bottleneck / Action Required) */}
+                <div
+                  onClick={() => handleSetActiveMenu('approval')}
+                  className="p-3 sm:p-3.5 rounded-xl border bg-slate-950/70 backdrop-blur-xl border-amber-500/40 hover:border-amber-400 shadow-[0_8px_30px_rgba(0,0,0,0.35)] hover:shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+                  title="Klik untuk meninjau permohonan material teknisi"
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider group-hover:text-amber-300 transition">
+                        Approval Bottleneck
+                      </span>
+                      <div className="w-6 h-6 rounded-lg bg-amber-950/60 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-[0_0_8px_rgba(245,158,11,0.25)] group-hover:scale-110 transition">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-black text-amber-400 mt-1 font-mono tracking-tight group-hover:text-amber-300 transition">
+                      {pendingRequests}
                     </div>
                   </div>
-                  <div className="text-2xl font-black text-amber-500 mt-2">{pendingRequests}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Menunggu otorisasi pimpinan</div>
+                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/5 text-[10px]">
+                    <span className="text-slate-400">Status Permohonan:</span>
+                    <span className="font-bold text-amber-300 flex items-center gap-1 group-hover:underline">
+                      <span>{pendingRequests > 0 ? 'Perlu Tindakan' : 'Semua Clear'}</span>
+                      <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                    </span>
+                  </div>
                 </div>
+
               </div>
 
-              {/* Visual Analitik 3 Grafik */}
-              <AnalyticsChartsPimpinan tugas={tugas} barang={barang} permohonan={permohonan} />
+              {/* ============================================================= */}
+              {/* SECTION 2: OPERATIONAL WORKLOAD & QUALITY BENCHMARK */}
+              {/* ============================================================= */}
+              <AnalyticsChartsPimpinan
+                tugas={tugas}
+                barang={barang}
+                permohonan={permohonan}
+                onNavigateGudang={() => handleSetActiveMenu('laporan-gudang')}
+              />
 
-              {/* Quick Action & Field Summary Cards */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* ============================================================= */}
+              {/* SECTION 3: LIVE FIELD DISPATCH & ACTIVITY LEDGER (65% : 35%) */}
+              {/* ============================================================= */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start">
                 
-                {/* Status & Aktivitas Tim Teknisi Lapangan */}
-                <div className={`lg:col-span-2 p-5 sm:p-6 rounded-3xl border ${
-                  isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-                }`}>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+                {/* KOLOM KIRI (65% ~ 8/12): Ledger Penugasan Terkini (Fixed-Width Table) */}
+                <div className="lg:col-span-8 p-3.5 sm:p-4 rounded-2xl border bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)] space-y-2.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
                     <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-blue-500" />
-                      <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        Status Penugasan Tim Teknisi Lapangan ({activeTechCount} / {fieldTechnicians.length} Bertugas)
+                      <FileText className="w-4 h-4 text-rose-500" />
+                      <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide">
+                        Ledger Penugasan Terkini
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => handleSetActiveMenu('laporan-kerja')}
+                      className="text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <span>Lihat Semua</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Table fixed-width tanpa horizontal scrollbar */}
+                  <div className="w-full overflow-hidden rounded-xl border border-white/5">
+                    <table className="w-full table-fixed text-left text-xs text-slate-300">
+                      <thead className="bg-slate-950/90 text-slate-400 border-b border-rose-950/40 uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="px-2.5 py-2 font-bold w-[24%]">ID &amp; Pekerjaan</th>
+                          <th className="px-2.5 py-2 font-bold w-[44%]">Informasi Pelanggan &amp; Alamat</th>
+                          <th className="px-2.5 py-2 font-bold w-[20%]">Teknisi Bertugas</th>
+                          <th className="px-1.5 py-2 text-center font-bold w-[12%]">Status &amp; BASTP</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-rose-950/20">
+                        {tugas.slice(0, 5).map(t => {
+                          const tech = users.find(u => Number(u.id) === Number(t.teknisi_id));
+                          const cust = parseTelecomTaskDetails(t);
+                          const isDone = isDoneTask(t.status);
+                          const isProgress = isProgressTask(t.status);
+                          const taskTypeCfg = getTaskTypeConfig(t.jenis_kerja);
+
+                          return (
+                            <tr key={t.id} className="hover:bg-rose-950/10 transition-colors">
+                              {/* Kolom 1: ID Tiket & Jenis Pekerjaan */}
+                              <td className="px-2.5 py-2">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-mono font-black text-rose-500 text-xs shrink-0">
+                                    #{t.id}
+                                  </span>
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-bold border tracking-wide truncate ${taskTypeCfg.badgeBg}`}>
+                                    {taskTypeCfg.badgeText}
+                                  </span>
+                                </div>
+                              </td>
+
+                              {/* Kolom 2: Informasi Pelanggan & Alamat (Diparsing Bersih Tanpa Duplikasi) */}
+                              <td className="px-2.5 py-2">
+                                <div className="space-y-0.5 min-w-0">
+                                  <div className="font-extrabold text-white text-xs truncate">
+                                    <span>{cust.name}</span>
+                                    {cust.telp && (
+                                      <span className="text-[10px] text-slate-400 font-mono font-normal ml-1">
+                                        • {cust.telp}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 flex items-center gap-1 truncate" title={cust.address}>
+                                    <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                                    <span className="truncate max-w-[240px]">
+                                      {cust.address?.length > 40 ? `${cust.address.slice(0, 40)}...` : cust.address}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Kolom 3: Teknisi Bertugas */}
+                              <td className="px-2.5 py-2">
+                                <div className="truncate min-w-0">
+                                  {tech ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedTechnician(tech)}
+                                      className="font-semibold text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1.5 cursor-pointer transition text-left truncate w-full"
+                                      title={tech.nama_lengkap}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)] shrink-0"></span>
+                                      <span className="truncate">{tech.nama_lengkap}</span>
+                                    </button>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-950/60 text-amber-400 border border-amber-500/30">
+                                      📢 Open Pool
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Kolom 4: Status Tiket & BASTP */}
+                              <td className="px-1.5 py-2 text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  {isDone ? (
+                                    <>
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                                        Done
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setBastpModalTask(t)}
+                                        className="p-1 rounded-md bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-[9px] font-bold transition cursor-pointer"
+                                        title="Buka Rekap BASTP"
+                                      >
+                                        <FileText className="w-2.5 h-2.5" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                      isProgress
+                                        ? 'bg-blue-950/60 text-blue-400 border border-blue-500/30 shadow-[0_0_8px_rgba(59,130,246,0.2)]'
+                                        : 'bg-amber-950/60 text-amber-400 border border-amber-500/30'
+                                    }`}>
+                                      {t.status || 'Open'}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* KOLOM KANAN (35% ~ 4/12): Status Penugasan Tim Teknisi */}
+                <div className="lg:col-span-4 p-3.5 sm:p-4 rounded-2xl border bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)] space-y-2.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-rose-500" />
+                      <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide">
+                        Status Tim Teknisi
                       </h2>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleSetActiveMenu('tracking')}
-                        className="px-2.5 py-1 rounded-xl bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 border border-blue-500/30 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
-                      >
-                        <MapPin className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Buka Peta WebGIS</span>
-                      </button>
-                      <button
-                        onClick={() => handleSetActiveMenu('kelola-tugas')}
-                        className="text-xs text-rose-500 hover:text-rose-400 font-bold flex items-center gap-1"
-                      >
-                        <span>Kelola Tiket</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleSetActiveMenu('tracking')}
+                      className="px-2 py-0.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 hover:border-rose-400 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <MapPin className="w-3 h-3 text-rose-400" />
+                      <span>Radar WebGIS</span>
+                    </button>
                   </div>
 
-                  <div className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'} mt-3`}>
-                    {fieldTechnicians.length === 0 ? (
-                      <div className="py-8 text-center text-xs text-slate-500 italic">
-                        Belum ada data teknisi terdaftar di sistem.
+                  {/* Bagian Atas: Teknisi Aktif Lapangan (On-Duty) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                      <span>Teknisi Aktif ({activeTechAssignments.length})</span>
+                    </div>
+
+                    {activeTechAssignments.length === 0 ? (
+                      <div className="p-2.5 rounded-xl bg-slate-900/50 border border-white/5 text-[10px] text-slate-400 italic text-center">
+                        Tidak ada teknisi aktif di lapangan saat ini.
                       </div>
                     ) : (
-                      fieldTechnicians.map(tech => {
-                        const currentTask = tugas.find(t =>
-                          Number(t.teknisi_id) === Number(tech.id) && !isDoneTask(t.status)
-                        );
-                        const taskCfg = getTaskTypeConfig(currentTask?.jenis_kerja || 'Siaga');
+                      activeTechAssignments.map(({ tech, currentTask }) => {
+                        const cust = parseTelecomTaskDetails(currentTask);
+                        const taskCfg = getTaskTypeConfig(currentTask.jenis_kerja);
 
                         return (
-                          <div key={tech.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                            <div className="flex items-start gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center font-bold shrink-0 mt-0.5">
-                                {tech.nama_lengkap ? tech.nama_lengkap.charAt(0) : 'T'}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                    {tech.nama_lengkap}
-                                  </span>
-                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${
-                                    currentTask ? taskCfg.badgeBg : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                                  }`}>
-                                    {currentTask ? taskCfg.badgeText : '🟢 Siaga di Posko'}
-                                  </span>
+                          <div
+                            key={tech.id}
+                            className="p-2 rounded-xl bg-slate-900/60 border border-white/5 hover:border-blue-500/30 transition-all flex flex-col gap-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-5 h-5 rounded-md bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold text-[10px] shrink-0">
+                                  {tech.nama_lengkap?.charAt(0) || 'T'}
                                 </div>
-
-                                {currentTask ? (
-                                  <div className="mt-1 space-y-0.5">
-                                    <div className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                                      Sedang Menangani: Tiket <strong>#{currentTask.id}</strong> - {currentTask.pelanggan_nama}
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 truncate max-w-sm">
-                                      Lokasi: {currentTask.lokasi}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="text-[11px] text-slate-400 italic mt-0.5 flex items-center gap-1.5">
-                                    <span>Siap menerima penugasan baru di area Payakumbuh</span>
-                                    {tech.phone && <span className="text-[10px] text-slate-500 font-mono">({tech.phone})</span>}
-                                  </div>
-                                )}
+                                <div className="leading-tight">
+                                  <div className="text-[11px] font-bold text-white">{tech.nama_lengkap}</div>
+                                  <div className="text-[9px] text-slate-400 font-mono">Tiket #{currentTask.id}</div>
+                                </div>
                               </div>
+                              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold border ${taskCfg.badgeBg}`}>
+                                {taskCfg.badgeText}
+                              </span>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <div className="text-[10px] text-slate-300 flex items-center gap-1 truncate">
+                              <MapPin className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+                              <span className="truncate" title={cust.address}>{cust.address}</span>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-white/5">
                               <button
                                 type="button"
                                 onClick={() => setSelectedTechnician(tech)}
-                                className="px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer"
-                                title="Lihat profil dan riwayat pekerjaan teknisi ini"
+                                className="text-[9px] text-slate-400 hover:text-white transition flex items-center gap-1 cursor-pointer"
                               >
-                                <User className="w-3.5 h-3.5" />
-                                <span>Detail & Riwayat</span>
+                                <User className="w-2.5 h-2.5" />
+                                <span>Detail</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTrackingTaskId(currentTask.id);
+                                  handleSetActiveMenu('tracking');
+                                }}
+                                className="px-1.5 py-0.5 rounded bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[9px] font-bold flex items-center gap-1 transition cursor-pointer"
+                              >
+                                <MapPin className="w-2 h-2" />
+                                <span>Lacak</span>
                               </button>
                             </div>
                           </div>
@@ -429,157 +775,46 @@ function DashboardPimpinan() {
                       })
                     )}
                   </div>
-                </div>
 
-                {/* Warehouse Inventory Glance */}
-                <div className={`p-6 rounded-3xl border transition-all ${
-                  isDark
-                    ? 'bg-slate-900/60 border-slate-800 shadow-xl'
-                    : 'bg-white border-slate-200 shadow-sm'
-                }`}>
-                  <div className={`flex items-center justify-between pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-amber-500" />
-                      <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        Logistik Gudang
-                      </h2>
-                    </div>
-                    <button
-                      onClick={() => handleSetActiveMenu('laporan-gudang')}
-                      className="text-xs text-amber-500 hover:text-amber-400 font-bold flex items-center gap-1"
-                    >
-                      <span>Detail</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-3 mt-4 text-xs">
-                    <div className={`p-3 rounded-2xl ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'} border flex items-center justify-between`}>
-                      <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Total Jenis Barang</span>
-                      <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalBarangCount} SKU</span>
+                  {/* Bagian Bawah: Teknisi Siaga / Posko (Standby) */}
+                  <div className="space-y-1.5 pt-1.5 border-t border-white/5">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                      <span>Siaga di Posko ({idleTechnicians.length})</span>
                     </div>
 
-                    <div className={`p-3 rounded-2xl ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'} border flex items-center justify-between`}>
-                      <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Stok Kritis (≤ 20)</span>
-                      <span className="font-bold text-rose-500 dark:text-rose-400">{lowStockCount} Item</span>
-                    </div>
-
-                    <div className={`p-3 rounded-2xl ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'} border flex items-center justify-between`}>
-                      <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Permohonan Pending</span>
-                      <span className="font-bold text-amber-500 dark:text-amber-400">{pendingRequests} Permintaan</span>
-                    </div>
-
-                    <button
-                      onClick={() => handleSetActiveMenu('approval')}
-                      className="w-full mt-2 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition cursor-pointer"
-                    >
-                      Tinjau Approval Material Sekarang
-                    </button>
+                    {idleTechnicians.length === 0 ? (
+                      <div className="text-[10px] text-slate-500 italic">
+                        Semua teknisi sedang aktif di lapangan.
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {idleTechnicians.map(tech => (
+                          <button
+                            key={tech.id}
+                            type="button"
+                            onClick={() => setSelectedTechnician(tech)}
+                            className="px-2 py-0.5 rounded-lg bg-slate-900/60 hover:bg-slate-900 border border-white/5 hover:border-emerald-500/30 transition flex items-center gap-1.5 cursor-pointer group"
+                            title={tech.nama_lengkap}
+                          >
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-300 group-hover:text-white transition truncate max-w-[120px]">
+                              {getTechDisplayName(tech, fieldTechnicians)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-              </div>
-
-              {/* Task Table Summary */}
-              <div className={`p-6 rounded-3xl border ${
-                isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-              }`}>
-                <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
-                  <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    Daftar Tiket Tugas Lapangan Terkini
-                  </h2>
-                  <button
-                    onClick={() => handleSetActiveMenu('laporan-kerja')}
-                    className="text-xs text-rose-500 hover:text-rose-400 font-bold"
-                  >
-                    Lihat Semua Laporan
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    <thead className={`${isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
-                      <tr>
-                        <th className="px-3 py-2.5 whitespace-nowrap font-bold">ID Tiket</th>
-                        <th className="px-3 py-2.5 whitespace-nowrap font-bold min-w-[140px]">Jenis Pekerjaan</th>
-                        <th className="px-3 py-2.5 whitespace-nowrap font-bold">Pelanggan &amp; Lokasi</th>
-                        <th className="px-3 py-2.5 whitespace-nowrap font-bold">Teknisi</th>
-                        <th className="px-3 py-2.5 text-center whitespace-nowrap font-bold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
-                      {tugas.slice(0, 5).map(t => {
-                        const tech = users.find(u => Number(u.id) === Number(t.teknisi_id));
-                        return (
-                          <tr key={t.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}>
-                            <td className="px-3 py-2.5 font-bold font-mono whitespace-nowrap">#{t.id}</td>
-                            <td className="px-3 py-2.5 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap border shadow-xs tracking-wide ${
-                                (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru') ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' :
-                                (t.jenis_kerja?.includes('Gangguan') || t.jenis_kerja?.includes('Putus')) ? 'bg-rose-600/20 text-rose-400 border-rose-500/40' :
-                                t.jenis_kerja?.includes('Modem') ? 'bg-amber-600/20 text-amber-400 border-amber-500/40' :
-                                'bg-purple-600/20 text-purple-400 border-purple-500/40'
-                              }`}>
-                                {t.jenis_kerja}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5">
-                              <div className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.pelanggan_nama}</div>
-                              <div className="text-[10px] text-slate-400">{t.lokasi}</div>
-                            </td>
-                            <td className="px-3 py-2.5">
-                              {tech ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedTechnician(tech)}
-                                  className="font-semibold text-blue-500 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer transition text-left"
-                                  title="Lihat profil & riwayat kerja teknisi ini"
-                                >
-                                  <User className="w-3 h-3 shrink-0" />
-                                  <span>{tech.nama_lengkap}</span>
-                                </button>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                                  📢 Pool Terbuka
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              {isDoneTask(t.status) ? (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                    Done
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setBastpModalTask(t)}
-                                    className="px-2 py-0.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
-                                    title="Lihat BASTP & Material Terpasang"
-                                  >
-                                    <FileText className="w-2.5 h-2.5" />
-                                    <span>BASTP</span>
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  isProgressTask(t.status) ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                  'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                }`}>
-                                  {t.status || 'Open'}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
               </div>
             </div>
           )}
 
-                    {/* TAB 2: PUSAT KENDALI WEBGIS ODP */}
+          {/* TAB 2: PUSAT KENDALI WEBGIS ODP */}
           {activeMenu === 'tracking' && (
             <div className="animate-in fade-in duration-200">
               <WebGISTracking initialSelectedTaskId={selectedTrackingTaskId} />
@@ -589,7 +824,7 @@ function DashboardPimpinan() {
           {/* TAB 2.5: TABEL INVENTARISASI ASET JARINGAN (ODP, TIANG FO, ODC) */}
           {activeMenu === 'tabel-odp' && (
             <div className="animate-in fade-in duration-200">
-              <TabelAsetJaringan onNavigateToWebGis={() => handleSetActiveMenu('tracking')} />
+              <TabelAsetJaringan hideHeader={true} onNavigateToWebGis={() => handleSetActiveMenu('tracking')} />
             </div>
           )}
 
@@ -613,293 +848,32 @@ function DashboardPimpinan() {
           {/* TAB 5: LAPORAN KERJA LAPANGAN */}
           {activeMenu === 'laporan-kerja' && (
             <div className="animate-in fade-in duration-200">
-              <LaporanAudit />
+              <LaporanAudit hideHeader={true} />
             </div>
           )}
 
-          {/* TAB 6: LAPORAN BARANG DARI GUDANG (100% REAL SUPABASE DATABASE) */}
+          {/* TAB 6: LAPORAN BARANG DARI GUDANG (MODULAR COMPONENT) */}
           {activeMenu === 'laporan-gudang' && (
-            <div className={`p-6 sm:p-8 rounded-3xl border ${
-              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-            } space-y-6 animate-in fade-in duration-200`}>
-              
-              {/* Header Laporan dengan Status Koneksi Supabase */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Database Terhubung Real-Time
-                    </span>
-                  </div>
-                  <h2 className={`text-lg sm:text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    Laporan Monitoring Inventaris & Logistik Gudang
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Data ketersediaan fisik material fiber optik dan rekonsiliasi pengeluaran barang ke teknisi lapangan.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleExportPimpinanGudang}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 transition cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Export CSV Laporan</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 4 Kartu KPI Ringkasan Logistik */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                    <span>Total Volume Fisik</span>
-                    <Boxes className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <div className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {totalUnitFisikGudang.toLocaleString()}
-                  </div>
-                  <span className="text-[10px] text-emerald-400 font-medium">Unit Material di Rak STO</span>
-                </div>
-
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                    <span>Katalog Master SKU</span>
-                    <Package className="w-4 h-4 text-blue-400" />
-                  </div>
-                  <div className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {barang.length}
-                  </div>
-                  <span className="text-[10px] text-blue-400 font-medium">Jenis Material Terdaftar</span>
-                </div>
-
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                    <span>Stok Kritis / Menipis</span>
-                    <AlertTriangle className="w-4 h-4 text-rose-400" />
-                  </div>
-                  <div className={`text-xl font-black ${lowStockCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                    {lowStockCount}
-                  </div>
-                  <span className="text-[10px] text-rose-400 font-medium">Material Perlu Restock (&le; 20)</span>
-                </div>
-
-                <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                    <span>Material Keluar</span>
-                    <Send className="w-4 h-4 text-purple-400" />
-                  </div>
-                  <div className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {releasedMutations.length}
-                  </div>
-                  <span className="text-[10px] text-purple-400 font-medium">Transaksi Rilis ke Teknisi</span>
-                </div>
-              </div>
-
-              {/* Sub-Tab Switcher: Master Stok vs Riwayat Mutasi Keluar */}
-              <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-                <button
-                  type="button"
-                  onClick={() => setSubTabGudang('master')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    subTabGudang === 'master'
-                      ? 'bg-rose-600 text-white shadow-md'
-                      : isDark ? 'text-slate-400 hover:text-white bg-slate-950/50' : 'text-slate-600 hover:text-slate-900 bg-slate-100'
-                  }`}
-                >
-                  Master Stok Fisik Gudang ({barang.length} Material)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSubTabGudang('mutasi')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    subTabGudang === 'mutasi'
-                      ? 'bg-rose-600 text-white shadow-md'
-                      : isDark ? 'text-slate-400 hover:text-white bg-slate-950/50' : 'text-slate-600 hover:text-slate-900 bg-slate-100'
-                  }`}
-                >
-                  Riwayat Serah Terima ke Teknisi ({releasedMutations.length} Transaksi)
-                </button>
-              </div>
-
-              {/* TAMPILAN SUB-TAB 1: MASTER STOK FISIK GUDANG */}
-              {subTabGudang === 'master' && (
-                <div className="space-y-4 animate-in fade-in">
-                  {/* Toolbar Filter & Pencarian */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950/50 border border-slate-800">
-                    <div className="relative flex-1">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Cari nama material / kode SKU (misal: Dropcore, ONT, Roset)..."
-                        value={searchGudang}
-                        onChange={(e) => setSearchGudang(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={filterKategoriGudang}
-                        onChange={(e) => setFilterKategoriGudang(e.target.value)}
-                        className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-rose-500"
-                      >
-                        <option value="all">Semua Kategori</option>
-                        <option value="Kabel & Serat Optik">Kabel & Serat Optik</option>
-                        <option value="Perangkat Aktif (ONT)">Perangkat Aktif (ONT)</option>
-                        <option value="Perangkat Pasif">Perangkat Pasif</option>
-                        <option value="Consumable & Aksesoris">Consumable & Aksesoris</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Tabel Master Stok Database */}
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      <thead className={`${isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
-                        <tr>
-                          <th className="px-4 py-3">Kode SKU</th>
-                          <th className="px-4 py-3">Nama Material</th>
-                          <th className="px-4 py-3">Kategori</th>
-                          <th className="px-4 py-3 text-right">Stok Fisik</th>
-                          <th className="px-4 py-3">Satuan</th>
-                          <th className="px-4 py-3 text-center">Status Gudang</th>
-                        </tr>
-                      </thead>
-                      <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
-                        {filteredPimpinanBarang.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-6 text-slate-500 italic">
-                              Tidak ada material yang cocok dengan filter ini.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredPimpinanBarang.map(item => {
-                            const isCritical = Number(item.stok) <= 20;
-                            return (
-                              <tr key={item.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
-                                <td className="px-4 py-3 font-mono text-slate-400">{item.kode}</td>
-                                <td className={`px-4 py-3 font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.nama_barang}</td>
-                                <td className="px-4 py-3">
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
-                                    {item.kategori}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-right font-bold text-sm">
-                                  <span className={isCritical ? 'text-rose-400' : 'text-emerald-400'}>
-                                    {Number(item.stok).toLocaleString()}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-slate-400">{item.satuan}</td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                    isCritical
-                                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  }`}>
-                                    {isCritical ? 'Perlu Restock' : 'Aman'}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* TAMPILAN SUB-TAB 2: RIWAYAT SERAH TERIMA / MUTASI KELUAR */}
-              {subTabGudang === 'mutasi' && (
-                <div className="space-y-4 animate-in fade-in">
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      <thead className={`${isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
-                        <tr>
-                          <th className="px-4 py-3">No. Permohonan</th>
-                          <th className="px-4 py-3">Waktu Rilis</th>
-                          <th className="px-4 py-3">Teknisi Lapangan</th>
-                          <th className="px-4 py-3">Acuan Tiket &amp; Lokasi</th>
-                          <th className="px-4 py-3">Material yang Diberikan</th>
-                          <th className="px-4 py-3 text-center">Status Logistik</th>
-                        </tr>
-                      </thead>
-                      <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
-                        {releasedMutations.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-6 text-slate-500 italic">
-                              Belum ada mutasi material yang dirilis ke teknisi.
-                            </td>
-                          </tr>
-                        ) : (
-                          releasedMutations.map(req => (
-                            <tr key={req.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
-                              <td className="px-4 py-3 font-mono font-bold text-rose-400">
-                                REQ-{String(req.id).padStart(4, '0')}
-                              </td>
-                              <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-                                {req.waktu_rilis || req.created_at || 'Hari ini'}
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                  {req.tech?.nama_lengkap || req.teknisi_nama || 'Teknisi STO'}
-                                </div>
-                                <div className="text-[10px] text-slate-400">Role: Teknisi Lapangan</div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className={`font-semibold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                  {req.parentTask?.pelanggan_nama ? `Pelanggan: ${req.parentTask.pelanggan_nama}` : `Tiket #${req.tugas_id}`}
-                                </div>
-                                <div className="text-[10px] text-slate-400 max-w-[200px] truncate">
-                                  {req.parentTask?.lokasi || 'Koto Nan IV, Payakumbuh'}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="space-y-1">
-                                  {req.items && req.items.length > 0 ? (
-                                    req.items.map((it, idx) => (
-                                      <span key={idx} className="inline-block mr-1.5 px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                                        {it.nama_barang || it.nama}: <strong>{it.jumlah} {it.satuan || 'pcs'}</strong>
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span className="text-slate-500 italic">Material Standar Lapangan</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1">
-                                  <Check className="w-3 h-3" />
-                                  <span>Released / Diserahkan</span>
-                                </span>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
+            <div className="animate-in fade-in duration-200">
+              <LaporanGudangPimpinan />
             </div>
           )}
 
           {/* TAB 7: DATA PELANGGAN & AUDIT PENARIKAN ASET STO */}
           {activeMenu === 'tabel-pelanggan' && (
             <div className="animate-in fade-in duration-200">
-              <TabelPelangganAset />
+              <TabelPelangganAset hideHeader={true} />
             </div>
           )}
 
           {/* TAB 8: KELOLA AKUN & PEGAWAI */}
           {activeMenu === 'kelola-pegawai' && (
             <div className="animate-in fade-in duration-200">
-              <KelolaPegawai />
+              <KelolaPegawai
+                hideHeader={true}
+                showAddModal={showAddPegawaiModal}
+                setShowAddModal={setShowAddPegawaiModal}
+              />
             </div>
           )}
 
@@ -909,17 +883,15 @@ function DashboardPimpinan() {
       {/* Modal: Buat Tiket Tugas Baru (SOP 1) */}
       {showCreateTaskModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 ${
-            isDark ? 'bg-slate-900 border border-slate-700 text-white' : 'bg-white border border-slate-200 text-slate-900'
-          } shadow-2xl relative`}>
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 bg-slate-900/95 backdrop-blur-2xl border border-rose-950/50 text-white shadow-2xl relative">
+            <div className="flex items-center justify-between pb-4 border-b border-rose-950/40 mb-4">
               <h3 className="font-bold text-base flex items-center gap-2">
                 <PlusCircle className="w-5 h-5 text-rose-500" />
-                Buat & Siarkan Tiket Kerja
+                Buat &amp; Siarkan Tiket Kerja
               </h3>
               <button
                 onClick={() => setShowCreateTaskModal(false)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                className="text-slate-400 hover:text-white p-1 cursor-pointer transition"
               >
                 ✕
               </button>
