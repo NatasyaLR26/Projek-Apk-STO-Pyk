@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Radio, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { Activity, Radio, ArrowRight, Sparkles } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
 // Nilai Utama (Core Values) BUMN - AKHLAK Telkom Group

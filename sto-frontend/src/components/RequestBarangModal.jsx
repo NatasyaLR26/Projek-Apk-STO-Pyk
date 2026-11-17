@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Package, Plus, Trash2, X, CheckSquare, Square, ShieldAlert, Layers } from 'lucide-react';
 import api from '../api/axiosInstance';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
-import { Package, Plus, Trash2, X, CheckSquare, Square, Info, ShieldAlert, Sparkles, Layers } from 'lucide-react';
 
 function RequestBarangModal({ tugasId, onClose, onSuccess }) {
   const { isDark } = useTheme();
@@ -24,8 +24,14 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
 
   // Ambil tiket aktif yang dimiliki oleh teknisi yang sedang login
+  const isDoneStatus = (status) => {
+    const st = String(status || '').toLowerCase().trim();
+    return st === 'done' || st === 'selesai' || st === 'closed';
+  };
+
+  const currentTechId = Number(currentUser?.id || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}')?.id : null) || 2);
   const myActiveTasks = tugas.filter(
-    (t) => (t.teknisi_id === currentUser?.id || Number(t.teknisi_id) === Number(currentUser?.id)) && t.status !== 'Done'
+    (t) => Number(t.teknisi_id) === currentTechId && !isDoneStatus(t.status)
   );
 
   // State multi-ticket / batch selection
@@ -40,7 +46,6 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
     // Fallback to localBarang
     if (localBarang && localBarang.length > 0) {
       setBarangList(localBarang);
-      setSelectedBarang(String(localBarang[0]?.id));
     }
 
     // Try API
@@ -69,21 +74,35 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
   };
 
   const handleTambah = () => {
-    if (!selectedBarang || !jumlah || Number(jumlah) <= 0) {
-      setError('Pilih barang dan isi kuantitas yang valid');
+    if (!selectedBarang) {
+      setError('Silakan pilih material terlebih dahulu dari inventaris gudang');
       return;
     }
 
-    const item = barangList.find((b) => b.id === Number(selectedBarang));
-    if (!item) return;
+    const parsedJumlah = parseInt(jumlah, 10);
+    if (isNaN(parsedJumlah) || parsedJumlah <= 0) {
+      setError('Kuantitas (Qty) material harus berupa angka minimal 1');
+      return;
+    }
 
-    // Periksa apakah sudah ada di keranjang
-    const existingIndex = keranjang.findIndex((k) => k.barang_id === item.id);
+    const item = barangList.find((b) => Number(b.id) === Number(selectedBarang));
+    if (!item) {
+      setError('Material yang dipilih tidak ditemukan');
+      return;
+    }
+
+    if ((Number(item.stok) || 0) <= 0) {
+      setError(`Stok ${item.nama_barang} habis (0 ${item.satuan})! Tidak dapat diajukan.`);
+      return;
+    }
+
+    // Periksa apakah sudah ada di keranjang: jika sudah ada, tambahkan qty (cegah duplikasi baris)
+    const existingIndex = keranjang.findIndex((k) => Number(k.barang_id) === Number(item.id));
     if (existingIndex >= 0) {
       setKeranjang((prev) =>
         prev.map((k, idx) =>
           idx === existingIndex
-            ? { ...k, jumlah_minta: k.jumlah_minta + Number(jumlah) }
+            ? { ...k, jumlah_minta: k.jumlah_minta + parsedJumlah }
             : k
         )
       );
@@ -94,10 +113,14 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
           barang_id: item.id,
           nama_barang: item.nama_barang,
           satuan: item.satuan,
-          jumlah_minta: Number(jumlah)
+          jumlah_minta: parsedJumlah
         },
       ]);
     }
+
+    // Reset dropdown kembali ke placeholder "Pilih Material..." dan kembalikan Qty ke 1 secara konsisten
+    setSelectedBarang('');
+    setJumlah('1');
     setError('');
   };
 
@@ -122,18 +145,7 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
     const primaryTugasId = selectedTaskIds[0];
     const isBatch = selectedTaskIds.length > 1;
 
-    try {
-      await api.post('/permohonan', {
-        tugas_id: primaryTugasId,
-        tugas_ids: selectedTaskIds,
-        is_batch: isBatch,
-        barang: keranjang.map((k) => ({ barang_id: k.barang_id, jumlah_minta: k.jumlah_minta })),
-      });
-    } catch {
-      // Offline fallback
-    }
-
-    // SOP 2: Update AppContext state (Multi-Ticket / Batch Collective Support)
+    // SOP 2: Update AppContext state & Sync Database (Multi-Ticket / Batch Collective Support)
     const defaultNote = isBatch
       ? `Permohonan kolektif batch ${selectedTaskIds.length} pelanggan. Gudang mengalokasikan SN ONT spesifik.`
       : 'Kebutuhan material instalasi lapangan';
@@ -281,15 +293,26 @@ function RequestBarangModal({ tugasId, onClose, onSuccess }) {
             <select
               value={selectedBarang}
               onChange={(e) => setSelectedBarang(e.target.value)}
-              className={`w-full sm:flex-1 p-2.5 rounded-xl border outline-none cursor-pointer text-xs font-semibold ${
-                isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+              className={`w-full sm:flex-1 p-2.5 rounded-xl border outline-none cursor-pointer text-xs font-semibold truncate transition ${
+                isDark ? 'bg-slate-900 border-slate-700 text-white focus:border-red-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-red-500'
               }`}
             >
-              {barangList.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.nama_barang} (Stok: {b.stok} {b.satuan})
-                </option>
-              ))}
+              <option value="" disabled className="bg-[#1e293b] text-slate-400">
+                -- Pilih Material dari Inventaris Gudang --
+              </option>
+              {barangList.map((b) => {
+                const isOutOfStock = (Number(b.stok) || 0) <= 0;
+                return (
+                  <option
+                    key={b.id}
+                    value={b.id}
+                    disabled={isOutOfStock}
+                    className={`bg-[#1e293b] py-1.5 font-medium ${isOutOfStock ? 'text-slate-500 italic' : 'text-slate-100'}`}
+                  >
+                    {b.nama_barang} {isOutOfStock ? '(Stok Habis)' : `(Stok: ${b.stok} ${b.satuan})`}
+                  </option>
+                );
+              })}
             </select>
 
             <div className="flex items-center gap-2">

@@ -1,21 +1,15 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
 import {
   Radio,
   Search,
-  Filter,
   PlusCircle,
   Download,
   Edit2,
   Trash2,
-  MapPin,
-  CheckCircle2,
-  AlertTriangle,
-  Zap,
-  Layers,
-  FileSpreadsheet
+  MapPin
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function TabelAsetJaringan({ onNavigateToWebGis }) {
   const { isDark } = useTheme();

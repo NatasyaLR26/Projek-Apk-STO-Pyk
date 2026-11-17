@@ -32,40 +32,46 @@ exports.getAllPermohonan = async (req, res) => {
   return successResponse(res, 200, 'Data permohonan material berhasil diambil', data, { permohonan: data });
 };
 
-// 2. Teknisi ajukan permohonan barang (bisa lebih dari 1 jenis barang)
+// 2. Teknisi ajukan permohonan barang (mendukung batch multi-tiket & single ticket)
 exports.createPermohonan = async (req, res) => {
-  const { tugas_id, barang } = req.body;
+  const { tugas_id, tugas_ids, barang } = req.body;
 
-  if (!tugas_id || !barang || !Array.isArray(barang) || barang.length === 0) {
-    return errorResponse(res, 400, 'tugas_id dan barang wajib diisi');
+  // Kumpulkan seluruh target tugas ID dari payload (baik single tugas_id maupun array tugas_ids)
+  const rawIds = Array.isArray(tugas_ids) && tugas_ids.length > 0 ? tugas_ids : (tugas_id ? [tugas_id] : []);
+  const targetTugasIds = Array.from(new Set(rawIds.map((id) => parseInt(id, 10)).filter((n) => !isNaN(n) && n > 0)));
+
+  if (targetTugasIds.length === 0 || !barang || !Array.isArray(barang) || barang.length === 0) {
+    return errorResponse(res, 400, 'tugas_id / tugas_ids dan barang wajib diisi');
   }
 
-  const parsedTugasId = parseInt(tugas_id, 10);
-  if (isNaN(parsedTugasId) || parsedTugasId <= 0) {
-    return errorResponse(res, 400, 'Format tugas_id tidak valid');
-  }
-
-  const { data: permohonan, error: errPermohonan } = await supabase
-    .from('permohonan')
-    .insert([
-      {
-        tugas_id: parsedTugasId,
-        status: 'Pending',
-        waktu_request: new Date().toISOString(),
-      },
-    ])
-    .select()
-    .single();
-
-  if (errPermohonan) {
-    return errorResponse(res, 500, 'Gagal membuat permohonan', errPermohonan.message);
-  }
-
-  const detailRows = barang.map((item) => ({
-    permohonan_id: permohonan.id,
-    barang_id: parseInt(item.barang_id, 10),
-    jumlah_minta: parseInt(item.jumlah_minta, 10),
+  const now = new Date().toISOString();
+  const permohonanRows = targetTugasIds.map((tid) => ({
+    tugas_id: tid,
+    status: 'Pending',
+    waktu_request: now,
   }));
+
+  // Batch insert ke tabel permohonan untuk semua tiket yang dipilih
+  const { data: createdPermohonans, error: errPermohonan } = await supabase
+    .from('permohonan')
+    .insert(permohonanRows)
+    .select();
+
+  if (errPermohonan || !createdPermohonans || createdPermohonans.length === 0) {
+    return errorResponse(res, 500, 'Gagal membuat permohonan material', errPermohonan?.message);
+  }
+
+  // Insert detail barang untuk setiap permohonan tiket yang dibuat
+  const detailRows = [];
+  createdPermohonans.forEach((p) => {
+    barang.forEach((item) => {
+      detailRows.push({
+        permohonan_id: p.id,
+        barang_id: parseInt(item.barang_id, 10),
+        jumlah_minta: parseInt(item.jumlah_minta, 10),
+      });
+    });
+  });
 
   const { data: detail, error: errDetail } = await supabase
     .from('detail_permohonan')
@@ -75,6 +81,19 @@ exports.createPermohonan = async (req, res) => {
   if (errDetail) {
     return errorResponse(res, 500, 'Gagal menyimpan detail barang', errDetail.message);
   }
+
+  // Update status seluruh tugas terkait menjadi Progress dan tetapkan teknisi_id jika dikirim
+  const taskUpdatePayload = { status: 'Progress' };
+  if (req.body.teknisi_id) {
+    const techId = parseInt(req.body.teknisi_id, 10);
+    if (!isNaN(techId) && techId > 0) {
+      taskUpdatePayload.teknisi_id = techId;
+    }
+  }
+  await supabase
+    .from('tugas')
+    .update(taskUpdatePayload)
+    .in('id', targetTugasIds);
 
   // Dispatch Notifikasi Pengajuan Barang Baru ke Telegram Group
   try {
@@ -95,14 +114,18 @@ exports.createPermohonan = async (req, res) => {
     }
 
     const pemohonNama = req.body.teknisi_nama || req.body.nama || 'Teknisi Lapangan';
+    const tiketLabel = targetTugasIds.length > 1
+      ? `Batch ${targetTugasIds.length} Tiket (#${targetTugasIds.join(', #')})`
+      : `Tiket #${targetTugasIds[0]}`;
 
-    await telegramService.kirimKeGrup(`📦 <b>PENGAJUAN BARANG BARU</b>\nBarang: ${telegramService.esc(namaBarangStr)}\nPemohon: ${telegramService.esc(pemohonNama)}`);
+    await telegramService.kirimKeGrup(`📦 <b>PENGAJUAN BARANG BARU (${tiketLabel})</b>\nBarang: ${telegramService.esc(namaBarangStr)}\nPemohon: ${telegramService.esc(pemohonNama)}`);
   } catch (tgErr) {
     console.warn('[Telegram Permohonan Notice]', tgErr.message);
   }
 
-  return successResponse(res, 201, 'Permohonan berhasil diajukan & notifikasi dikirim ke Gudang', { permohonan, detail }, {
-    permohonan,
+  return successResponse(res, 201, `Permohonan untuk ${targetTugasIds.length} tiket berhasil diajukan`, {
+    permohonan: createdPermohonans[0],
+    permohonanList: createdPermohonans,
     detail,
   });
 };
@@ -183,8 +206,10 @@ exports.rejectPermohonan = async (req, res) => {
     return errorResponse(res, 500, 'Gagal menolak permohonan', errUpdatePermohonan.message);
   }
 
-  return successResponse(res, 200, 'Permohonan material ditolak', permohonanUpdated, {
+  const message = catatan ? `Permohonan material ditolak: ${catatan}` : 'Permohonan material ditolak';
+  return successResponse(res, 200, message, permohonanUpdated, {
     permohonan: permohonanUpdated,
+    catatan: catatan || null
   });
 };
 
@@ -195,6 +220,21 @@ exports.releasePermohonan = async (req, res) => {
   const parsedId = parseInt(id, 10);
   if (!id || isNaN(parsedId)) {
     return errorResponse(res, 400, 'ID permohonan tidak valid');
+  }
+
+  // 1. Validasi status permohonan terlebih dahulu (Idempotency check: cegah double stock deduction)
+  const { data: existingPermohonan, error: errFindPerm } = await supabase
+    .from('permohonan')
+    .select('id, status, tugas_id')
+    .eq('id', parsedId)
+    .single();
+
+  if (errFindPerm || !existingPermohonan) {
+    return errorResponse(res, 404, 'Permohonan tidak ditemukan');
+  }
+
+  if (existingPermohonan.status === 'Released') {
+    return errorResponse(res, 400, 'Material untuk permohonan ini sudah pernah dirilis/diserahkan sebelumnya');
   }
 
   // Ambil detail item permohonan

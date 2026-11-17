@@ -61,32 +61,24 @@ export default function DetailTiketTelegram() {
     setIsAuthChecking(false);
   }, [id, currentUser, navigate]);
 
-  // Cari tiket yang dimaksud
+  // Cari tiket yang dimaksud dari database
   const ticketId = parseInt(id, 10);
-  const task = tugas.find(t => Number(t.id) === ticketId) || {
-    id: ticketId,
-    jenis_kerja: 'Pasang Baru IndiHome',
-    lokasi: 'Jl. Soekarno Hatta No. 45, Koto Nan IV, Payakumbuh',
-    pelanggan_nama: 'Bpk. Rian Hidayat',
-    pelanggan_telp: '081267890123',
-    status: 'Open',
-    odp_kode: 'ODP-PYK-FA/001',
-    odp_id: 1,
-    created_at: new Date().toISOString()
-  };
+  const task = tugas.find(t => Number(t.id) === ticketId) || null;
 
   // Cari acuan data ODP
-  const targetOdp = odp.find(o =>
-    Number(o.id) === Number(task.odp_id) ||
-    o.kode_odp?.toUpperCase() === String(task.odp_kode || 'ODP-PYK-FA/001').toUpperCase()
-  ) || odp[0] || {
-    id: 1,
-    kode_odp: 'ODP-PYK-FA/001',
-    nama_lokasi: 'Jl. Soekarno Hatta (Depan STO)',
-    kapasitas_port: 8,
-    port_terpakai: 6,
-    status: 'Tersedia'
-  };
+  const targetOdp = task
+    ? (odp.find(o =>
+        Number(o.id) === Number(task.odp_id) ||
+        (task.odp_kode && o.kode_odp?.toUpperCase() === String(task.odp_kode).toUpperCase())
+      ) || odp[0] || {
+        id: 1,
+        kode_odp: 'ODP-PYK-FA/001',
+        nama_lokasi: 'Jl. Soekarno Hatta (Depan STO)',
+        kapasitas_port: 8,
+        port_terpakai: 6,
+        status: 'Tersedia'
+      })
+    : null;
 
   // State Modals
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -233,6 +225,31 @@ export default function DetailTiketTelegram() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white text-xs">
         Memverifikasi sesi teknisi...
+      </div>
+    );
+  }
+
+  if (!task) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${isDark ? 'bg-[#0a0f1d] text-white' : 'bg-slate-50 text-slate-900'}`}>
+        <div className={`p-8 max-w-md w-full rounded-3xl border text-center space-y-4 shadow-xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center mx-auto text-2xl">
+            <AlertTriangle className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black">Tiket Tidak Ditemukan</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Tiket #{ticketId || id} tidak terdaftar di sistem atau telah dihapus/dibatalkan oleh Pimpinan STO.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard-teknisi')}
+            className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Kembali ke Dashboard Teknisi</span>
+          </button>
+        </div>
       </div>
     );
   }

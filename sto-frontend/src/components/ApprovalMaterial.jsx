@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import api from '../api/axiosInstance';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -17,12 +16,12 @@ function ApprovalMaterial() {
     detailPermohonan,
     users,
     approveMaterial,
-    rejectMaterial,
-    showToast
+    rejectMaterial
   } = useApp();
 
   const [pesan, setPesan] = useState('');
   const [error, setError] = useState('');
+  const [processingId, setProcessingId] = useState(null);
 
   // 1. Build enriched pending list reactively with useMemo
   const permohonanList = useMemo(() => {
@@ -48,26 +47,35 @@ function ApprovalMaterial() {
   }, [permohonan, tugas, detailPermohonan, barang, users]);
 
   const handleApprove = async (id) => {
+    if (processingId) return;
+    setProcessingId(id);
     setPesan('');
     setError('');
 
     try {
-      await api.patch(`/permohonan/${id}/approve`);
-      setPesan(`Permohonan #${id} berhasil disetujui server.`);
-    } catch {
-      // Offline fallback
+      await approveMaterial(id);
+      setPesan(`Permohonan #${id} berhasil disetujui server & diteruskan ke Gudang.`);
+    } catch (err) {
+      setError(err?.message || 'Gagal menyetujui permohonan material');
+    } finally {
+      setProcessingId(null);
     }
-
-    // Always update local AppContext state (SOP 3)
-    approveMaterial(id);
-    showToast(`Permohonan #${id} DISETUJUI. Diteruskan ke Gudang untuk rilis barang!`, 'success');
   };
 
   const handleReject = async (id) => {
+    if (processingId) return;
+    setProcessingId(id);
     setPesan('');
     setError('');
-    rejectMaterial(id);
-    showToast(`Permohonan #${id} DITOLAK.`, 'error');
+
+    try {
+      await rejectMaterial(id);
+      setPesan(`Permohonan #${id} berhasil ditolak.`);
+    } catch (err) {
+      setError(err?.message || 'Gagal menolak permohonan material');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   return (
@@ -177,14 +185,16 @@ function ApprovalMaterial() {
               <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <button
                   onClick={() => handleApprove(p.id)}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-emerald-950 cursor-pointer active:scale-98"
+                  disabled={processingId === p.id}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-emerald-950 cursor-pointer active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Setujui (Approve)</span>
+                  <span>{processingId === p.id ? 'Memproses...' : 'Setujui (Approve)'}</span>
                 </button>
                 <button
                   onClick={() => handleReject(p.id)}
-                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                  disabled={processingId === p.id}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isDark
                       ? 'bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border-slate-700'
                       : 'bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border-slate-200'

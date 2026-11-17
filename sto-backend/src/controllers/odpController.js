@@ -85,8 +85,8 @@ exports.getAllOdp = async (req, res) => {
       .select('*')
       .order('id', { ascending: true });
 
-    if (!error && data && data.length > 0) {
-      // Petakan agar alamat dan nama_lokasi selalu tersedia
+    if (!error && Array.isArray(data)) {
+      // Database terhubung & mengembalikan data (termasuk jika kosong []). Single source of truth.
       const mapped = data.map(o => ({
         ...o,
         nama_lokasi: o.alamat || o.nama_lokasi || 'Koto Nan IV Payakumbuh',
@@ -95,11 +95,11 @@ exports.getAllOdp = async (req, res) => {
       return successResponse(res, 200, 'Data ODP berhasil diambil dari database Supabase', mapped, { odp: mapped });
     }
   } catch (err) {
-    // Abaikan jika tabel belum dimigrasikan ke Supabase
+    console.warn('[getAllOdp] Supabase error, fallback to memory cache:', err.message);
   }
 
-  // Fallback ke data memory
-  return successResponse(res, 200, 'Data ODP berhasil dimuat', memoryOdpList, { odp: memoryOdpList });
+  // Fallback ke data memory HANYA jika terjadi error koneksi / unreachable
+  return successResponse(res, 200, 'Data ODP berhasil dimuat (Offline Fallback)', memoryOdpList, { odp: memoryOdpList });
 };
 
 // 2. Tambah titik ODP baru (CRUD Create)
@@ -280,7 +280,7 @@ exports.incrementPortOdpInternal = async (odpIdOrKode) => {
       port_terpakai: newPortTerpakai,
       status: newStatus
     }).eq('id', updatedOdp.id);
-  } catch (err) {
+  } catch {
     // Fallback in-memory
   }
 

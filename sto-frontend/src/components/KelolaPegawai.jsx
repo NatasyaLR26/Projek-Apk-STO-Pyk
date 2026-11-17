@@ -1,23 +1,19 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
 import {
   Users,
   UserPlus,
   Shield,
   Wrench,
   Package,
-  Phone,
   Mail,
-  BadgeCheck,
-  Lock,
-  Trash2,
   X,
   Clock,
   Key,
   Check,
   CheckCircle2
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function KelolaPegawai() {
   const { isDark } = useTheme();
@@ -35,6 +31,7 @@ export default function KelolaPegawai() {
 
   const handleSubmitUser = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     if (!nama.trim() || !email.trim() || !password.trim()) {
       showToast('Nama, email, dan kata sandi wajib diisi!', 'error');
       return;

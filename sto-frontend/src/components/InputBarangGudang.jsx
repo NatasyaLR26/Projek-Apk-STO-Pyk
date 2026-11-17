@@ -1,32 +1,30 @@
 import React, { useState, useMemo } from 'react';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
-import api from '../api/axiosInstance';
 import {
   PlusCircle,
   PackageCheck,
   Barcode,
   Sparkles,
-  Camera,
-  Layers,
-  Check
+  Camera
 } from 'lucide-react';
+import api from '../api/axiosInstance';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
+
+// Preset material logistik standar Telkom Akses
+const DEFAULT_PRESETS = [
+  { name: 'Modem ONT ZTE F670L Dual Band', unit: 'unit', kategori: 'Perangkat Aktif' },
+  { name: 'Modem ONT Huawei HG8245H5', unit: 'unit', kategori: 'Perangkat Aktif' },
+  { name: 'Kabel FO Dropcore 1-Core 150M', unit: 'roll', kategori: 'Kabel & Serat Optik' },
+  { name: 'Kabel Sling Baja Penggantung FO', unit: 'roll', kategori: 'Kabel & Serat Optik' },
+  { name: 'Roset Fiber Optic 1-Core', unit: 'pcs', kategori: 'Perangkat Pasif' },
+  { name: 'Patch Cord SC-UPC 2M', unit: 'pcs', kategori: 'Perangkat Pasif' },
+  { name: 'Splitter PLC 1:8 SC/UPC', unit: 'pcs', kategori: 'Perangkat Pasif' },
+  { name: 'Protection Sleeve 60mm', unit: 'pcs', kategori: 'Aksesoris' }
+];
 
 export default function InputBarangGudang() {
   const { isDark } = useTheme();
   const { barang = [], addBarang, showToast } = useApp();
-
-  // Preset material logistik standar Telkom Akses
-  const defaultPresets = [
-    { name: 'Modem ONT ZTE F670L Dual Band', unit: 'unit', kategori: 'Perangkat Aktif' },
-    { name: 'Modem ONT Huawei HG8245H5', unit: 'unit', kategori: 'Perangkat Aktif' },
-    { name: 'Kabel FO Dropcore 1-Core 150M', unit: 'roll', kategori: 'Kabel & Serat Optik' },
-    { name: 'Kabel Sling Baja Penggantung FO', unit: 'roll', kategori: 'Kabel & Serat Optik' },
-    { name: 'Roset Fiber Optic 1-Core', unit: 'pcs', kategori: 'Perangkat Pasif' },
-    { name: 'Patch Cord SC-UPC 2M', unit: 'pcs', kategori: 'Perangkat Pasif' },
-    { name: 'Splitter PLC 1:8 SC/UPC', unit: 'pcs', kategori: 'Perangkat Pasif' },
-    { name: 'Protection Sleeve 60mm', unit: 'pcs', kategori: 'Aksesoris' }
-  ];
 
   // Daftar gabungan material untuk dropdown gulir (dari database master barang + preset Telkom)
   const availableItems = useMemo(() => {
@@ -44,7 +42,7 @@ export default function InputBarangGudang() {
       }
     });
 
-    defaultPresets.forEach(p => {
+    DEFAULT_PRESETS.forEach(p => {
       if (!seen.has(p.name.toLowerCase().trim())) {
         seen.add(p.name.toLowerCase().trim());
         list.push(p);
@@ -54,21 +52,22 @@ export default function InputBarangGudang() {
     return list;
   }, [barang]);
 
-  const [selectedItemName, setSelectedItemName] = useState(defaultPresets[0].name);
+  const [selectedItemName, setSelectedItemName] = useState(DEFAULT_PRESETS[0].name);
   const [isRegisterNew, setIsRegisterNew] = useState(false);
   const [newMaterialName, setNewMaterialName] = useState('');
   const [newMaterialKategori, setNewMaterialKategori] = useState('Aksesoris');
 
   const [form, setForm] = useState({
-    nama_barang: defaultPresets[0].name,
+    nama_barang: DEFAULT_PRESETS[0].name,
     stok: 5,
-    satuan: defaultPresets[0].unit
+    satuan: DEFAULT_PRESETS[0].unit
   });
 
   // State Nomor Seri untuk perangkat ONT/Modem (Opsional)
   const [inputSn, setInputSn] = useState('');
   const [serialNumbers, setSerialNumbers] = useState([]);
   const [isScanningCamera, setIsScanningCamera] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Deteksi barang kategori ONT atau Modem
   const isOntItem = form.nama_barang.toLowerCase().includes('ont') ||
@@ -150,6 +149,7 @@ export default function InputBarangGudang() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     const finalNama = isRegisterNew ? newMaterialName.trim() : form.nama_barang.trim();
     if (!finalNama) {
@@ -157,55 +157,63 @@ export default function InputBarangGudang() {
       return;
     }
 
-    const stokCount = isOntItem && serialNumbers.length > 0 ? serialNumbers.length : parseInt(form.stok, 10);
-    const newItem = {
-      nama_barang: finalNama,
-      stok: stokCount,
-      satuan: form.satuan || 'pcs',
-      kategori: isRegisterNew ? newMaterialKategori : 'Logistik Sentral'
-    };
+    try {
+      setIsSubmitting(true);
+      const stokCount = isOntItem && serialNumbers.length > 0 ? serialNumbers.length : parseInt(form.stok, 10);
+      const newItem = {
+        nama_barang: finalNama,
+        stok: stokCount,
+        satuan: form.satuan || 'pcs',
+        kategori: isRegisterNew ? newMaterialKategori : 'Logistik Sentral'
+      };
 
-    // 1. Simpan ke database via addBarang AppContext
-    await addBarang(newItem);
+      // 1. Simpan ke database via addBarang AppContext
+      await addBarang(newItem);
 
-    // 2. Jika item ONT dan ada serial numbers, simpan ke database serial
-    if (isOntItem && serialNumbers.length > 0) {
-      try {
-        await api.post('/barang/seri', {
+      // 2. Jika item ONT dan ada serial numbers, simpan ke database serial
+      if (isOntItem && serialNumbers.length > 0) {
+        try {
+          await api.post('/barang/seri', {
+            model: finalNama,
+            serial_numbers: serialNumbers
+          });
+        } catch (err) {
+          console.warn('[InputBarang] Backend seri notice:', err.message);
+        }
+
+        const existingSnStorage = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
+        const now = new Date().toLocaleString('id-ID');
+        const newEntries = serialNumbers.map((sn, idx) => ({
+          id: Date.now() + idx,
+          sn,
           model: finalNama,
-          serial_numbers: serialNumbers
-        });
-      } catch (err) {
-        console.warn('[InputBarang] Backend seri notice:', err.message);
+          status: 'Di Gudang',
+          lokasi: 'Rak Logistik Sentral STO Payakumbuh',
+          tugas_id: null,
+          waktu: now
+        }));
+        localStorage.setItem('sto_ont_serials', JSON.stringify([...newEntries, ...existingSnStorage]));
       }
 
-      const existingSnStorage = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
-      const now = new Date().toLocaleString('id-ID');
-      const newEntries = serialNumbers.map((sn, idx) => ({
-        id: Date.now() + idx,
-        sn,
-        model: finalNama,
-        status: 'Di Gudang',
-        lokasi: 'Rak Logistik Sentral STO Payakumbuh',
-        tugas_id: null,
-        waktu: now
-      }));
-      localStorage.setItem('sto_ont_serials', JSON.stringify([...newEntries, ...existingSnStorage]));
+      showToast(`Material "${finalNama}" (+${stokCount} ${form.satuan}) berhasil disimpan!`, 'success');
+
+      // Reset form ke pilihan default yang sudah tersimpan
+      setSelectedItemName(finalNama);
+      setIsRegisterNew(false);
+      setNewMaterialName('');
+      setForm({
+        nama_barang: finalNama,
+        stok: 5,
+        satuan: form.satuan
+      });
+      setSerialNumbers([]);
+      setInputSn('');
+    } catch (err) {
+      console.error('[InputBarangGudang] submit error:', err);
+      showToast('Gagal menyimpan material: ' + (err.message || 'Terjadi kesalahan'), 'error');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    showToast(`Material "${finalNama}" (+${stokCount} ${form.satuan}) berhasil disimpan!`, 'success');
-
-    // Reset form ke pilihan default yang sudah tersimpan
-    setSelectedItemName(finalNama);
-    setIsRegisterNew(false);
-    setNewMaterialName('');
-    setForm({
-      nama_barang: finalNama,
-      stok: 5,
-      satuan: form.satuan
-    });
-    setSerialNumbers([]);
-    setInputSn('');
   };
 
   return (
@@ -451,10 +459,11 @@ export default function InputBarangGudang() {
             <div className="flex items-end">
               <button
                 type="submit"
-                className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-lg shadow-emerald-950 transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xs shadow-lg shadow-emerald-950 transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <PackageCheck className="w-4 h-4" />
-                <span>Simpan</span>
+                <span>{isSubmitting ? 'Menyimpan...' : 'Simpan'}</span>
               </button>
             </div>
           </div>

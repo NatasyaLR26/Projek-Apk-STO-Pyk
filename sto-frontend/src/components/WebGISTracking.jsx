@@ -1,19 +1,14 @@
 import React, { useState } from 'react';
-import WebGISMap from './WebGISMap';
 import {
   MapPin,
   Plus,
   Search,
-  Filter,
   Radio,
   Edit2,
   Trash2,
-  Sliders,
-  CheckCircle2,
-  AlertTriangle,
-  X,
-  FileSpreadsheet
+  X
 } from 'lucide-react';
+import WebGISMap from './WebGISMap';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 
@@ -21,7 +16,6 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
   const { isDark } = useTheme();
   const {
     odp = [],
-    tugas = [],
     addOdp,
     updateOdp,
     deleteOdp,

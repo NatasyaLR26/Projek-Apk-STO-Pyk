@@ -13,19 +13,18 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
-import ModalBASTP from './ModalBASTP';
 import {
   Printer,
   FileText,
   Search,
   CheckCircle2,
   Radio,
-  Barcode,
   Package,
   Eye
 } from 'lucide-react';
+import ModalBASTP from './ModalBASTP';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 
 function LaporanAudit() {
   const { isDark } = useTheme();
@@ -37,17 +36,20 @@ function LaporanAudit() {
   // Menggabungkan data tugas dengan relasi teknisi, pimpinan, dan material gudang
   const laporanList = useMemo(() => {
     return tugas.map((task) => {
-      const tech = users.find((u) => u.id === task.teknisi_id);
-      const pimpinan = users.find((u) => u.id === task.pimpinan_id);
+      const tech = users.find((u) => Number(u.id) === Number(task.teknisi_id));
+      const pimpinan = users.find((u) => Number(u.id) === Number(task.pimpinan_id));
 
-      // Cari material yang dirilis dari permohonan untuk tugas ini
-      const taskReqs = permohonan.filter(p => p.tugas_id === task.id && p.status === 'Released');
+      // Cari material yang dirilis dari permohonan untuk tugas ini (mendukung single & batch tiket)
+      const taskReqs = permohonan.filter(p =>
+        (Number(p.tugas_id) === Number(task.id) || (Array.isArray(p.tugas_ids) && p.tugas_ids.map(Number).includes(Number(task.id)))) &&
+        p.status === 'Released'
+      );
       const materialList = [];
 
       taskReqs.forEach(req => {
-        const details = detailPermohonan.filter(d => d.permohonan_id === req.id);
+        const details = detailPermohonan.filter(d => Number(d.permohonan_id) === Number(req.id));
         details.forEach(d => {
-          const item = barang.find(b => b.id === d.barang_id);
+          const item = barang.find(b => Number(b.id) === Number(d.barang_id));
           if (item) {
             materialList.push({
               nama_barang: item.nama_barang,

@@ -277,7 +277,7 @@ Kepada rekan teknisi <b>${esc(assignedUserName)}</b>, silakan segera menuju ke <
           `✅ <b>KLAIM TIKET TELKOM BERHASIL</b>\n\nTiket #${tugasId} telah terikat ke akun Anda (${assignedUserName}).\nSilakan segera menuju <b>Gudang STO Telkom Payakumbuh</b> untuk serah terima material.\n\n👉 <b>Akses Tiket:</b> <a href="${magicLink}">${magicLink}</a>`,
           senderChatId
         );
-      } catch (_) { /* fallback jika user belum start chat privat */ }
+      } catch { /* fallback jika user belum start chat privat */ }
     }
   } catch (err) {
     console.error('[handleTelegramCallbackQuery] Error:', err.message);
@@ -309,7 +309,7 @@ async function pollTelegramUpdates() {
         }
       }
     }
-  } catch (err) {
+  } catch {
     // Abaikan error polling sementara
   } finally {
     isPollingActive = false;

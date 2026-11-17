@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import ModernSidebar from '../components/ModernSidebar';
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 
 export default function AuditReportPage() {
+  const navigate = useNavigate();
   const { isDark } = useTheme();
   const {
     tugas,
@@ -19,8 +21,22 @@ export default function AuditReportPage() {
     detailPermohonan,
     barang,
     users,
+    currentUser,
     sidebarCollapsed
   } = useApp();
+
+  // Route Guard: Laporan Audit Formal Khusus Hak Akses Pimpinan
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      const user = stored ? JSON.parse(stored) : (currentUser || null);
+      if (!user || user.role !== 'pimpinan') {
+        navigate('/');
+      }
+    } catch {
+      navigate('/');
+    }
+  }, [navigate, currentUser]);
 
   const [statusFilter, setStatusFilter] = useState('all');
   const [jenisFilter, setJenisFilter] = useState('all');
@@ -29,17 +45,20 @@ export default function AuditReportPage() {
 
   // Enriched tasks with materials and technician details
   const enrichedTasks = tugas.map(task => {
-    const tech = users.find(u => u.id === task.teknisi_id);
-    const pimpinan = users.find(u => u.id === task.pimpinan_id);
+    const tech = users.find(u => Number(u.id) === Number(task.teknisi_id));
+    const pimpinan = users.find(u => Number(u.id) === Number(task.pimpinan_id));
 
-    // Find all released materials for this task
-    const taskPermohonan = permohonan.filter(p => p.tugas_id === task.id && p.status === 'Released');
+    // Find all released materials for this task (supports single & batch tickets)
+    const taskPermohonan = permohonan.filter(p =>
+      (Number(p.tugas_id) === Number(task.id) || (Array.isArray(p.tugas_ids) && p.tugas_ids.map(Number).includes(Number(task.id)))) &&
+      p.status === 'Released'
+    );
     const materialsUsed = [];
 
     taskPermohonan.forEach(p => {
-      const details = detailPermohonan.filter(d => d.permohonan_id === p.id);
+      const details = detailPermohonan.filter(d => Number(d.permohonan_id) === Number(p.id));
       details.forEach(d => {
-        const item = barang.find(b => b.id === d.barang_id);
+        const item = barang.find(b => Number(b.id) === Number(d.barang_id));
         if (item) {
           materialsUsed.push({
             nama_barang: item.nama_barang,
@@ -60,12 +79,12 @@ export default function AuditReportPage() {
 
   // Filter logic
   const filteredTasks = enrichedTasks.filter(task => {
-    const matchStatus = statusFilter === 'all' || task.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchStatus = statusFilter === 'all' || (task.status || '').toLowerCase() === statusFilter.toLowerCase();
     const matchJenis = jenisFilter === 'all' || task.jenis_kerja === jenisFilter;
     const matchTech = technicianFilter === 'all' || String(task.teknisi_id) === String(technicianFilter);
     const matchSearch =
-      task.pelanggan_nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.lokasi.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (task.pelanggan_nama || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (task.lokasi || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(task.id).includes(searchQuery);
 
     return matchStatus && matchJenis && matchTech && matchSearch;
@@ -75,8 +94,8 @@ export default function AuditReportPage() {
     window.print();
   };
 
-  const completedCount = enrichedTasks.filter(t => t.status === 'Done').length;
-  const inProgressCount = enrichedTasks.filter(t => t.status === 'Progress').length;
+  const completedCount = enrichedTasks.filter(t => ['done', 'selesai', 'closed'].includes(String(t.status || '').toLowerCase())).length;
+  const inProgressCount = enrichedTasks.filter(t => ['progress', 'in_progress', 'assigned', 'pengerjaan'].includes(String(t.status || '').toLowerCase())).length;
   const totalMaterialsUsed = enrichedTasks.reduce((acc, t) => acc + t.materialsUsed.length, 0);
 
   return (

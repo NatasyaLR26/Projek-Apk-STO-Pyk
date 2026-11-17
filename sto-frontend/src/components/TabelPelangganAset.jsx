@@ -12,13 +12,9 @@
  */
 
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
 import {
-  Users,
   Search,
   ShieldAlert,
-  ShieldCheck,
   Eye,
   EyeOff,
   MapPin,
@@ -31,27 +27,31 @@ import {
   X,
   CheckCircle2,
   Phone,
-  Home,
-  FileText
+  Home
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function TabelPelangganAset({ isGudangView = false }) {
   const { isDark } = useTheme();
   const { pelanggan, currentUser, showToast } = useApp();
 
   const isPimpinan = currentUser?.role === 'pimpinan';
+  const isGudang = currentUser?.role === 'gudang' || isGudangView;
   const [privacyPreview, setPrivacyPreview] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedPelanggan, setSelectedPelanggan] = useState(null);
   const [suratTugasPelanggan, setSuratTugasPelanggan] = useState(null);
 
-  // Status apakah data boleh tampil bersih atau disensor
-  const isPrivileged = isPimpinan && !privacyPreview;
+  // Status apakah data boleh tampil bersih atau disensor:
+  // HANYA role Pimpinan dalam mode kerja asli yang berhak melihat data tanpa sensor.
+  // Role gudang, teknisi, dan preview lapangan WAJIB disensor sesuai UU Perlindungan Data Pribadi (UU PDP).
+  const isPrivileged = isPimpinan && !privacyPreview && !isGudang;
 
   // Masking nama: "Bpk. Rian Hidayat" -> "B**k. R*** H******"
   const maskName = (name) => {
-    if (isPrivileged || isGudangView || !name) return name;
+    if (isPrivileged || !name) return name;
     return name.split(' ').map(w => {
       if (w.length <= 2) return w[0] + '*';
       return w[0] + '*'.repeat(Math.max(1, w.length - 2)) + w[w.length - 1];
@@ -60,7 +60,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
 
   // Masking telepon: "0812-3456-7890" -> "0812-****-7890"
   const maskPhone = (phone) => {
-    if (isPrivileged || isGudangView || !phone) return phone;
+    if (isPrivileged || !phone) return phone;
     const clean = phone.replace(/[^0-9]/g, '');
     if (clean.length < 8) return '08**-****';
     return clean.slice(0, 4) + '-****-' + clean.slice(-4);
@@ -144,7 +144,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
         {/* Action Controls & Privacy Toggle */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Toggle Sensor Privasi untuk Pimpinan */}
-          {isPimpinan && (
+          {isPimpinan && !isGudang && (
             <button
               type="button"
               onClick={() => {

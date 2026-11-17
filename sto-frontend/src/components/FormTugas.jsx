@@ -1,7 +1,4 @@
 import { useState, useEffect } from 'react';
-import api from '../api/axiosInstance';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
 import {
   PlusCircle,
   CheckCircle2,
@@ -9,10 +6,12 @@ import {
   MapPin,
   AlertTriangle
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 
-function FormTugas() {
+function FormTugas({ onCreated }) {
   const { isDark } = useTheme();
-  const { createTugas, odp = [], users = [], showToast } = useApp();
+  const { createTugas, odp = [], showToast } = useApp();
 
   const [jenisKerja, setJenisKerja] = useState('Pasang Baru');
   const [selectedTeknisiId, setSelectedTeknisiId] = useState('99');
@@ -27,7 +26,7 @@ function FormTugas() {
   };
   const [pesan, setPesan] = useState('');
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user')) || { id: 1, nama_lengkap: 'Ir. Bambang Sudirman' };
 
@@ -53,9 +52,11 @@ function FormTugas() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return; // Cegah double submit dari klik cepat
+
     setError('');
     setPesan('');
-    setSubmitting(true);
+    setIsSubmitting(true);
 
     const targetOdp = odp.find(o => String(o.id) === String(selectedOdpId)) || {
       id: 1,
@@ -83,13 +84,18 @@ function FormTugas() {
       setPesan(`Tiket #${createdTask.id} berhasil diterbitkan & disiarkan secara instan ke seluruh teknisi lapangan!`);
       showToast('Tiket Berhasil Diterbitkan & Disiarkan Realtime!', 'success');
 
-      // Reset form ringan
+      // Reset form
       setPelangganNama('');
       setPelangganTelp('');
+      setKeterangan('');
+
+      if (typeof onCreated === 'function') {
+        onCreated(createdTask);
+      }
     } catch (err) {
       setError('Gagal menyiarkan tiket: ' + (err.message || 'Terjadi kesalahan sistem'));
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -293,10 +299,10 @@ function FormTugas() {
         {/* Tombol Terbitkan Tiket ke Telegram */}
         <button
           type="submit"
-          disabled={submitting}
-          className="w-full py-3.5 px-4 rounded-2xl bg-linear-to-r from-rose-700 via-rose-600 to-rose-700 hover:from-rose-600 hover:to-rose-500 text-white font-extrabold text-xs shadow-xl shadow-rose-900/30 transition active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+          disabled={isSubmitting}
+          className="w-full py-3.5 px-4 rounded-2xl bg-linear-to-r from-rose-700 via-rose-600 to-rose-700 hover:from-rose-600 hover:to-rose-500 text-white font-extrabold text-xs shadow-xl shadow-rose-900/30 transition active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? (
+          {isSubmitting ? (
             <span>Menyimpan & Menyiarkan Tiket Realtime...</span>
           ) : (
             <>

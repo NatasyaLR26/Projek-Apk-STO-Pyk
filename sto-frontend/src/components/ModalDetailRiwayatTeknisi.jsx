@@ -1,22 +1,15 @@
 import React, { useState } from 'react';
-import { useTheme } from '../context/ThemeContext';
-import { useApp } from '../context/AppContext';
 import {
   X,
-  User,
-  Wrench,
-  Clock,
-  CheckCircle2,
   Trash2,
   MapPin,
   FileText,
-  Navigation,
   Mail,
-  AlertTriangle,
   Database,
-  RefreshCw,
-  Phone
+  RefreshCw
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { useApp } from '../context/AppContext';
 const getTaskTypeConfig = (jenisKerja) => {
   const jk = (jenisKerja || '').toLowerCase();
   if (jk.includes('pasang') || jk.includes('psb')) {

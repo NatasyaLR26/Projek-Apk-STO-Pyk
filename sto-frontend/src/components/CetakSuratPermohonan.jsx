@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
+import { Printer, FileText, Clock, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
-import { Printer, FileText, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export default function CetakSuratPermohonan() {
   const { isDark } = useTheme();

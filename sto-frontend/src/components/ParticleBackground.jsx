@@ -49,10 +49,6 @@ export default function ParticleBackground({ activeColor = 'burgundy', onColorCh
   const [selectedColor, setSelectedColor] = useState(activeColor);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    setSelectedColor(activeColor);
-  }, [activeColor]);
-
   const handleSelectColor = (key) => {
     setSelectedColor(key);
     setDropdownOpen(false);

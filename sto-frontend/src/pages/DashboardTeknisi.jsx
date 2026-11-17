@@ -55,7 +55,8 @@ export default function DashboardTeknisi() {
     barang,
     saldoTeknisi,
     showToast,
-    sidebarCollapsed
+    sidebarCollapsed,
+    currentUser
   } = useApp();
 
   const [isCheckingInId, setIsCheckingInId] = useState(null);
@@ -99,7 +100,8 @@ export default function DashboardTeknisi() {
   };
 
   // Sesi akun teknisi aktif
-  const user = JSON.parse(localStorage.getItem('user')) || { id: 2, nama_lengkap: 'Ahmad Fadli', role: 'teknisi' };
+  const user = currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null) || { id: 2, nama_lengkap: 'Ahmad Fadli', role: 'teknisi' };
+  const currentTechId = Number(user?.id || 2);
 
   const [activeMenu, setActiveMenu] = useState(() => {
     try {
@@ -146,9 +148,28 @@ export default function DashboardTeknisi() {
     return st === 'done' || st === 'selesai' || st === 'closed';
   };
 
+  // Tangkap seluruh lifecycle tiket aktif: assigned, in_progress, progress, menunggu_material, material_approved, pengerjaan, bastp_ready, open, menunggu
+  const isActiveLifecycle = (status) => {
+    const st = String(status || '').toLowerCase().trim();
+    const activeLifecycles = [
+      'progress',
+      'in_progress',
+      'assigned',
+      'menunggu_material',
+      'material_approved',
+      'pengerjaan',
+      'bastp_ready',
+      'menunggu',
+      'open',
+      'pending',
+      'proses'
+    ];
+    return activeLifecycles.includes(st) || (!isDoneStatus(st) && st !== '');
+  };
+
   // 2. Tiket yang diambil oleh teknisi ini
-  const myTasks = tugas.filter(t => Number(t.teknisi_id) === Number(user?.id));
-  const myActiveTasks = myTasks.filter(t => !isDoneStatus(t.status));
+  const myTasks = tugas.filter(t => Number(t.teknisi_id) === currentTechId);
+  const myActiveTasks = myTasks.filter(t => !isDoneStatus(t.status) && isActiveLifecycle(t.status));
   const myDoneTasks = myTasks.filter(t => isDoneStatus(t.status));
 
   // Tiket aktif untuk navigasi pengerjaan (hanya tiket yang belum selesai)
@@ -156,8 +177,8 @@ export default function DashboardTeknisi() {
 
   // Permohonan material yang diajukan oleh teknisi ini
   const myRequests = permohonan.filter(p => {
-    const parent = tugas.find(t => t.id === p.tugas_id);
-    return Number(parent?.teknisi_id) === Number(user?.id);
+    const parent = tugas.find(t => Number(t.id) === Number(p.tugas_id));
+    return Number(parent?.teknisi_id) === currentTechId;
   });
 
     const activeTasksRef = useRef(activeTasks);

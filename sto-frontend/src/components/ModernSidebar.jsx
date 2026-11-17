@@ -56,7 +56,6 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
   const approvedForReleaseCount = permohonan.filter(p => p.status === 'Approved').length;
   const pendingGudangCount = permohonan.filter(p => p.status !== 'Released' && p.status !== 'Rejected' && p.status !== 'Batal').length;
   const assignedTechTickets = tugas.filter(t => t.teknisi_id === currentUser?.id && t.status !== 'Done').length;
-  const lowStockCount = barang.filter(b => b.stok <= 20).length;
 
   // Menu items configured strictly per user requirements
   const getRoleMenus = () => {

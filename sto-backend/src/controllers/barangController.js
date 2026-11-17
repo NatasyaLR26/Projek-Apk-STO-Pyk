@@ -280,6 +280,7 @@ exports.registerSerialNumbers = async (req, res) => {
       const newEntry = {
         id: memorySerialNumbers.length + 1,
         sn: cleanSn,
+        barang_id: barang_id ? Number(barang_id) : null,
         model: modelName,
         status: 'Di Gudang',
         lokasi: 'Rak Logistik Sentral STO Payakumbuh',

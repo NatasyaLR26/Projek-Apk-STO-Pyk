@@ -21,7 +21,7 @@ if (typeof window !== 'undefined') {
           audioCtx.resume();
         }
       }
-    } catch (_) {}
+    } catch {}
     window.removeEventListener('click', unlockAudio);
     window.removeEventListener('touchstart', unlockAudio);
     window.removeEventListener('keydown', unlockAudio);

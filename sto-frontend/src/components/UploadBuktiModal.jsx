@@ -19,8 +19,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
 import {
   Camera,
   Upload,
@@ -30,10 +28,10 @@ import {
   Barcode,
   Wrench,
   Radio,
-  FileText,
-  RotateCcw,
-  Sparkles
+  FileText
 } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 
 // Contoh foto dokumentasi lapangan standar Telkom Akses
 const CONTOH_FOTO_LAPANGAN = [
@@ -62,7 +60,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const [snOnt, setSnOnt] = useState(task?.sn_ont || 'ZTEGC8B90112');
   const [pelangganNama, setPelangganNama] = useState(task?.pelanggan_nama || 'Pelanggan Telkom');
   const [catatan, setCatatan] = useState('Pemasangan instalasi selesai. Redaman optimal (-18.5 dBm), lampu PON modem hijau solid, internet aktif.');
-  const [returKeGudang, setReturKeGudang] = useState(true);
 
   // State Kelebihan Material (Berdasarkan Tulisan & Foto Saja Sesuai SOP STO)
   const [adaKelebihanMaterial, setAdaKelebihanMaterial] = useState(false);
@@ -72,7 +69,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
 
   // 2. STATE FOTO DOKUMENTASI
   const [preview, setPreview] = useState(CONTOH_FOTO_LAPANGAN[0].url);
-  const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [activeStep, setActiveStep] = useState(1); // Step 1: Teknis & SN, Step 2: Rekonsiliasi Material, Step 3: Foto & Selesai
 
@@ -148,18 +144,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   }, [tugasId, permohonan, detailPermohonan, barang, snOnt]);
 
   // Handler mengubah jumlah material terpakai
-  const handleTerpakaiChange = (index, value) => {
-    const val = Number(value) || 0;
-    setMaterialList(prev => prev.map((item, idx) => {
-      if (idx === index) {
-        const terpakai = Math.min(item.jumlah_diambil, Math.max(0, val));
-        const sisa = item.jumlah_diambil - terpakai;
-        return { ...item, jumlah_terpakai: terpakai, jumlah_sisa: sisa };
-      }
-      return item;
-    }));
-  };
-
   // Handler upload file lokal dengan kompresi data URL universal
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
@@ -168,7 +152,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
       showToast('File harus berupa gambar foto', 'error');
       return;
     }
-    setFile(selected);
     try {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -194,14 +177,14 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
             ctx.drawImage(img, 0, 0, width, height);
             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
             setPreview(dataUrl);
-          } catch (_) {
+          } catch {
             setPreview(ev.target.result);
           }
         };
         img.src = ev.target.result;
       };
       reader.readAsDataURL(selected);
-    } catch (_) {
+    } catch {
       setPreview(URL.createObjectURL(selected));
     }
   };
@@ -220,7 +203,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
         setFotoKelebihan(ev.target.result);
       };
       reader.readAsDataURL(selected);
-    } catch (_) {
+    } catch {
       setFotoKelebihan(URL.createObjectURL(selected));
     }
   };
@@ -229,22 +212,9 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const redamanVal = parseFloat(redamanDbm);
   const isRedamanValid = !isNaN(redamanVal) && redamanVal >= -24.0 && redamanVal <= -14.0;
 
-  // Generate Serial Number Acak Baru jika dibutuhkan
-  const handleGenerateSn = () => {
-    const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const newSn = `ZTEGC8${randomHex}`;
-    setSnOnt(newSn);
-    setMaterialList(prev => prev.map(m => {
-      if (m.nama_barang.toLowerCase().includes('ont') || m.nama_barang.toLowerCase().includes('modem')) {
-        return { ...m, sn: newSn };
-      }
-      return m;
-    }));
-    showToast(`Serial Number modem diperbarui: ${newSn}`, 'info');
-  };
-
   // SUBMIT KLOSING TIKET & REKONSILIASI MATERIAL
   const handleSubmitClosing = async () => {
+    if (submitting) return; // Cegah double submit dari klik cepat
     setSubmitting(true);
 
     const closingPayload = {
@@ -457,14 +427,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                     <Barcode className="w-3.5 h-3.5 text-purple-400" />
                     <span>Serial Number (SN Barcode ONT / Modem Pelanggan):</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleGenerateSn}
-                    className="text-[10px] font-bold text-burgundy-400 hover:text-burgundy-300 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    <span>Acak SN Baru</span>
-                  </button>
                 </div>
 
                 <div className="flex gap-2">

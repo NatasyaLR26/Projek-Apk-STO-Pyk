@@ -188,19 +188,22 @@ exports.magicLogin = async (req, res) => {
   }
 
   // 2. Ambil data profil teknisi dari tabel users
-  const targetUserId = tokenRecord.user_id || 2;
-  const { data: user } = await supabase
+  const targetUserId = tokenRecord.user_id;
+  if (!targetUserId) {
+    return errorResponse(res, 404, 'Token akses tidak terasosiasi dengan akun teknisi yang valid.');
+  }
+
+  const { data: user, error: errUser } = await supabase
     .from('users')
     .select('id, nama_lengkap, role, email, telegram_chat_id, username_telegram')
     .eq('id', targetUserId)
     .single();
 
-  const finalUser = user || {
-    id: 2,
-    nama_lengkap: 'Ari Teknisi',
-    role: 'teknisi',
-    email: 'teknisi@sto.co.id'
-  };
+  if (errUser || !user) {
+    return errorResponse(res, 404, 'Akun teknisi terkait token ini tidak ditemukan di database.');
+  }
+
+  const finalUser = user;
 
   // 3. Tandai token sudah digunakan
   try {

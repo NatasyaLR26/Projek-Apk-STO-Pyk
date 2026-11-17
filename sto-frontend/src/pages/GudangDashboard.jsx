@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ModernSidebar from '../components/ModernSidebar';
-import InputBarangGudang from '../components/InputBarangGudang';
-import CetakSuratJalan from '../components/CetakSuratJalan';
-import ModalBASTP from '../components/ModalBASTP';
-import TabelPelangganAset from '../components/TabelPelangganAset';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
 import {
   CheckCircle2,
   Edit2,
@@ -21,18 +14,21 @@ import {
   ShieldCheck,
   ShieldAlert,
   Barcode,
-  Radio,
-  Package,
   PlusCircle,
-  Plus,
   PieChart,
   BarChart3,
   Download,
   FileSpreadsheet,
   Truck,
-  Check,
-  Layers
+  Check
 } from 'lucide-react';
+import ModernSidebar from '../components/ModernSidebar';
+import InputBarangGudang from '../components/InputBarangGudang';
+import CetakSuratJalan from '../components/CetakSuratJalan';
+import ModalBASTP from '../components/ModalBASTP';
+import TabelPelangganAset from '../components/TabelPelangganAset';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function GudangDashboard() {
   const navigate = useNavigate();
@@ -52,7 +48,13 @@ export default function GudangDashboard() {
     sidebarCollapsed
   } = useApp();
 
-  const user = JSON.parse(localStorage.getItem('user')) || { id: 4, nama_lengkap: 'Siti Rahmawati', role: 'gudang' };
+  const user = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user')) || { id: 4, nama_lengkap: 'Siti Rahmawati', role: 'gudang' };
+    } catch {
+      return { id: 4, nama_lengkap: 'Siti Rahmawati', role: 'gudang' };
+    }
+  }, []);
 
   const [activeMenu, setActiveMenu] = useState(() => {
     try {
@@ -101,7 +103,7 @@ export default function GudangDashboard() {
   const [snOntInputs, setSnOntInputs] = useState({});
   const [batchSnInputs, setBatchSnInputs] = useState({});
   const [batchModelInputs, setBatchModelInputs] = useState({});
-  const [auditSubTab, setAuditSubTab] = useState('ont-list'); // 'ont-list' | 'pelanggan-debt-collector'
+  const [releasingId, setReleasingId] = useState(null);
 
   // Form State for Add / Edit
   const [barangForm, setBarangForm] = useState({
@@ -116,12 +118,12 @@ export default function GudangDashboard() {
     if (!user || user.role !== 'gudang') {
       navigate('/');
     }
-  }, [navigate]);
+  }, [navigate, user]);
 
   // Permohonan material masuk dari teknisi yang siap diserahkan oleh petugas gudang
   const approvedRequests = permohonan.filter(p => p.status !== 'Released' && p.status !== 'Rejected' && p.status !== 'Batal').map(p => {
-    const parentTask = tugas.find(t => Number(t.id) === Number(p.tugas_id));
-    const tech = users.find(u => Number(u.id) === Number(parentTask?.teknisi_id)) || { nama_lengkap: p.teknisi_nama || 'Teknisi Lapangan' };
+    const parentTask = tugas.find(t => Number(t.id) === Number(p.tugas_id) || (Array.isArray(p.tugas_ids) && p.tugas_ids.map(Number).includes(Number(t.id))));
+    const tech = users.find(u => Number(u.id) === Number(parentTask?.teknisi_id || p.teknisi_id)) || { nama_lengkap: p.teknisi_nama || 'Teknisi Lapangan' };
     const details = detailPermohonan.filter(d => Number(d.permohonan_id) === Number(p.id)).map(d => {
       const item = barang.find(b => Number(b.id) === Number(d.barang_id));
       return {
@@ -144,10 +146,10 @@ export default function GudangDashboard() {
 
   // Released history
   const releasedRequests = permohonan.filter(p => p.status === 'Released').map(p => {
-    const parentTask = tugas.find(t => t.id === p.tugas_id);
-    const tech = users.find(u => u.id === parentTask?.teknisi_id);
-    const details = detailPermohonan.filter(d => d.permohonan_id === p.id).map(d => {
-      const item = barang.find(b => b.id === d.barang_id);
+    const parentTask = tugas.find(t => Number(t.id) === Number(p.tugas_id) || (Array.isArray(p.tugas_ids) && p.tugas_ids.map(Number).includes(Number(t.id))));
+    const tech = users.find(u => Number(u.id) === Number(parentTask?.teknisi_id || p.teknisi_id)) || { nama_lengkap: p.teknisi_nama || 'Teknisi Lapangan' };
+    const details = detailPermohonan.filter(d => Number(d.permohonan_id) === Number(p.id)).map(d => {
+      const item = barang.find(b => Number(b.id) === Number(d.barang_id));
       return { ...d, item };
     });
 
@@ -275,24 +277,33 @@ export default function GudangDashboard() {
     });
   };
 
-  const handleRelease = (reqId) => {
-    const target = permohonan.find(p => Number(p.id) === Number(reqId));
-    const isBatch = target?.is_batch || (target?.tugas_ids && target.tugas_ids.length > 1);
+  const handleRelease = async (reqId) => {
+    if (releasingId) return;
+    setReleasingId(reqId);
 
-    if (isBatch && target.tugas_ids && target.tugas_ids.length > 0) {
-      const allocations = {};
-      target.tugas_ids.forEach(tid => {
-        const key = `${reqId}_${tid}`;
-        const sn = batchSnInputs[key] || `ZTEGC8B${Math.random().toString(16).substring(2, 7).toUpperCase()}`;
-        const model = batchModelInputs[key] || 'Modem ONT ZTE F670L Dual Band';
-        allocations[tid] = { sn, model };
-      });
-      releaseMaterial(reqId, allocations);
-    } else {
-      const sn = snOntInputs[reqId] || null;
-      releaseMaterial(reqId, sn);
+    try {
+      const target = permohonan.find(p => Number(p.id) === Number(reqId));
+      if (!target || target.status === 'Released') return;
+
+      const isBatch = target?.is_batch || (target?.tugas_ids && target.tugas_ids.length > 1);
+
+      if (isBatch && target.tugas_ids && target.tugas_ids.length > 0) {
+        const allocations = {};
+        target.tugas_ids.forEach(tid => {
+          const key = `${reqId}_${tid}`;
+          const sn = batchSnInputs[key] || `ZTEGC8B${Math.random().toString(16).substring(2, 7).toUpperCase()}`;
+          const model = batchModelInputs[key] || 'Modem ONT ZTE F670L Dual Band';
+          allocations[tid] = { sn, model };
+        });
+        await releaseMaterial(reqId, allocations);
+      } else {
+        const sn = snOntInputs[reqId] || null;
+        await releaseMaterial(reqId, sn);
+      }
+      showToast('Barang berhasil diserahkan ke teknisi! Status: Dalam Perjalanan.', 'success');
+    } finally {
+      setReleasingId(null);
     }
-    showToast('Barang berhasil diserahkan ke teknisi! Status: Dalam Perjalanan.', 'success');
   };
 
   // Data Audit Lifecycle ONT (Di Gudang -> Di Perjalanan / In-Transit -> Terpasang / Active)
@@ -397,7 +408,7 @@ export default function GudangDashboard() {
     } catch { /* ignore */ }
 
     return list;
-  }, [tugas, releasedRequests, users, barang]);
+  }, [tugas, releasedRequests, users, barang, pelanggan]);
 
   // Filtered ONT List untuk pencarian & status tab
   const filteredOntList = React.useMemo(() => {
@@ -1071,15 +1082,21 @@ export default function GudangDashboard() {
                       <div className="pt-2 space-y-2">
                         <button
                           onClick={() => handleRelease(req.id)}
-                          disabled={!req.canRelease}
+                          disabled={!req.canRelease || releasingId === req.id}
                           className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-lg cursor-pointer ${
-                            req.canRelease
+                            req.canRelease && releasingId !== req.id
                               ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-950 active:scale-98'
                               : isDark ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
                           }`}
                         >
                           <CheckCircle2 className="w-4 h-4" />
-                          <span>{req.canRelease ? '📦 Serahkan & Rilis Barang ke Teknisi' : 'Stok Gudang Tidak Cukup'}</span>
+                          <span>
+                            {releasingId === req.id
+                              ? 'Memproses Rilis Barang...'
+                              : req.canRelease
+                              ? '📦 Serahkan & Rilis Barang ke Teknisi'
+                              : 'Stok Gudang Tidak Cukup'}
+                          </span>
                         </button>
                         <button
                           type="button"
@@ -1138,7 +1155,7 @@ export default function GudangDashboard() {
                             <div>
                               <span className="font-mono text-xs font-bold text-slate-400">Permohonan #{rel.id}</span>
                               <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
-                                Tiket #{rel.tugas_id} — {rel.parentTask?.pelanggan_nama || 'Pelanggan Telkom'}
+                                Tiket #{rel.tugas_id || (Array.isArray(rel.tugas_ids) ? rel.tugas_ids.join(', #') : '')} — {rel.parentTask?.pelanggan_nama || 'Pelanggan Telkom'}
                               </div>
                               <div className="text-[11px] text-slate-400">Teknisi: <strong>{rel.tech?.nama_lengkap}</strong></div>
                             </div>

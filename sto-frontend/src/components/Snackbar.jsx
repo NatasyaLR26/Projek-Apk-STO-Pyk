@@ -7,10 +7,7 @@ export default function Snackbar({ notification, onClose }) {
   const [progress, setProgress] = useState(100);
 
   useEffect(() => {
-    if (!notification) {
-      setProgress(100);
-      return;
-    }
+    if (!notification) return;
 
     const duration = notification.duration || 4000;
     const startTime = Date.now();

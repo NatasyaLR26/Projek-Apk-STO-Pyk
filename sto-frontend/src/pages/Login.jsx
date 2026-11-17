@@ -1,29 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
-import api from '../api/axiosInstance';
-import ParticleBackground from '../components/ParticleBackground';
-import { useTheme } from '../context/ThemeContext';
-import { useApp } from '../context/AppContext';
-import BrandLogo from '../components/BrandLogo';
 import {
   Lock,
   Mail,
   User,
-  BadgeCheck,
-  Phone,
   ArrowRight,
   Sun,
   Moon,
   Sparkles,
   UserPlus,
   LogIn,
-  Wrench,
-  Package,
   Eye,
   EyeOff,
   Key
 } from 'lucide-react';
+import ParticleBackground from '../components/ParticleBackground';
+import BrandLogo from '../components/BrandLogo';
+import api from '../api/axiosInstance';
+import { useTheme } from '../context/ThemeContext';
+import { useApp } from '../context/AppContext';
 
 export default function Login({ onTriggerSplash }) {
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
@@ -49,7 +44,7 @@ export default function Login({ onTriggerSplash }) {
   const { users, setCurrentUser, addUser, showToast } = useApp();
   const navigate = useNavigate();
 
-  // Handle Automatic Role-Based Login
+  // Handle Automatic Role-Based Login via Backend Controller
   const handleLogin = async (e) => {
     e?.preventDefault();
     setError('');
@@ -58,55 +53,40 @@ export default function Login({ onTriggerSplash }) {
     try {
       let loggedInUser = null;
 
-      // 1. Supabase Native Direct Auth: Query edge database Supabase langsung (< 100ms, zero cold-start)
-      if (isSupabaseConfigured()) {
-        try {
-          const { data: dbUser, error: dbErr } = await supabase
-            .from('users')
-            .select('*')
-            .ilike('email', email.toLowerCase().trim())
-            .maybeSingle();
+      // 1. Jalur Utama: Autentikasi via Backend API Express (Verifikasi Hash Bcrypt di Server, Bebas Leak Anon Key)
+      try {
+        const response = await api.post('/auth/login', {
+          email: email.toLowerCase().trim(),
+          password: password.trim()
+        });
 
-          if (dbUser && !dbErr) {
-            if (String(dbUser.password).trim() === String(password).trim()) {
-              loggedInUser = dbUser;
-            } else if (!dbUser.password.startsWith('$2')) {
-              setError('Kata sandi yang Anda masukkan salah!');
-              setLoading(false);
-              return;
-            }
-          }
-        } catch (supabaseErr) {
-          console.warn('Supabase auth attempt:', supabaseErr);
+        if (response.data?.success && (response.data?.data?.user || response.data?.user)) {
+          loggedInUser = response.data?.data?.user || response.data?.user;
         }
-      }
-
-      // 2. Jika di localhost atau jika password Bcrypt, verifikasi via Backend API Express
-      const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      if (!loggedInUser && isLocalhost) {
-        try {
-          const response = await api.post('/auth/login', {
-            email: email.toLowerCase().trim(),
-            password: password.trim()
-          }, { timeout: 1500 });
-
-          if (response.data?.success && (response.data?.data?.user || response.data?.user)) {
-            loggedInUser = response.data?.data?.user || response.data?.user;
+      } catch (backendErr) {
+        if (backendErr.response) {
+          const status = backendErr.response.status;
+          const msg = backendErr.response.data?.message;
+          if (status === 401) {
+            setError(msg || 'Kata sandi yang Anda masukkan salah!');
+            setLoading(false);
+            return;
           }
-        } catch (backendErr) {
-          if (backendErr.response) {
-            const status = backendErr.response.status;
-            const msg = backendErr.response.data?.message;
-            if (status === 401 || status === 404) {
-              setError(msg || 'Email atau kata sandi tidak valid!');
-              setLoading(false);
-              return;
-            }
+          if (status === 404) {
+            setError(msg || 'Email tidak ditemukan di sistem STO.');
+            setLoading(false);
+            return;
+          }
+          if (status === 400) {
+            setError(msg || 'Email dan kata sandi wajib diisi.');
+            setLoading(false);
+            return;
           }
         }
+        console.warn('[Login] Backend auth unreachable, mencoba mode offline:', backendErr.message);
       }
 
-      // 3. Fallback to state/localStorage users list
+      // 2. Fallback offline: Verifikasi data lokal jika backend server tidak terjangkau (Offline mode)
       if (!loggedInUser) {
         const localFound = users.find(
           (u) => u.email?.toLowerCase().trim() === email.toLowerCase().trim()
@@ -116,14 +96,14 @@ export default function Login({ onTriggerSplash }) {
           if (String(localFound.password).trim() === String(password).trim()) {
             loggedInUser = localFound;
           } else {
-            setError('Kata sandi tidak sesuai!');
+            setError('Kata sandi yang Anda masukkan salah!');
             setLoading(false);
             return;
           }
         }
       }
 
-      // 4. Evaluate Authentication Result
+      // 3. Evaluasi Hasil Autentikasi
       if (!loggedInUser) {
         setError('Akun dengan email tersebut belum terdaftar di sistem STO.');
         setLoading(false);
@@ -197,7 +177,7 @@ export default function Login({ onTriggerSplash }) {
         nama_lengkap: regNama.trim(),
         email: regEmail.toLowerCase().trim(),
         password: regPassword,
-        role: 'teknisi', // Strictly Teknisi Lapangan! Pimpinan & Gudang are managed internally
+        role: regRole, // Strictly Teknisi Lapangan! Pimpinan & Gudang are managed internally
         status_verifikasi: isTokenValid ? 'Verified' : 'Pending Approval',
         kode_otorisasi: regToken.trim() || '-'
       });

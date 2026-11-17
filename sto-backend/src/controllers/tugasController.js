@@ -215,7 +215,7 @@ exports.createTugas = async (req, res) => {
           await supabase.from('tugas').update({
             telegram_message_id: String(tgResult.result.message_id)
           }).eq('id', data.id);
-        } catch (_) { /* fallback */ }
+        } catch { /* fallback */ }
       }
     }).catch((tgErr) => {
       console.warn('[Telegram Dispatch Notice]', tgErr.message);
@@ -509,7 +509,7 @@ exports.checkInTugas = async (req, res) => {
     await supabase.from('tugas').update({
       status: 'In-Progress'
     }).eq('id', parsedId);
-  } catch (err) {
+  } catch {
     // Ignore fallback
   }
 

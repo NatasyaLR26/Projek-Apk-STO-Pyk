@@ -1,5 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Layers,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  PlusCircle,
+  Package,
+  MapPin,
+  ArrowRight,
+  FileText,
+  User,
+  Users,
+  Search,
+  Download,
+  Boxes,
+  Send,
+  Check
+} from 'lucide-react';
 import ModernSidebar from '../components/ModernSidebar';
 import FormTugas from '../components/FormTugas';
 import ApprovalMaterial from '../components/ApprovalMaterial';
@@ -14,27 +32,6 @@ import AnalyticsChartsPimpinan from '../components/AnalyticsChartsPimpinan';
 import ModalDetailRiwayatTeknisi from '../components/ModalDetailRiwayatTeknisi';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
-import {
-  Layers,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  PlusCircle,
-  Package,
-  MapPin,
-  ArrowRight,
-  FileText,
-  User,
-  Users,
-  Wrench,
-  Phone,
-  Search,
-  Download,
-  Boxes,
-  Send,
-  Database,
-  Check
-} from 'lucide-react';
 
 // Helper badge konfigurasi jenis penugasan teknisi
 const getTaskTypeConfig = (jenisKerja) => {
@@ -201,15 +198,19 @@ function DashboardPimpinan() {
   // Daftar teknisi lapangan
   const fieldTechnicians = users.filter(u => u.role === 'teknisi');
 
+  // Helper normalisasi status tiket (case-insensitive & multi-status)
+  const isDoneTask = (status) => ['done', 'selesai', 'closed'].includes(String(status || '').toLowerCase());
+  const isProgressTask = (status) => ['progress', 'in_progress', 'assigned', 'pengerjaan'].includes(String(status || '').toLowerCase());
+
   // KPI Calculations
   const totalTasks = tugas.length;
-  const progressTasks = tugas.filter(t => t.status === 'Progress').length;
-  const doneTasks = tugas.filter(t => t.status === 'Done').length;
-  const pendingRequests = permohonan.filter(p => p.status === 'Pending').length;
+  const progressTasks = tugas.filter(t => isProgressTask(t.status)).length;
+  const doneTasks = tugas.filter(t => isDoneTask(t.status)).length;
+  const pendingRequests = permohonan.filter(p => String(p.status || '').toLowerCase() === 'pending').length;
   const totalBarangCount = barang.length;
   const lowStockCount = barang.filter(b => b.stok <= 20).length;
   const activeTechCount = fieldTechnicians.filter(tech =>
-    tugas.some(t => Number(t.teknisi_id) === Number(tech.id) && t.status !== 'Done')
+    tugas.some(t => Number(t.teknisi_id) === Number(tech.id) && !isDoneTask(t.status))
   ).length;
 
   return (
@@ -372,7 +373,7 @@ function DashboardPimpinan() {
                     ) : (
                       fieldTechnicians.map(tech => {
                         const currentTask = tugas.find(t =>
-                          Number(t.teknisi_id) === Number(tech.id) && t.status !== 'Done'
+                          Number(t.teknisi_id) === Number(tech.id) && !isDoneTask(t.status)
                         );
                         const taskCfg = getTaskTypeConfig(currentTask?.jenis_kerja || 'Siaga');
 
@@ -544,7 +545,7 @@ function DashboardPimpinan() {
                               )}
                             </td>
                             <td className="px-3 py-2.5 text-center">
-                              {t.status === 'Done' ? (
+                              {isDoneTask(t.status) ? (
                                 <div className="flex items-center justify-center gap-1.5">
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                                     Done
@@ -561,7 +562,7 @@ function DashboardPimpinan() {
                                 </div>
                               ) : (
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  t.status === 'Progress' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                                  isProgressTask(t.status) ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
                                   'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                 }`}>
                                   {t.status || 'Open'}

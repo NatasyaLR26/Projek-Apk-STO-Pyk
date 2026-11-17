@@ -1,25 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
-import api from '../api/axiosInstance';
-import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
 import {
-  ShieldCheck,
   Send,
   CheckCircle2,
   AlertCircle,
   Loader2,
-  ArrowRight,
-  Sparkles,
-  Ticket
+  ArrowRight
 } from 'lucide-react';
+import api from '../api/axiosInstance';
+import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
+import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function MagicLogin() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isDark } = useTheme();
-  const { setCurrentUser, setUsers, claimTugas, showToast } = useApp();
+  const { setCurrentUser, claimTugas, showToast } = useApp();
 
   const [loading, setLoading] = useState(true);
   const [statusText, setStatusText] = useState('Memverifikasi token akses Telegram...');
@@ -92,14 +89,9 @@ export default function MagicLogin() {
           }
         }
 
-        // 3. Fallback profil teknisi default jika token offline / demo
+        // 3. Validasi ketat token (BUG-16: Hapus auto-login demo fallback jika token tidak valid/expired)
         if (!resolvedUser) {
-          resolvedUser = {
-            id: 2,
-            nama_lengkap: 'Ari Teknisi (Auto-Login)',
-            role: 'teknisi',
-            email: 'teknisi@sto.co.id'
-          };
+          throw new Error('Token akses Telegram tidak valid, sudah kedaluwarsa, atau tidak terdaftar. Silakan minta tautan baru melalui Telegram atau login secara manual.');
         }
 
         if (!isMounted) return;

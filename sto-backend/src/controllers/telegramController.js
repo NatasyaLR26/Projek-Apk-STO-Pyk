@@ -64,3 +64,20 @@ Sistem siap menyiarkan tiket pimpinan, permohonan material gudang, check-in, dan
 
   return successResponse(res, 200, `Pesan tes berhasil dikirim ke ${result.deliveredCount} target Telegram!`, result);
 };
+
+// 5. Endpoint Pengiriman Pesan Telegram dari Frontend (Aman & Bebas Leak Token Client-side)
+exports.sendMessage = async (req, res) => {
+  const { text, message, options } = req.body;
+  const content = text || message;
+
+  if (!content) {
+    return errorResponse(res, 400, 'Konten pesan (text) wajib disertakan');
+  }
+
+  try {
+    const result = await telegramService.kirimKeGrup(content, options || {});
+    return successResponse(res, 200, 'Pesan Telegram berhasil diproses backend', result);
+  } catch (err) {
+    return errorResponse(res, 500, 'Gagal mengirim pesan Telegram via backend', err.message);
+  }
+};

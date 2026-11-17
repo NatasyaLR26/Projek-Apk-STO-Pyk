@@ -22,10 +22,6 @@ import {
   MapPin,
   Plus,
   Filter,
-  Radio,
-  Search,
-  Zap,
-  Info,
   X,
   Edit2,
   Trash2,
@@ -185,9 +181,9 @@ function getOdpWilayah(point) {
 export default function WebGISMap({
   selectedOdpId = null,
   onSelectOdp = () => {},
-  selectedTugasId = null,
+  selectedTugasId: _selectedTugasId = null,
   onSelectTugas = () => {},
-  onOpenAddOdp = null
+  onOpenAddOdp: _onOpenAddOdp = null
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -214,8 +210,8 @@ export default function WebGISMap({
 
   // Filter & Grouping State
   const [odpStatusFilter, setOdpStatusFilter] = useState('all'); // 'all' | 'Tersedia' | 'Penuh' | 'Maintenance'
-  const [showTasks, setShowTasks] = useState(true);
-  const [showOdpPoints, setShowOdpPoints] = useState(true);
+  const [showTasks] = useState(true);
+  const [showOdpPoints] = useState(true);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState({
     'Koto Nan IV (Sentral STO)': true,
@@ -405,8 +401,10 @@ export default function WebGISMap({
       await addOdp(payload);
       setShowPinpointModal(false);
 
-      if (mapInstanceRef.current && payload.latitude && payload.longitude) {
-        mapInstanceRef.current.flyTo([payload.latitude, payload.longitude], 16, {
+      const pLat = parseFloat(payload.latitude);
+      const pLng = parseFloat(payload.longitude);
+      if (mapInstanceRef.current && !isNaN(pLat) && !isNaN(pLng) && pLat !== 0 && pLng !== 0) {
+        mapInstanceRef.current.flyTo([pLat, pLng], 16, {
           duration: 1.2
         });
       }
@@ -445,11 +443,15 @@ export default function WebGISMap({
 
   // Fly to ODP dari drawer / list
   const flyToOdp = (point) => {
-    if (mapInstanceRef.current && point.latitude && point.longitude) {
-      mapInstanceRef.current.flyTo([point.latitude, point.longitude], 17, {
-        duration: 1.2
-      });
-      onSelectOdp(point.id);
+    if (mapInstanceRef.current && point) {
+      const lat = parseFloat(point.latitude);
+      const lng = parseFloat(point.longitude);
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        mapInstanceRef.current.flyTo([lat, lng], 17, {
+          duration: 1.2
+        });
+        onSelectOdp(point.id);
+      }
     }
   };
 
@@ -499,7 +501,9 @@ export default function WebGISMap({
     // 2. PENANDA TITIK-TITIK ODP (FOKUS 100% PADA ODP & PORT CAPACITY)
     if (showOdpPoints && Array.isArray(odp)) {
       odp.forEach(point => {
-        if (!point.latitude || !point.longitude) return;
+        const lat = parseFloat(point.latitude);
+        const lng = parseFloat(point.longitude);
+        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
 
         if (odpStatusFilter !== 'all' && point.status !== odpStatusFilter) {
           return;
@@ -563,7 +567,7 @@ export default function WebGISMap({
           </div>
         ` : '';
 
-        const odpMarker = L.marker([point.latitude, point.longitude], { icon: odpIcon })
+        const odpMarker = L.marker([lat, lng], { icon: odpIcon })
           .bindPopup(`
             <div class="p-3 text-xs min-w-[260px] text-slate-800 dark:text-slate-100">
               <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
@@ -593,7 +597,7 @@ export default function WebGISMap({
                 </div>
 
                 <div class="text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                  <strong>Koordinat GPS:</strong> ${Number(point.latitude).toFixed(5)}, ${Number(point.longitude).toFixed(5)}
+                  <strong>Koordinat GPS:</strong> ${lat.toFixed(5)}, ${lng.toFixed(5)}
                 </div>
 
                 ${pimpinanActions}
@@ -612,7 +616,9 @@ export default function WebGISMap({
     // 3. TITIK TIKET LAPANGAN (FOKUS TITIK SAJA, TANPA GARIS KABEL SESUAI PERMINTAAN USER)
     if (showTasks && Array.isArray(tugas)) {
       tugas.forEach(task => {
-        if (!task.target_lat || !task.target_lng) return;
+        const tLat = parseFloat(task.target_lat);
+        const tLng = parseFloat(task.target_lng);
+        if (isNaN(tLat) || isNaN(tLng) || tLat === 0 || tLng === 0) return;
 
         const isDone = task.status === 'Done';
         const isGangguan = (task.jenis_kerja || '').toLowerCase().includes('gangguan') || (task.jenis_kerja || '').toLowerCase().includes('kabel');
@@ -631,7 +637,7 @@ export default function WebGISMap({
           iconAnchor: [12, 24]
         });
 
-        const taskMarker = L.marker([task.target_lat, task.target_lng], { icon: taskIcon })
+        const taskMarker = L.marker([tLat, tLng], { icon: taskIcon })
           .bindPopup(`
             <div class="p-2.5 text-xs text-slate-800 dark:text-slate-100 min-w-[200px]">
               <div class="font-bold text-rose-600">Tiket #${task.id}: ${task.jenis_kerja}</div>
