@@ -174,10 +174,10 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
       
       {/* Header Banner */}
       {!hideHeader && (
-        <div className={`p-5 sm:p-6 rounded-3xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors`}>
+        <div className={`p-4 sm:p-5 rounded-2xl border ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'} flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors`}>
           <div>
-            <h2 className={`text-xl sm:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Master Data Titik ODP, Tiang, & ODC Wilayah Payakumbuh
+            <h2 className={`text-xl sm:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'} tracking-tight`}>
+              Inventarisasi Aset Jaringan
             </h2>
           </div>
 
@@ -185,124 +185,107 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
             <button
               type="button"
               onClick={handleExportCsv}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Export Excel (CSV)</span>
+              <span>Export Data</span>
             </button>
 
             <button
               type="button"
               onClick={handleOpenAdd}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-95"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-95 whitespace-nowrap"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>+ Tambah ODP / Tiang</span>
+              <span>+ Tambah ODP</span>
             </button>
           </div>
         </div>
       )}
 
       {/* Toolbar Filter & Pencarian */}
-      <div className={`p-4 rounded-3xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} space-y-3`}>
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      <div className={`p-3.5 sm:p-4 rounded-2xl border ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl' : 'bg-white border-slate-200 shadow-sm'} space-y-3`}>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           
           {/* Input Pencarian */}
-          <div className="relative flex-1">
-            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+          <div className="relative flex-1 w-full">
+            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
             <input
               type="text"
               placeholder="Cari kode ODP, tiang, nama lokasi, atau jalan..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs focus:outline-none focus:border-emerald-500 ${
-                isDark ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
+              className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs focus:outline-none focus:border-rose-500 ${
+                isDark ? 'bg-slate-900/90 border-slate-700/80 text-white placeholder-slate-400' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
               }`}
             />
           </div>
 
-          {/* Group Filter */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+          {/* Group Filter (Desktop sejajar rapi, Mobile grid 3 kolom) */}
+          <div className="grid grid-cols-3 gap-2 md:flex md:items-center text-xs">
             
             {/* Filter Tipe Aset */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Tipe:</span>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className={`p-2 rounded-xl border text-xs font-semibold ${
-                  isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                }`}
-              >
-                <option value="all">Semua Aset</option>
-                <option value="ODP">ODP (Distribusi)</option>
-                <option value="Tiang FO">Tiang FO</option>
-                <option value="ODC">ODC (Kabinet Feeder)</option>
-              </select>
-            </div>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className={`w-full md:w-auto p-2 rounded-xl border text-xs font-semibold focus:outline-none cursor-pointer ${
+                isDark ? 'bg-slate-900/90 border-slate-700/80 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+              }`}
+            >
+              <option value="all">Semua Tipe</option>
+              <option value="ODP">ODP</option>
+              <option value="Tiang FO">Tiang FO</option>
+              <option value="ODC">ODC</option>
+            </select>
 
             {/* Filter Status */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Status:</span>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className={`p-2 rounded-xl border text-xs font-semibold ${
-                  isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                }`}
-              >
-                <option value="all">Semua Status</option>
-                <option value="Tersedia">🟢 Tersedia</option>
-                <option value="Hampir Penuh">🟡 Hampir Penuh</option>
-                <option value="Penuh">🔴 Penuh</option>
-                <option value="Maintenance">🔧 Maintenance</option>
-              </select>
-            </div>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className={`w-full md:w-auto p-2 rounded-xl border text-xs font-semibold focus:outline-none cursor-pointer ${
+                isDark ? 'bg-slate-900/90 border-slate-700/80 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+              }`}
+            >
+              <option value="all">Semua Status</option>
+              <option value="Tersedia">🟢 Tersedia</option>
+              <option value="Hampir Penuh">🟡 Hampir Penuh</option>
+              <option value="Penuh">🔴 Penuh</option>
+              <option value="Maintenance">🔧 Maintenance</option>
+            </select>
 
             {/* Filter Kapasitas */}
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Port:</span>
-              <select
-                value={filterKapasitas}
-                onChange={(e) => setFilterKapasitas(e.target.value)}
-                className={`p-2 rounded-xl border text-xs font-semibold ${
-                  isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                }`}
-              >
-                <option value="all">Semua Port</option>
-                <option value="8">8 Port</option>
-                <option value="16">16 Port</option>
-                <option value="24">24 Port</option>
-              </select>
-            </div>
+            <select
+              value={filterKapasitas}
+              onChange={(e) => setFilterKapasitas(e.target.value)}
+              className={`w-full md:w-auto p-2 rounded-xl border text-xs font-semibold focus:outline-none cursor-pointer ${
+                isDark ? 'bg-slate-900/90 border-slate-700/80 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+              }`}
+            >
+              <option value="all">Semua Port</option>
+              <option value="8">8 Port</option>
+              <option value="16">16 Port</option>
+              <option value="24">24 Port</option>
+            </select>
 
           </div>
 
         </div>
       </div>
 
-      {/* Tabel Master Aset Jaringan */}
-      <div className={`rounded-3xl border overflow-hidden shadow-xl ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <div>
-            <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Daftar Titik Infrastruktur Jaringan Terdata
-            </h3>
-          </div>
-        </div>
-
+      {/* Tampilan Desktop: Tabel Master Aset (hidden di mobile, tampil di md:block) */}
+      <div className={`hidden md:block rounded-2xl border overflow-hidden shadow-xl ${isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl' : 'bg-white border-slate-200'}`}>
         <div className="overflow-x-auto">
           <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-            <thead className={`${isDark ? 'bg-slate-950/80 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
+            <thead className={`${isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
               <tr>
-                <th className="px-4 py-3">Kode Aset</th>
-                <th className="px-4 py-3">Tipe</th>
+                <th className="px-4 py-3 whitespace-nowrap min-w-[150px]">Kode Aset</th>
+                <th className="px-4 py-3 whitespace-nowrap">Tipe</th>
                 <th className="px-4 py-3">Lokasi / Patokan</th>
-                <th className="px-4 py-3 text-center">Koordinat GPS</th>
-                <th className="px-4 py-3 text-center">Port Terpakai</th>
-                <th className="px-4 py-3 text-center">Redaman (OPM)</th>
-                <th className="px-4 py-3 text-center">Status WebGIS</th>
-                <th className="px-4 py-3 text-right">Aksi</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Koordinat GPS</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Port Terpakai</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Redaman (OPM)</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Status Okupansi</th>
+                <th className="px-4 py-3 text-right whitespace-nowrap">Aksi</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -326,16 +309,23 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
                     ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
                     : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
 
+                  const rawDbm = item.redaman_dbm;
+                  const hasDbm = rawDbm !== null && rawDbm !== undefined && rawDbm !== '';
+                  const dbmVal = hasDbm ? Number(rawDbm) : 18.5;
+                  const dbmMag = !isNaN(dbmVal) && dbmVal !== 0 ? Math.abs(dbmVal) : 18.5;
+                  const formattedDbm = `-${dbmMag.toFixed(1)} dBm`;
+                  const isBadDbm = dbmMag > 24;
+
                   return (
                     <tr key={item.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
-                      <td className="px-4 py-3">
-                        <div className="font-mono font-bold text-amber-400 text-xs">
+                      <td className="px-4 py-3 whitespace-nowrap min-w-[150px]">
+                        <div className="font-mono font-bold text-cyan-400 text-xs">
                           {item.kode_odp}
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono">ID #{item.id}</span>
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 border border-slate-700 text-slate-300">
                           {type}
                         </span>
@@ -350,18 +340,18 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
                         )}
                       </td>
 
-                      <td className="px-4 py-3 text-center font-mono text-[11px] text-slate-400">
+                      <td className="px-4 py-3 text-center font-mono text-[11px] text-slate-400 whitespace-nowrap">
                         {item.latitude?.toFixed(4)}, {item.longitude?.toFixed(4)}
                       </td>
 
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
                         <div className="flex flex-col items-center gap-1">
                           <span className="font-mono font-bold text-xs">
                             {item.port_terpakai} / {item.kapasitas_port} Port
                           </span>
                           <div className="w-20 bg-slate-800 h-1.5 rounded-full overflow-hidden">
                             <div
-                              className={`h-full ${
+                              className={`h-full rounded-full ${
                                 ratio >= 1.0 ? 'bg-rose-500' : ratio >= 0.7 ? 'bg-amber-500' : 'bg-emerald-500'
                               }`}
                               style={{ width: `${Math.min(100, ratioPercent)}%` }}
@@ -370,34 +360,26 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
                         </div>
                       </td>
 
-                      <td className="px-4 py-3 text-center font-mono font-bold text-xs">
-                        {(() => {
-                          const rawDbm = item.redaman_dbm;
-                          const hasDbm = rawDbm !== null && rawDbm !== undefined && rawDbm !== '';
-                          const dbmVal = hasDbm ? Number(rawDbm) : -18.5;
-                          const isBad = dbmVal <= -24;
-                          return (
-                            <span className={isBad ? 'text-rose-400' : 'text-emerald-400'}>
-                              {dbmVal.toFixed(1)} dBm
-                            </span>
-                          );
-                        })()}
+                      <td className="px-4 py-3 text-center font-mono font-bold text-xs whitespace-nowrap">
+                        <span className={isBadDbm ? 'text-rose-400' : 'text-emerald-400'}>
+                          {formattedDbm}
+                        </span>
                       </td>
 
-                      <td className="px-4 py-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusClass}`}>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusClass}`}>
                           {item.status}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           {onNavigateToWebGis && (
                             <button
                               type="button"
                               onClick={() => onNavigateToWebGis(item)}
-                              className="p-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 transition cursor-pointer"
-                              title="Lihat di WebGIS"
+                              className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 transition cursor-pointer active:scale-95"
+                              title="Lihat Titik di Peta WebGIS"
                             >
                               <MapPin className="w-3.5 h-3.5" />
                             </button>
@@ -405,7 +387,7 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(item)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 transition cursor-pointer"
+                            className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 transition cursor-pointer active:scale-95"
                             title="Edit Data Aset"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -413,7 +395,7 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
                           <button
                             type="button"
                             onClick={() => handleDelete(item)}
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-rose-400 border border-slate-700 transition cursor-pointer"
+                            className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-500/30 transition cursor-pointer active:scale-95"
                             title="Hapus Aset"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -427,6 +409,130 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Tampilan Mobile: Card-based List (block md:hidden) */}
+      <div className="block md:hidden space-y-3">
+        {filteredAssets.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 rounded-2xl border bg-slate-950/70 border-slate-800/80">
+            Tidak ditemukan aset jaringan yang sesuai dengan filter.
+          </div>
+        ) : (
+          filteredAssets.map(item => {
+            const type = item.tipe_aset || (item.kode_odp?.startsWith('TIANG') ? 'Tiang FO' : item.kode_odp?.startsWith('ODC') ? 'ODC' : 'ODP');
+            const ratio = item.kapasitas_port ? (item.port_terpakai / item.kapasitas_port) : 0;
+            const ratioPercent = (ratio * 100).toFixed(0);
+
+            const statusClass = item.status === 'Penuh'
+              ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+              : item.status === 'Hampir Penuh'
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+              : item.status === 'Maintenance'
+              ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+              : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+
+            const rawDbm = item.redaman_dbm;
+            const hasDbm = rawDbm !== null && rawDbm !== undefined && rawDbm !== '';
+            const dbmVal = hasDbm ? Number(rawDbm) : 18.5;
+            const dbmMag = !isNaN(dbmVal) && dbmVal !== 0 ? Math.abs(dbmVal) : 18.5;
+            const formattedDbm = `-${dbmMag.toFixed(1)} dBm`;
+            const isBadDbm = dbmMag > 24;
+
+            return (
+              <div
+                key={item.id}
+                className="p-3.5 sm:p-4 rounded-xl border bg-slate-950/70 border-slate-800/80 backdrop-blur-xl shadow-lg space-y-2.5"
+              >
+                {/* Header Kartu: Kode Aset, Badge Tipe, Badge Status Okupansi */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-mono font-bold text-rose-400 text-xs truncate">
+                      {item.kode_odp}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 border border-slate-700 text-slate-300 shrink-0">
+                      {type}
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border whitespace-nowrap shrink-0 ${statusClass}`}>
+                    {item.status}
+                  </span>
+                </div>
+
+                {/* Lokasi & Koordinat */}
+                <div className="space-y-0.5">
+                  <div className="text-xs font-semibold text-slate-100 flex items-start gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                    <span className="leading-snug">{item.nama_lokasi}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono pl-5">
+                    GPS: {item.latitude?.toFixed(4)}, {item.longitude?.toFixed(4)}
+                  </div>
+                </div>
+
+                {/* Metrik Grid (2 Kolom) */}
+                <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-slate-900/60 border border-white/5 text-[11px]">
+                  {/* Kolom 1: Okupansi Port */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                      <span>Okupansi Port:</span>
+                      <span className="font-mono font-bold text-slate-200">
+                        {item.port_terpakai} / {item.kapasitas_port} Port
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          ratio >= 1.0 ? 'bg-rose-500' : ratio >= 0.7 ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${Math.min(100, ratioPercent)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Kolom 2: Redaman Optik */}
+                  <div className="flex flex-col justify-center items-end">
+                    <span className="text-[10px] text-slate-400 mb-0.5">Redaman Optik:</span>
+                    <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border ${
+                      isBadDbm ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                    }`}>
+                      {formattedDbm}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Footer Kartu: 3 Tombol Aksi Horizontal */}
+                <div className={`grid ${onNavigateToWebGis ? 'grid-cols-3' : 'grid-cols-2'} gap-2 pt-2 border-t border-white/5 text-xs font-bold`}>
+                  {onNavigateToWebGis && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToWebGis(item)}
+                      className="min-h-[38px] px-2 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>Peta</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(item)}
+                    className="min-h-[38px] px-2 py-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(item)}
+                    className="min-h-[38px] px-2 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Modal Tambah / Edit Aset */}

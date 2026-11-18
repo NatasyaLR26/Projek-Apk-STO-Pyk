@@ -764,82 +764,101 @@ export default function WebGISMap({
     }
   }, [selectedOdpId]);
 
-  return (
-    <div className="relative w-full h-full min-h-[480px] rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800">
-      {/* Map Container */}
-      <div ref={mapRef} className="w-full h-full z-10" />
-
-      {/* Top Floating Control Bar */}
-      <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-2">
-        {/* Dropdown Layer */}
-        <div className="relative">
-          <button
-            onClick={() => setShowLayerPicker(!showLayerPicker)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-semibold shadow-lg backdrop-blur border border-slate-700 cursor-pointer transition active:scale-95"
-            title="Ganti Tampilan Peta"
-          >
-            <Layers className="w-3.5 h-3.5 text-rose-400" />
-            <span>{MAP_LAYERS[activeLayerId]?.name || 'Satelit Hybrid'}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
-
-          {/* Layer Switcher Dropdown */}
-          {showLayerPicker && (
-            <div className="absolute top-10 left-0 w-56 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl p-2 text-xs space-y-1 z-30 animate-in fade-in zoom-in-95">
-              <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Pilih Tampilan Peta
-              </div>
-              {Object.values(MAP_LAYERS).map((layer) => (
-                <button
-                  key={layer.id}
-                  onClick={() => switchBaseLayer(layer.id)}
-                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition ${
-                    activeLayerId === layer.id
-                      ? 'bg-rose-600 text-white font-bold'
-                      : 'text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  <div>
-                    <div className="font-semibold">{layer.name}</div>
-                    <div className="text-[10px] opacity-75">{layer.desc}</div>
-                  </div>
-                  {activeLayerId === layer.id && <Check className="w-4 h-4 shrink-0" />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Filter Status ODP */}
-        <div className="flex items-center bg-slate-900/90 backdrop-blur rounded-xl border border-slate-700 p-1 text-xs text-white shadow-lg">
-          <Filter className="w-3.5 h-3.5 ml-2 mr-1 text-slate-400" />
-          <select
-            value={odpStatusFilter}
-            onChange={(e) => setOdpStatusFilter(e.target.value)}
-            className="bg-transparent text-xs text-white pr-2 py-1 focus:outline-none cursor-pointer"
-          >
-            <option value="all" className="bg-slate-900 text-white">Filter Status ODP</option>
-            <option value="Tersedia" className="bg-slate-900 text-emerald-400">ODP Tersedia</option>
-            <option value="Penuh" className="bg-slate-900 text-rose-400">ODP Port Penuh</option>
-            <option value="Maintenance" className="bg-slate-900 text-amber-400">ODP Maintenance</option>
-          </select>
-        </div>
-
-        {/* Toggle Cluster/Grouping */}
+  // Render Toolbar Kontrol Peta (Dapat digunakan di dalam map untuk desktop & di luar map untuk mobile)
+  const renderToolbarControls = () => (
+    <>
+      {/* Dropdown Layer */}
+      <div className="relative">
         <button
           type="button"
-          onClick={() => setShowGroupDrawer(!showGroupDrawer)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border backdrop-blur shadow-lg transition active:scale-95 cursor-pointer ${
-            showGroupDrawer
-              ? 'bg-rose-600 text-white border-rose-400'
-              : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:bg-slate-800'
-          }`}
-          title="Buka Pengelompokan ODP per Wilayah"
+          onClick={() => setShowLayerPicker(!showLayerPicker)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-semibold shadow-lg backdrop-blur border border-slate-700 cursor-pointer transition active:scale-95 whitespace-nowrap"
+          title="Ganti Tampilan Peta"
         >
-          <FolderTree className="w-3.5 h-3.5 text-amber-400" />
-          <span>Cluster/Grouping</span>
+          <Layers className="w-3.5 h-3.5 text-rose-400" />
+          <span>{MAP_LAYERS[activeLayerId]?.name || 'Satelit Hybrid'}</span>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
         </button>
+
+        {/* Layer Switcher Dropdown */}
+        {showLayerPicker && (
+          <div className="absolute top-10 left-0 w-56 rounded-2xl bg-slate-900/95 border border-slate-700 shadow-2xl p-2 text-xs space-y-1 z-50 animate-in fade-in zoom-in-95">
+            <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Pilih Tampilan Peta
+            </div>
+            {Object.values(MAP_LAYERS).map((layer) => (
+              <button
+                key={layer.id}
+                type="button"
+                onClick={() => {
+                  switchBaseLayer(layer.id);
+                  setShowLayerPicker(false);
+                }}
+                className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition ${
+                  activeLayerId === layer.id
+                    ? 'bg-rose-600 text-white font-bold'
+                    : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <div>
+                  <div className="font-semibold">{layer.name}</div>
+                  <div className="text-[10px] opacity-75">{layer.desc}</div>
+                </div>
+                {activeLayerId === layer.id && <Check className="w-4 h-4 shrink-0" />}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Filter Status ODP */}
+      <div className="flex items-center bg-slate-900/90 backdrop-blur rounded-xl border border-slate-700 p-1 text-xs text-white shadow-lg">
+        <Filter className="w-3.5 h-3.5 ml-2 mr-1 text-slate-400" />
+        <select
+          value={odpStatusFilter}
+          onChange={(e) => setOdpStatusFilter(e.target.value)}
+          className="bg-transparent text-xs text-white pr-2 py-1 focus:outline-none cursor-pointer"
+        >
+          <option value="all" className="bg-slate-900 text-white">Filter Status ODP</option>
+          <option value="Tersedia" className="bg-slate-900 text-emerald-400">ODP Tersedia</option>
+          <option value="Penuh" className="bg-slate-900 text-rose-400">ODP Port Penuh</option>
+          <option value="Maintenance" className="bg-slate-900 text-amber-400">ODP Maintenance</option>
+        </select>
+      </div>
+
+      {/* Toggle Cluster/Grouping */}
+      <button
+        type="button"
+        onClick={() => setShowGroupDrawer(!showGroupDrawer)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border backdrop-blur shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
+          showGroupDrawer
+            ? 'bg-rose-600 text-white border-rose-400'
+            : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:bg-slate-800'
+        }`}
+        title="Buka Pengelompokan ODP per Wilayah"
+      >
+        <FolderTree className="w-3.5 h-3.5 text-amber-400" />
+        <span>Cluster/Grouping</span>
+      </button>
+    </>
+  );
+
+  return (
+    <div className="flex flex-col gap-2.5 w-full h-full">
+      {/* Mobile Toolbar (di luar kontainer peta pada layar < md agar tidak menabrak kontrol zoom peta) */}
+      <div className="flex md:hidden flex-wrap items-center gap-2 p-2 rounded-2xl bg-slate-900/95 border border-slate-800 shadow-md">
+        {renderToolbarControls()}
+      </div>
+
+      {/* Kontainer Utama Peta */}
+      <div className="relative w-full h-full min-h-[420px] sm:min-h-[480px] rounded-2xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-800 flex-1">
+        {/* Map Container */}
+        <div ref={mapRef} className="w-full h-full z-10" />
+
+        {/* Desktop Top Floating Control Bar (hanya di layar md ke atas) */}
+        <div className="hidden md:flex absolute top-3 left-3 z-20 flex-wrap items-center gap-2">
+          {renderToolbarControls()}
+        </div>
 
       {/* Floating Indicator Banner Saat Mode Pinpoint Aktif */}
       {isPinpointMode && (
@@ -858,7 +877,7 @@ export default function WebGISMap({
 
       {/* DRAWER PENGELOMPOKAN (GROUPING) ODP PER WILAYAH */}
       {showGroupDrawer && (
-        <div className="absolute top-14 left-3 z-30 w-80 max-h-[75vh] overflow-y-auto rounded-3xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl p-4 text-xs text-white space-y-3 animate-in fade-in slide-in-from-left-4">
+        <div className="absolute top-2 md:top-14 left-2 right-2 md:right-auto md:left-3 z-30 md:w-80 max-h-[75vh] overflow-y-auto rounded-3xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl p-4 text-xs text-white space-y-3 animate-in fade-in slide-in-from-left-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-800">
             <div className="flex items-center gap-2">
               <FolderTree className="w-4 h-4 text-amber-400" />
@@ -984,32 +1003,33 @@ export default function WebGISMap({
         </div>
       )}
 
-      {/* Bottom Floating Legend Bar */}
-      <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-900/90 backdrop-blur border border-slate-700/80 text-[11px] text-white shadow-xl">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Bottom Floating Legend Bar (Ramping & Ringkas di Layar Mobile) */}
+      <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex flex-wrap items-center justify-between gap-1.5 py-1.5 px-3 rounded-2xl bg-slate-900/90 backdrop-blur border border-slate-700/80 text-[10px] sm:text-[11px] text-white shadow-xl">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-600 border border-white"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-600 border border-white"></span>
             <span className="text-slate-300 font-semibold">Sentral STO</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-md bg-emerald-600 border border-white"></span>
+            <span className="w-2.5 h-2.5 rounded-md bg-emerald-600 border border-white"></span>
             <span className="text-slate-300 font-semibold">ODP Tersedia</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-md bg-amber-600 border border-white"></span>
+            <span className="w-2.5 h-2.5 rounded-md bg-amber-600 border border-white"></span>
             <span className="text-slate-300 font-semibold">Hampir Penuh</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-md bg-red-600 border border-white"></span>
+            <span className="w-2.5 h-2.5 rounded-md bg-red-600 border border-white"></span>
             <span className="text-slate-300 font-semibold">Port Penuh</span>
           </div>
         </div>
 
         <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-          <span>WebGIS STO Payakumbuh</span>
-          <span className="text-slate-600">|</span>
+          <span className="hidden sm:inline">WebGIS STO Payakumbuh</span>
+          <span className="hidden sm:inline text-slate-600">|</span>
           <strong className="text-emerald-400 font-bold">{odp.length} Titik ODP Terdata</strong>
         </div>
+      </div>
       </div>
 
       {/* MODAL 1: FORM TAMBAH TITIK ODP BARU (PIMPINAN) */}

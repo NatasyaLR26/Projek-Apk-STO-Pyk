@@ -457,13 +457,13 @@ function DashboardPimpinan() {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               {activeMenu === 'tracking' ? (
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 mt-3 sm:flex sm:mt-0 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent('sto:open-add-odp'))}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>+ Tambah ODP</span>
@@ -471,7 +471,7 @@ function DashboardPimpinan() {
                   <button
                     type="button"
                     onClick={() => setShowCreateTaskModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
                     <span>+ Tiket Baru</span>
@@ -481,7 +481,7 @@ function DashboardPimpinan() {
                 <button
                   type="button"
                   onClick={() => setShowAddPegawaiModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap w-full sm:w-auto justify-center"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>+ Tambah Pegawai</span>
@@ -514,7 +514,7 @@ function DashboardPimpinan() {
                   <span>Cetak Rekap</span>
                 </button>
               ) : activeMenu === 'tabel-odp' ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end">
                   <button
                     type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent('sto:export-odp'))}
@@ -536,10 +536,10 @@ function DashboardPimpinan() {
                 <button
                   type="button"
                   onClick={() => setShowCreateTaskModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap w-full mt-2 sm:w-auto sm:mt-0"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Tiket Baru</span>
+                  <span>+ Tiket Baru</span>
                 </button>
               )}
             </div>
@@ -687,8 +687,8 @@ function DashboardPimpinan() {
                     </button>
                   </div>
 
-                  {/* Table fixed-width tanpa horizontal scrollbar */}
-                  <div className="w-full overflow-hidden rounded-xl border border-white/5">
+                  {/* Tampilan Desktop: Table (hidden di mobile, tampil di md:block) */}
+                  <div className="hidden md:block w-full overflow-hidden rounded-xl border border-white/5">
                     <table className="w-full table-fixed text-left text-xs text-slate-300">
                       <thead className="bg-slate-950/90 text-slate-400 border-b border-rose-950/40 uppercase text-[10px] tracking-wider">
                         <tr>
@@ -794,6 +794,93 @@ function DashboardPimpinan() {
                         })}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Tampilan Mobile: Card-based List (block md:hidden, bebas overflow horizontal) */}
+                  <div className="block md:hidden space-y-2.5">
+                    {tugas.slice(0, 5).map(t => {
+                      const tech = users.find(u => Number(u.id) === Number(t.teknisi_id));
+                      const cust = parseTelecomTaskDetails(t);
+                      const isDone = isDoneTask(t.status);
+                      const isProgress = isProgressTask(t.status);
+                      const taskTypeCfg = getTaskTypeConfig(t.jenis_kerja);
+
+                      return (
+                        <div
+                          key={t.id}
+                          className="p-3 rounded-xl bg-slate-900/60 border border-white/5 space-y-2"
+                        >
+                          {/* Header Kartu: Nomor Tiket, Badge Jenis Pekerjaan, Badge Status */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-mono font-black text-rose-500 text-xs shrink-0">
+                                #{t.id}
+                              </span>
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-bold border tracking-wide truncate ${taskTypeCfg.badgeBg}`}>
+                                {taskTypeCfg.badgeText}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
+                                isDone
+                                  ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)]'
+                                  : isProgress
+                                  ? 'bg-blue-950/60 text-blue-400 border border-blue-500/30'
+                                  : 'bg-amber-950/60 text-amber-400 border border-amber-500/30'
+                              }`}>
+                                {isDone ? 'Done' : (t.status || 'Open')}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Body: Nama Pelanggan (Bold putih) & No. Telepon */}
+                          <div className="text-xs">
+                            <span className="font-bold text-white">{cust.name}</span>
+                            {cust.telp && (
+                              <span className="text-[10px] text-slate-400 font-mono ml-1.5">
+                                • {cust.telp}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Lokasi: Alamat singkat dengan ikon MapPin */}
+                          <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                            <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                            <span className="truncate">{cust.address}</span>
+                          </div>
+
+                          {/* Footer: Nama Teknisi bertugas + Tombol Lihat BASTP (jika Done) */}
+                          <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                            <div className="truncate min-w-0 pr-2">
+                              {tech ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTechnician(tech)}
+                                  className="font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1.5 cursor-pointer truncate"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                                  <span className="truncate">{tech.nama_lengkap}</span>
+                                </button>
+                              ) : (
+                                <span className="text-amber-400 text-[10px] font-bold">
+                                  📢 Open Pool
+                                </span>
+                              )}
+                            </div>
+                            {isDone && (
+                              <button
+                                type="button"
+                                onClick={() => setBastpModalTask(t)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition shrink-0"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>BASTP</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

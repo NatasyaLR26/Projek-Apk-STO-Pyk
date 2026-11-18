@@ -202,28 +202,28 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], permo
 
           <div className="space-y-2">
             {/* Indikator 1: Kepatuhan Redaman Optik (-16 s/d -24 dBm) */}
-            <div className="p-2.5 px-3 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm flex items-center justify-between">
+            <div className="p-2.5 px-3 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm flex flex-wrap gap-2 justify-between items-center">
               <div className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                <Radio className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                 <span>Kepatuhan Redaman Optik</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black text-cyan-400 font-mono">{attenuationPercent}%</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)] whitespace-nowrap">
                   -16 s/d -24 dBm
                 </span>
               </div>
             </div>
 
             {/* Indikator 2: Rata-rata Durasi Penanganan (MTTR/Fulfillment Time) */}
-            <div className="p-2.5 px-3 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm flex items-center justify-between">
+            <div className="p-2.5 px-3 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm flex flex-wrap gap-2 justify-between items-center">
               <div className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-blue-400" />
+                <Clock className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                 <span>Rata-rata Durasi Penanganan (MTTR)</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black text-blue-400 font-mono">{avgHandlingHours}</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-950/60 text-blue-400 border border-blue-500/30 shadow-[0_0_8px_rgba(59,130,246,0.2)]">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-950/60 text-blue-400 border border-blue-500/30 shadow-[0_0_8px_rgba(59,130,246,0.2)] whitespace-nowrap">
                   SLA Aman (&lt;3 Jam)
                 </span>
               </div>
