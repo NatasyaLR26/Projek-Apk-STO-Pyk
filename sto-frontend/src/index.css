@@ -275,3 +275,12 @@ html.light .leaflet-popup-tip {
     background-color: #f1f5f9 !important;
   }
 }
+
+/* Utility to hide scrollbars while keeping horizontal/vertical scrollability */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

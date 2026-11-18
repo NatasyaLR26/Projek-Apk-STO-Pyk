@@ -94,7 +94,7 @@ export default function LaporanGudangPimpinan() {
       `"${b.stok <= 20 ? 'Perlu Restock' : 'Aman'}"`
     ]);
 
-    const mutasiTitle = ['\n\n=== RIWAYAT PENGELUARAN MATERIAL KE TEKNISI (SUPABASE REALTIME) ===', '', '', '', '', ''];
+    const mutasiTitle = ['\n\n=== RIWAYAT PENGELUARAN MATERIAL KE TEKNISI (LOGISTIK REALTIME) ===', '', '', '', '', ''];
     const mutasiHeaders = ['ID Permohonan', 'Tanggal Rilis', 'Teknisi Penerima', 'Tiket / Pelanggan', 'Material Diberikan', 'Status'];
     const mutasiRows = releasedMutations.map(m => {
       const cust = parseTaskDetails(m.parentTask);

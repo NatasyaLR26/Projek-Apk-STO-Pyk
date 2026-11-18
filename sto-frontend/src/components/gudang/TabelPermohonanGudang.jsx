@@ -6,10 +6,15 @@ import {
   Send,
   Boxes,
   Eye,
-  Check
+  Check,
+  MapPin,
+  Clock,
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
+import { parseTaskDetails } from '../../utils/taskFormatter';
 
 export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBastp }) {
   const { isDark } = useTheme();
@@ -46,13 +51,17 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
             };
           });
 
-        const canRelease = details.length > 0 ? details.every(d => d.isStockEnough) : true;
+        const isStockEnough = details.length > 0 ? details.every(d => d.isStockEnough) : true;
+        const isApproved = p.status === 'Approved';
+        const canRelease = isApproved && isStockEnough;
 
         return {
           ...p,
           parentTask,
           tech,
           details,
+          isStockEnough,
+          isApproved,
           canRelease
         };
       });
@@ -60,11 +69,17 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
 
   const handleRelease = async (reqId) => {
     if (releasingId) return;
-    setReleasingId(reqId);
 
     try {
       const target = permohonan.find(p => Number(p.id) === Number(reqId));
       if (!target || target.status === 'Released') return;
+
+      if (target.status !== 'Approved') {
+        showToast('Permohonan belum disetujui Pimpinan.', 'error');
+        return;
+      }
+
+      setReleasingId(reqId);
 
       const isBatch = target?.is_batch || (target?.tugas_ids && target.tugas_ids.length > 1);
 
@@ -72,7 +87,7 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
         const allocations = {};
         target.tugas_ids.forEach(tid => {
           const key = `${reqId}_${tid}`;
-          const sn = batchSnInputs[key] || `ZTEGC8B${Math.random().toString(16).substring(2, 7).toUpperCase()}`;
+          const sn = batchSnInputs[key] || '';
           const model = batchModelInputs[key] || 'Modem ONT ZTE F670L Dual Band';
           allocations[tid] = { sn, model };
         });
@@ -93,7 +108,7 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
     <div className="space-y-4 animate-in fade-in duration-200">
       <div className="flex items-center justify-end">
         <span className="text-[10px] uppercase font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/30">
-          {approvedRequests.length} Menunggu Rilis
+          {approvedRequests.length} Permohonan Aktif
         </span>
       </div>
 
@@ -104,12 +119,15 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
           <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-1`}>Semua permohonan material yang disetujui sudah dirilis ke teknisi.</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {approvedRequests.map(req => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          {approvedRequests.map(req => {
+            const cust = parseTaskDetails(req.parentTask);
+            return (
             <div
               key={req.id}
-              className={`${isDark ? 'bg-slate-900/90 border-slate-800 hover:border-amber-500/50' : 'bg-white border-slate-200 shadow-md hover:border-amber-500/70'} border rounded-3xl p-5 space-y-4 transition`}
+              className={`${isDark ? 'bg-slate-900/90 border-slate-800 hover:border-amber-500/50' : 'bg-white border-slate-200 shadow-md hover:border-amber-500/70'} border rounded-3xl p-5 flex flex-col justify-between transition min-h-full`}
             >
+              <div className="space-y-4 flex-1">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-extrabold text-sm text-amber-500">Permohonan #{req.id}</span>
@@ -126,11 +144,31 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
                 </span>
               </div>
 
-              <div className={`text-xs ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'} p-3 rounded-2xl border space-y-1`}>
-                <div><strong>Teknisi Pengambil:</strong> {req.tech?.nama_lengkap || req.teknisi_nama}</div>
-                <div><strong>Lokasi Pekerjaan:</strong> {req.parentTask?.lokasi || 'Payakumbuh'}</div>
+              {/* Info Pelanggan, Alamat, & Teknisi Bersih */}
+              <div className={`text-xs ${isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'} p-3.5 rounded-2xl border space-y-2`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] text-slate-400">Teknisi Pengambil: </span>
+                    <strong className={isDark ? 'text-white' : 'text-slate-900'}>{req.tech?.nama_lengkap || req.teknisi_nama}</strong>
+                  </div>
+                </div>
+
+                <div className={`pt-2 border-t ${isDark ? 'border-slate-800/80' : 'border-slate-200'} space-y-1`}>
+                  {/* Baris 1: Nama Pelanggan • No. Telepon */}
+                  <div className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {cust.name} {cust.telp ? `• ${cust.telp}` : ''}
+                  </div>
+                  {/* Baris 2: Alamat / Wilayah pekerjaan */}
+                  <div className="flex items-start gap-1.5 text-xs text-slate-400">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                    <span>{cust.address || 'Payakumbuh'}</span>
+                  </div>
+                </div>
+
                 {req.catatan_teknisi && (
-                  <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'} italic`}>"{req.catatan_teknisi}"</div>
+                  <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'} italic pt-1`}>
+                    "{req.catatan_teknisi}"
+                  </div>
                 )}
               </div>
 
@@ -180,42 +218,32 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
                   <div className="space-y-2">
                     {(req.tugas_ids || [req.tugas_id]).map((tid) => {
                       const tsk = tugas.find((t) => Number(t.id) === Number(tid));
+                      const tskCust = parseTaskDetails(tsk);
                       const key = `${req.id}_${tid}`;
                       return (
                         <div key={tid} className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px]">
                             <span className="font-bold text-slate-200">
-                              Tiket #{tid}: {tsk?.pelanggan_nama || `Pelanggan #${tid}`}
+                              Tiket #{tid}: {tskCust.name} {tskCust.telp ? `• ${tskCust.telp}` : ''}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-mono">{tsk?.lokasi}</span>
+                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                              <span className="truncate max-w-[200px]">{tskCust.address}</span>
+                            </span>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex gap-1.5">
-                              <input
-                                type="text"
-                                placeholder="Scan Barcode / SN ONT..."
-                                value={batchSnInputs[key] || ''}
-                                onChange={(e) =>
-                                  setBatchSnInputs((prev) => ({
-                                    ...prev,
-                                    [key]: e.target.value.toUpperCase(),
-                                  }))
-                                }
-                                className="flex-1 p-2 rounded-lg border border-purple-600/40 bg-slate-900 text-white font-mono text-[11px] uppercase"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setBatchSnInputs((prev) => ({
-                                    ...prev,
-                                    [key]: `ZTEGC8B${Math.random().toString(16).substring(2, 7).toUpperCase()}`,
-                                  }))
-                                }
-                                className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] cursor-pointer"
-                              >
-                                Auto
-                              </button>
-                            </div>
+                            <input
+                              type="text"
+                              placeholder="Scan Barcode / SN ONT..."
+                              value={batchSnInputs[key] || ''}
+                              onChange={(e) =>
+                                setBatchSnInputs((prev) => ({
+                                  ...prev,
+                                  [key]: e.target.value.toUpperCase(),
+                                }))
+                              }
+                              className="w-full p-2 rounded-lg border border-purple-600/40 bg-slate-900 text-white font-mono text-[11px] uppercase"
+                            />
                             <select
                               value={batchModelInputs[key] || 'Modem ONT ZTE F670L Dual Band'}
                               onChange={(e) =>
@@ -240,15 +268,9 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
               ) : (
                 req.details.some(d => d.item?.nama_barang?.toLowerCase().includes('ont') || d.item?.nama_barang?.toLowerCase().includes('modem')) && (
                   <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-purple-400">Nomor Seri (SN) Modem ONT (Alokasi Gudang):</span>
-                      <button
-                        type="button"
-                        onClick={() => setSnOntInputs(prev => ({ ...prev, [req.id]: 'ZTEGC8B' + Math.random().toString(16).substring(2, 7).toUpperCase() }))}
-                        className="text-[10px] text-purple-300 hover:underline font-bold cursor-pointer"
-                      >
-                        Buat SN Otomatis
-                      </button>
+                    <div className="flex items-center gap-1.5">
+                      <Barcode className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                      <span className="font-bold text-purple-400">Alokasi SN Modem ONT:</span>
                     </div>
                     <input
                       type="text"
@@ -261,40 +283,77 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBa
                 )
               )}
 
+              </div>
+
               {/* Release Button & Optional Cetak Surat Jalan */}
-              <div className="pt-2 space-y-2">
+              <div className="pt-4 mt-auto space-y-2 shrink-0">
                 <button
                   onClick={() => handleRelease(req.id)}
                   disabled={!req.canRelease || releasingId !== null}
-                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-lg cursor-pointer ${
+                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-lg ${
                     req.canRelease && releasingId === null
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-950 active:scale-98'
-                      : isDark ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-950 active:scale-98 cursor-pointer'
+                      : !req.isApproved
+                      ? isDark
+                        ? 'bg-amber-950/20 text-amber-400/90 border border-amber-500/30 cursor-not-allowed'
+                        : 'bg-amber-50 text-amber-600 border border-amber-200 cursor-not-allowed'
+                      : isDark
+                      ? 'bg-rose-950/30 text-rose-400 border border-rose-500/40 cursor-not-allowed'
+                      : 'bg-rose-50 text-rose-600 border border-rose-200 cursor-not-allowed'
                   }`}
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>
-                    {releasingId === req.id
-                      ? 'Memproses Rilis Barang...'
-                      : req.canRelease
-                      ? '📦 Serahkan & Rilis Barang ke Teknisi'
-                      : 'Stok Gudang Tidak Cukup'}
-                  </span>
+                  {releasingId === req.id ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 animate-spin" />
+                      <span>Memproses Penyerahan Material...</span>
+                    </>
+                  ) : !req.isApproved ? (
+                    <>
+                      <Clock className="w-4 h-4 text-amber-400" />
+                      <span>Menunggu Otorisasi Pimpinan</span>
+                    </>
+                  ) : req.canRelease ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Serahkan Material ke Teknisi</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-4 h-4 text-rose-400" />
+                      <span>Stok Gudang Tidak Cukup</span>
+                    </>
+                  )}
                 </button>
 
                 {onNavigateToSuratJalan && (
                   <button
                     type="button"
-                    onClick={onNavigateToSuratJalan}
-                    className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    onClick={() => {
+                      if (!req.isApproved) return;
+                      onNavigateToSuratJalan(req);
+                    }}
+                    disabled={!req.isApproved}
+                    title={!req.isApproved ? 'Dokumen belum sah dicetak sebelum ada otorisasi Pimpinan' : 'Cetak Surat Jalan & BAST'}
+                    className={`w-full py-2 px-3 rounded-xl font-semibold text-xs border flex items-center justify-center gap-1.5 transition ${
+                      req.isApproved
+                        ? isDark
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 cursor-pointer active:scale-98'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 cursor-pointer active:scale-98'
+                        : 'opacity-50 cursor-not-allowed bg-slate-800/50 text-slate-500 border-slate-700/50'
+                    }`}
                   >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>🖨️ Cetak Surat Jalan / Tanda Terima (Opsional)</span>
+                    {!req.isApproved ? (
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    ) : (
+                      <FileText className="w-3.5 h-3.5" />
+                    )}
+                    <span>Cetak Surat Jalan (BAST)</span>
                   </button>
                 )}
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
       )}
     </div>

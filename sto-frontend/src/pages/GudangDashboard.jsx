@@ -20,7 +20,8 @@ import {
   Download,
   FileSpreadsheet,
   Truck,
-  Check
+  Check,
+  MapPin
 } from 'lucide-react';
 import ModernSidebar from '../components/ModernSidebar';
 import InputBarangGudang from '../components/InputBarangGudang';
@@ -32,6 +33,28 @@ import TabelKatalogBarang from '../components/gudang/TabelKatalogBarang';
 import TabelRiwayatMutasi from '../components/gudang/TabelRiwayatMutasi';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { parseTaskDetails } from '../utils/taskFormatter';
+
+// Helper pemformat kode terminasi ODP standar Telkom
+const formatOdpAudit = (rawOdp, odpList = []) => {
+  if (!rawOdp || rawOdp === '-') return '-';
+  const str = String(rawOdp).trim();
+  if (/^\d+$/.test(str)) {
+    const num = Number(str);
+    const matched = odpList.find(o => Number(o.id) === num);
+    if (matched && matched.kode_odp) {
+      const portNum = String(matched.port_terpakai || num % 8 || 1).padStart(2, '0');
+      return `${matched.kode_odp} (Port ${portNum})`;
+    }
+    const paddedId = String(num).padStart(3, '0');
+    const portNum = String(num % 8 || 1).padStart(2, '0');
+    return `ODP-PYK-FA/${paddedId} (Port ${portNum})`;
+  }
+  if (/^ODP-[A-Z0-9\/-]+$/i.test(str)) {
+    return `${str} (Port 01)`;
+  }
+  return str;
+};
 
 export default function GudangDashboard() {
   const navigate = useNavigate();
@@ -43,6 +66,7 @@ export default function GudangDashboard() {
     tugas,
     users,
     pelanggan,
+    odp: odpList = [],
     releaseMaterial,
     updateBarang,
     tambahStokBarang,
@@ -208,27 +232,26 @@ export default function GudangDashboard() {
     };
   }, [barang]);
 
-  // Data Audit Lifecycle ONT (Di Gudang -> Di Perjalanan / In-Transit -> Terpasang / Active)
+  // Data Audit Lifecycle ONT (Di Gudang -> Dibawa Teknisi -> Terpasang / Active)
   const ontInventoryList = React.useMemo(() => {
     const list = [];
 
     // 1. ONT yang terpasang di tiket selesai (Status: Terpasang di Pelanggan)
     tugas.forEach(t => {
       if (t.sn_ont || t.bastp?.sn_ont || t.status === 'Done') {
-        const matchedCust = (pelanggan || []).find(p => (p.sn_ont && p.sn_ont === (t.sn_ont || t.bastp?.sn_ont)) || (p.nama && p.nama.trim().toLowerCase() === (t.pelanggan_nama || '').trim().toLowerCase()));
-        const cleanTelp = (t.pelanggan_telp && !t.pelanggan_telp.includes('xxxx'))
-          ? t.pelanggan_telp
-          : matchedCust?.no_telp || '0812-7711-2233';
+        const cust = parseTaskDetails(t);
+        const cleanTelp = cust.telp || (t.pelanggan_telp && !t.pelanggan_telp.includes('xxxx') ? t.pelanggan_telp : '0812-7711-2233');
 
         list.push({
           id: `ONT-INST-${t.id}`,
           sn: t.sn_ont || t.bastp?.sn_ont || `ZTEGC8B901${String(t.id).padStart(2, '0')}`,
           model: 'Modem ONT ZTE F670L Dual Band',
-          status: t.status === 'Done' ? 'Terpasang' : 'Di Perjalanan',
-          pelanggan_nama: t.pelanggan_nama || matchedCust?.nama || 'Pelanggan STO',
+          status: t.status === 'Done' ? 'Terpasang' : 'Dibawa Teknisi',
+          pelanggan_nama: cust.name || 'Pelanggan STO',
           pelanggan_telp: cleanTelp,
-          lokasi: t.lokasi || matchedCust?.alamat || 'Payakumbuh',
-          odp_id: t.odp_id || t.odp_kode || matchedCust?.odp_id || 'ODP-PYK-FA/001',
+          lokasi: cust.address || 'Payakumbuh',
+          odp_id: t.odp_id || t.odp_kode || 'ODP-PYK-FA/001',
+          odpFormatted: formatOdpAudit(t.odp_id || t.odp_kode, odpList),
           redaman_dbm: t.redaman_dbm ? `${t.redaman_dbm} dBm` : '-18.50 dBm',
           bastp_no: t.bastp_no || `BASTP/TA-PYK/2026/${String(t.id).padStart(4, '0')}`,
           teknisi: users.find(u => Number(u.id) === Number(t.teknisi_id))?.nama_lengkap || 'Teknisi Lapangan',
@@ -237,27 +260,26 @@ export default function GudangDashboard() {
       }
     });
 
-    // 2. ONT yang sedang di perjalanan bersama teknisi (In-Transit)
+    // 2. ONT yang sedang di perjalanan bersama teknisi (Dibawa Teknisi)
     releasedRequests.forEach(rel => {
       const isDone = rel.parentTask?.status === 'Done';
       if (!isDone) {
         const alreadyIn = list.some(o => o.sn === (rel.parentTask?.sn_ont || `ZTEGC8B901${String(rel.parentTask?.id || 1).padStart(2, '0')}`));
         if (!alreadyIn) {
-          const matchedCust = (pelanggan || []).find(p => p.nama && p.nama.trim().toLowerCase() === (rel.parentTask?.pelanggan_nama || '').trim().toLowerCase());
-          const cleanTelp = (rel.parentTask?.pelanggan_telp && !rel.parentTask.pelanggan_telp.includes('xxxx'))
-            ? rel.parentTask.pelanggan_telp
-            : matchedCust?.no_telp || '0813-8822-4455';
+          const cust = parseTaskDetails(rel.parentTask);
+          const cleanTelp = cust.telp || (rel.parentTask?.pelanggan_telp && !rel.parentTask.pelanggan_telp.includes('xxxx') ? rel.parentTask.pelanggan_telp : '0813-8822-4455');
 
           list.push({
             id: `ONT-TRANS-${rel.id}`,
             sn: rel.parentTask?.sn_ont || `ZTEGC8B901${String(rel.parentTask?.id || 1).padStart(2, '0')}`,
             model: 'Modem ONT ZTE F670L Dual Band',
-            status: 'Di Perjalanan',
-            pelanggan_nama: rel.parentTask?.pelanggan_nama || matchedCust?.nama || 'Pelanggan STO',
+            status: 'Dibawa Teknisi',
+            pelanggan_nama: cust.name || 'Pelanggan STO',
             pelanggan_telp: cleanTelp,
-            lokasi: rel.parentTask?.lokasi || matchedCust?.alamat || 'Koto Nan IV',
-            odp_id: rel.parentTask?.odp_kode || matchedCust?.odp_id || 'ODP-PYK-FA/001',
-            redaman_dbm: 'Belum Diukur (Dalam Perjalanan)',
+            lokasi: cust.address || 'Koto Nan IV',
+            odp_id: rel.parentTask?.odp_kode || rel.parentTask?.odp_id || 'ODP-PYK-FA/001',
+            odpFormatted: formatOdpAudit(rel.parentTask?.odp_kode || rel.parentTask?.odp_id, odpList),
+            redaman_dbm: 'Belum Diukur (Dibawa Teknisi)',
             bastp_no: 'Menunggu Closing',
             teknisi: rel.tech?.nama_lengkap || 'Teknisi STO',
             waktu: rel.waktu_rilis || 'Dibawa Teknisi'
@@ -277,8 +299,9 @@ export default function GudangDashboard() {
         status: 'Di Gudang',
         pelanggan_nama: '-',
         pelanggan_telp: '-',
-        lokasi: 'Rak Logistik Sentral STO Payakumbuh',
+        lokasi: 'Rak Logistik Sentral STO',
         odp_id: '-',
+        odpFormatted: '-',
         redaman_dbm: '-',
         bastp_no: '-',
         teknisi: 'Petugas Gudang (Siti Rahmawati)',
@@ -295,11 +318,12 @@ export default function GudangDashboard() {
             id: `ONT-SOP-${s.id || s.sn}`,
             sn: s.sn,
             model: s.model || 'Modem ONT ZTE F670L Dual Band',
-            status: s.status || 'Di Gudang',
+            status: (s.status === 'Di Perjalanan' || s.status === 'Dibawa Teknisi') ? 'Dibawa Teknisi' : (s.status || 'Di Gudang'),
             pelanggan_nama: s.pelanggan || '-',
             pelanggan_telp: '-',
-            lokasi: s.lokasi || 'Rak Logistik Sentral STO Payakumbuh',
+            lokasi: s.lokasi || 'Rak Logistik Sentral STO',
             odp_id: s.odp_id || '-',
+            odpFormatted: formatOdpAudit(s.odp_id, odpList),
             redaman_dbm: '-',
             bastp_no: s.bastp_no || '-',
             teknisi: s.teknisi || 'Petugas Gudang (Siti Rahmawati)',
@@ -310,7 +334,7 @@ export default function GudangDashboard() {
     } catch { /* ignore */ }
 
     return list;
-  }, [tugas, releasedRequests, users, barang, pelanggan]);
+  }, [tugas, releasedRequests, users, barang, pelanggan, odpList]);
 
   // Filtered ONT List untuk pencarian & status tab
   const filteredOntList = React.useMemo(() => {
@@ -320,12 +344,30 @@ export default function GudangDashboard() {
         item.sn?.toLowerCase().includes(q) ||
         item.pelanggan_nama?.toLowerCase().includes(q) ||
         item.lokasi?.toLowerCase().includes(q) ||
+        item.teknisi?.toLowerCase().includes(q) ||
         item.model?.toLowerCase().includes(q);
 
-      const matchStatus = ontStatusFilter === 'all' || item.status === ontStatusFilter;
+      const matchStatus = ontStatusFilter === 'all' ||
+        item.status === ontStatusFilter ||
+        (ontStatusFilter === 'Dibawa Teknisi' && (item.status === 'Dibawa Teknisi' || item.status === 'Di Perjalanan'));
       return matchSearch && matchStatus;
     });
   }, [ontInventoryList, ontSearchQuery, ontStatusFilter]);
+
+  const handleViewBastpItem = (item) => {
+    const taskId = Number(item.id?.replace('ONT-INST-', '').replace('ONT-TRANS-', '').replace('ONT-WH-', '').replace('ONT-SOP-', ''));
+    const tsk = tugas.find(t => Number(t.id) === taskId) || {
+      id: taskId || 1,
+      pelanggan_nama: item.pelanggan_nama,
+      pelanggan_telp: item.pelanggan_telp,
+      lokasi: item.lokasi,
+      odp_kode: item.odp_id,
+      sn_ont: item.sn,
+      redaman_dbm: item.redaman_dbm,
+      status: 'Done'
+    };
+    setBastpModalTask(tsk);
+  };
 
   const stockHealthStats = React.useMemo(() => {
     let aman = 0;
@@ -396,35 +438,36 @@ export default function GudangDashboard() {
 
       {/* Main Content Area */}
       <main className={`flex-1 min-w-0 flex flex-col ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'} transition-all duration-300`}>
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6 flex-1 max-w-7xl w-full mx-auto">
+        <div className="p-2.5 sm:p-4 space-y-3.5 flex-1 max-w-7xl w-full mx-auto">
           
-          {/* Header Banner */}
-          <div className={`p-5 sm:p-6 rounded-3xl border ${
-            isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-          } flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors`}>
-            <div>
-              <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {activeMenu === 'dashboard-gudang' && 'Dashboard Gudang'}
-                {activeMenu === 'tabel-material' && 'Tabel Material'}
-                {activeMenu === 'output-barang' && 'Persetujuan Barang Keluar'}
-                {activeMenu === 'input-barang' && 'Input Barang Masuk'}
-                {activeMenu === 'audit-ont' && 'Audit Aset ONT'}
-                {activeMenu === 'penarikan-aset' && 'Dismantle & Recovery Aset STO'}
+          {/* Header Bar Ramping & Elegan (Enterprise Standard) */}
+          <div className={`p-3 sm:p-3.5 rounded-2xl border ${
+            isDark ? 'bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)]' : 'bg-white border-slate-200 shadow-sm'
+          } flex items-center justify-between gap-3 transition-colors`}>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+              <h1 className={`text-base sm:text-lg font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {activeMenu === 'dashboard-gudang' && 'Dashboard Logistik & Material'}
+                {activeMenu === 'tabel-material' && 'Katalog Master Material FTTH'}
+                {activeMenu === 'output-barang' && 'Persetujuan Pengeluaran Material'}
+                {activeMenu === 'input-barang' && 'Input Pengadaan Barang Masuk'}
+                {activeMenu === 'audit-ont' && 'Audit & Pelacakan Serial Number ONT'}
+                {activeMenu === 'penarikan-aset' && 'Recovery Dismantle'}
                 {activeMenu === 'cetak-surat-jalan' && 'Cetak Surat Jalan & BASTP'}
               </h1>
             </div>
           </div>
 
-          {/* Alert Notifikasi Permohonan Masuk dari Teknisi */}
-          {approvedRequests.length > 0 && (
-            <div className="p-4 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-in fade-in">
-              <div className="flex items-center gap-3">
+          {/* Alert Notifikasi Permohonan Masuk dari Teknisi (Hanya tampil di ringkasan dashboard) */}
+          {approvedRequests.length > 0 && activeMenu === 'dashboard-gudang' && (
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-in fade-in">
+              <div className="flex items-start sm:items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center justify-center shrink-0">
                   <Send className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
                   <div className="text-xs font-black text-amber-400">
-                    Notifikasi Permohonan Material Masuk ({approvedRequests.length} Permohonan dari Teknisi)
+                    Permohonan Material Teknisi ({approvedRequests.length} Menunggu Otorisasi)
                   </div>
                   <div className="text-[11px] text-slate-300 mt-0.5">
                     Teknisi <strong>{approvedRequests[0]?.tech?.nama_lengkap || 'Teknisi'}</strong> mengajukan kebutuhan barang untuk Tiket #{approvedRequests[0]?.tugas_id}.
@@ -434,9 +477,9 @@ export default function GudangDashboard() {
               <button
                 type="button"
                 onClick={() => handleSetActiveMenu('output-barang')}
-                className="px-4 py-2 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shrink-0 cursor-pointer transition shadow active:scale-95 flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shrink-0 cursor-pointer transition shadow active:scale-95 flex items-center justify-center gap-1.5 self-stretch sm:self-auto"
               >
-                <span>Buka Menu Output Barang</span>
+                <span>Proses Pengeluaran Material</span>
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -452,7 +495,7 @@ export default function GudangDashboard() {
                   className={`${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-amber-500/50' : 'bg-white border-slate-200 hover:border-amber-500/50 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between cursor-pointer transition`}
                 >
                   <div>
-                    <div className="text-[11px] text-amber-500 font-semibold uppercase">Siap Rilis (SOP 4)</div>
+                    <div className="text-[11px] text-amber-500 font-semibold uppercase">SIAP DISERAHKAN</div>
                     <div className="text-2xl font-extrabold text-amber-500 mt-1">{pendingReleaseCount}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-amber-600/20 text-amber-500 border border-amber-500/30 flex items-center justify-center">
@@ -465,7 +508,7 @@ export default function GudangDashboard() {
                   className={`${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-emerald-500/50' : 'bg-white border-slate-200 hover:border-emerald-500/50 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between cursor-pointer transition`}
                 >
                   <div>
-                    <div className="text-[11px] text-emerald-500 font-semibold uppercase">Total Jenis Barang</div>
+                    <div className="text-[11px] text-emerald-500 font-semibold uppercase">TOTAL VARIAN SKU</div>
                     <div className={`text-2xl font-extrabold ${isDark ? 'text-white' : 'text-slate-900'} mt-1`}>{totalItemCount}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center">
@@ -478,7 +521,7 @@ export default function GudangDashboard() {
                   className={`${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-rose-500/50' : 'bg-white border-slate-200 hover:border-rose-500/50 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between cursor-pointer transition`}
                 >
                   <div>
-                    <div className="text-[11px] text-burgundy-500 font-semibold uppercase">Stok Menipis (≤ 20)</div>
+                    <div className="text-[11px] text-burgundy-500 font-semibold uppercase">STOK KRITIS / MENIPIS</div>
                     <div className="text-2xl font-extrabold text-burgundy-500 mt-1">{lowStockItems}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-burgundy-600/20 text-burgundy-500 border border-burgundy-500/30 flex items-center justify-center">
@@ -491,7 +534,7 @@ export default function GudangDashboard() {
                   className={`${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-blue-500/50' : 'bg-white border-slate-200 hover:border-blue-500/50 shadow-sm'} border rounded-2xl p-4 flex items-center justify-between cursor-pointer transition`}
                 >
                   <div>
-                    <div className="text-[11px] text-blue-500 font-semibold uppercase">Total Serah Terima</div>
+                    <div className="text-[11px] text-blue-500 font-semibold uppercase">TOTAL TRANSAKSI BASTP</div>
                     <div className="text-2xl font-extrabold text-blue-500 mt-1">{totalReleasedCount}</div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30 flex items-center justify-center">
@@ -503,21 +546,18 @@ export default function GudangDashboard() {
               {/* ANALYTICS CHARTS SECTION (DONUT & BAR CHART STOK GUDANG) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 
-                {/* 1. DONUT / PIE CHART: DISTRIBUSI KATEGORI MATERIAL GUDANG (REAL SUPABASE) */}
+                {/* 1. DONUT / PIE CHART: DISTRIBUSI KATEGORI MATERIAL GUDANG */}
                 <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl p-5 space-y-4`}>
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-800/60">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                  <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-800/60">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center shrink-0">
                         <PieChart className="w-4 h-4" />
                       </div>
-                      <div>
-                        <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          Komposisi Kategori Material Gudang
-                        </h3>
-                        <p className="text-[10px] text-slate-400">Proporsi volume fisik material sinkron real-time dengan Supabase</p>
-                      </div>
+                      <h3 className={`text-xs sm:text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'} truncate`}>
+                        Komposisi Kategori Material
+                      </h3>
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                    <span className="shrink-0 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 whitespace-nowrap ml-2">
                       Total: {categoryStats.totalQty.toLocaleString()} Unit
                     </span>
                   </div>
@@ -627,12 +667,9 @@ export default function GudangDashboard() {
                       <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center">
                         <BarChart3 className="w-4 h-4" />
                       </div>
-                      <div>
-                        <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          Status Kesehatan &amp; Level Stok Material
-                        </h3>
-                        <p className="text-[10px] text-slate-400">Monitoring ambang batas restock pengadaan Telkom</p>
-                      </div>
+                      <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        Monitoring Buffer Stock &amp; Ketersediaan
+                      </h3>
                     </div>
                     <button
                       type="button"
@@ -686,11 +723,6 @@ export default function GudangDashboard() {
                           style={{ width: `${Math.round((stockHealthStats.kritis / Math.max(1, barang.length)) * 100)}%` }}
                         />
                       </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[10px] text-slate-400 flex items-center justify-between">
-                      <span>Threshold Otomatis: Sinkron dengan Database Supabase</span>
-                      <span className="text-emerald-400 font-bold">100% Real-Time</span>
                     </div>
                   </div>
                 </div>
@@ -750,11 +782,11 @@ export default function GudangDashboard() {
                       <Barcode className="w-4 h-4" />
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                      Lifecycle ONT
+                      Tracking SN
                     </span>
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs">Audit &amp; Pelacakan ONT</h4>
+                    <h4 className="font-bold text-xs">Audit Serial Number ONT</h4>
                   </div>
                 </div>
 
@@ -812,179 +844,284 @@ export default function GudangDashboard() {
           {/* TAB: AUDIT & PELACAKAN ASET ONT (MENU KHUSUS AUDIT PERANGKAT TERPASANG) */}
           {activeMenu === 'audit-ont' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl overflow-hidden shadow-xl space-y-4 p-5 sm:p-6`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
-                      <Barcode className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        Audit &amp; Pelacakan Aset Perangkat ONT Lapangan
-                      </h3>
-                    </div>
+              <div className={`${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-3xl overflow-hidden shadow-xl space-y-4 p-4 sm:p-6`}>
+                {/* Header Metrik & Export CSV (Sejajar Kompak Tanpa Judul Ganda) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">
+                      Di Gudang: {ontInventoryList.filter(o => o.status === 'Di Gudang').length}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 whitespace-nowrap">
+                      Dibawa Teknisi: {ontInventoryList.filter(o => o.status === 'Dibawa Teknisi' || o.status === 'Di Perjalanan').length}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+                      Terpasang: {ontInventoryList.filter(o => o.status === 'Terpasang').length}
+                    </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">
-                      Di Gudang: {ontInventoryList.filter(o => o.status === 'Di Gudang').length} Unit
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                      Dalam Perjalanan: {ontInventoryList.filter(o => o.status === 'Di Perjalanan').length} Unit
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                      Terpasang: {ontInventoryList.filter(o => o.status === 'Terpasang').length} Unit
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleExportExcel}
-                      className="px-3 py-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Export CSV Audit</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleExportExcel}
+                    className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export CSV Audit</span>
+                  </button>
                 </div>
 
                 {/* Toolbar Pencarian & Filter Pelacakan SN ONT */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-                  <div className="relative flex-1">
+                <div className="flex flex-col md:flex-row md:items-center gap-3 p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
+                  <div className="relative flex-1 w-full">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="Lacak No. Seri ONT (misal: ZTEGC8B... / HWTC...) / Pelanggan / Alamat / Teknisi..."
+                      placeholder="Lacak No. Seri ONT (misal: ZTEGC8B... / HWTC...) / Pelanggan / Alamat"
                       value={ontSearchQuery}
                       onChange={(e) => setOntSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
+                      className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 font-mono"
                     />
                   </div>
 
-                  <div className="flex items-center gap-1.5 overflow-x-auto">
-                    {[
-                      { id: 'all', label: 'Semua Status' },
-                      { id: 'Di Gudang', label: 'Di Gudang (Rak)' },
-                      { id: 'Di Perjalanan', label: 'Dalam Perjalanan' },
-                      { id: 'Terpasang', label: 'Terpasang' }
-                    ].map(f => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setOntStatusFilter(f.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                          ontStatusFilter === f.id
-                            ? 'bg-purple-600 text-white shadow-md shadow-purple-950'
-                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                        }`}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
+                  <select
+                    value={ontStatusFilter}
+                    onChange={(e) => setOntStatusFilter(e.target.value)}
+                    className="w-full md:w-auto bg-slate-900 border border-slate-800 text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-rose-500 cursor-pointer"
+                  >
+                    <option value="all">Semua Status</option>
+                    <option value="Di Gudang">Di Gudang (Rak)</option>
+                    <option value="Dibawa Teknisi">Dibawa Teknisi</option>
+                    <option value="Terpasang">Terpasang di Pelanggan</option>
+                  </select>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Mobile Card View (< md) */}
+                <div className="grid grid-cols-1 gap-3 md:hidden">
+                  {filteredOntList.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 italic text-xs">
+                      Tidak ada Serial Number ONT yang cocok dengan pencarian / filter ini.
+                    </div>
+                  ) : (
+                    filteredOntList.map(item => {
+                      const isInstalled = item.status === 'Terpasang';
+                      const isTransit = item.status === 'Dibawa Teknisi' || item.status === 'Di Perjalanan';
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-4 rounded-2xl border ${
+                            isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                          } space-y-3 transition`}
+                        >
+                          {/* Header Kartu: Barcode + SN di kiri, Badge Status di kanan */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Barcode className="w-4 h-4 text-purple-400 shrink-0" />
+                              <span className="font-mono font-bold text-xs text-rose-400 dark:text-rose-400 truncate">
+                                {item.sn}
+                              </span>
+                            </div>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 inline-flex items-center gap-1 ${
+                              isInstalled
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : isTransit
+                                ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                                : 'bg-slate-800 text-slate-400 border-slate-700'
+                            }`}>
+                              {isInstalled && <Check className="w-3 h-3" />}
+                              {isTransit && <Truck className="w-3 h-3" />}
+                              <span>{isTransit ? 'Dibawa Teknisi' : item.status}</span>
+                            </span>
+                          </div>
+
+                          {/* Body Kartu: Model, Alokasi / Pelanggan, ODP & OPM */}
+                          <div className="space-y-2 text-xs">
+                            <div className="text-[11px] font-medium text-slate-400">
+                              {item.model}
+                            </div>
+
+                            {/* Alokasi Pelanggan & Alamat / Rak Gudang */}
+                            <div className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-900/60 border-slate-800/80' : 'bg-white border-slate-200'} space-y-1`}>
+                              {isInstalled ? (
+                                <>
+                                  <div className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                    {item.pelanggan_nama} {item.pelanggan_telp && item.pelanggan_telp !== '-' ? `• ${item.pelanggan_telp}` : ''}
+                                  </div>
+                                  <div className="flex items-start gap-1 text-[11px] text-slate-400">
+                                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                                    <span>{item.lokasi}</span>
+                                  </div>
+                                </>
+                              ) : isTransit ? (
+                                <>
+                                  <div className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                    Dibawa: {item.teknisi}
+                                  </div>
+                                  <div className="flex items-start gap-1 text-[11px] text-slate-400">
+                                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                                    <span>Tujuan: {item.pelanggan_nama} ({item.lokasi})</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-slate-400 text-xs italic">
+                                  Rak Logistik Sentral STO
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Parameter: Titik ODP & Redaman OPM */}
+                            {(isInstalled || isTransit) && (
+                              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-800/50">
+                                <div>
+                                  <span className="text-slate-400">Titik ODP: </span>
+                                  <span className="font-mono text-amber-400 font-semibold">{item.odpFormatted}</span>
+                                </div>
+                                {item.redaman_dbm && item.redaman_dbm !== '-' && (
+                                  <div>
+                                    <span className="text-slate-400">OPM: </span>
+                                    <span className="font-mono text-emerald-400 font-bold">{item.redaman_dbm}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Footer Kartu: BASTP / Teknisi & Tombol Lihat BASTP */}
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px]">
+                            <div className="min-w-0">
+                              <span className="font-mono text-[10px] text-slate-400 block truncate">
+                                {item.bastp_no}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block truncate">
+                                Teknisi: {item.teknisi}
+                              </span>
+                            </div>
+                            {isInstalled && (
+                              <button
+                                type="button"
+                                onClick={() => handleViewBastpItem(item)}
+                                className="px-2.5 py-1 rounded-lg bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                              >
+                                <FileText className="w-3 h-3" />
+                                <span>Lihat BASTP</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Desktop Table View (hidden md:block) */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     <thead className={`${isDark ? 'bg-slate-950/80 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
                       <tr>
-                        <th className="px-3.5 py-3">Serial Number (SN Barcode)</th>
-                        <th className="px-3.5 py-3">Model ONT</th>
-                        <th className="px-3.5 py-3 text-center">Status Lifecycle</th>
-                        <th className="px-3.5 py-3">Pelanggan Penerima</th>
-                        <th className="px-3.5 py-3">Alamat / Lokasi</th>
-                        <th className="px-3.5 py-3">Titik ODP &amp; Port</th>
-                        <th className="px-3.5 py-3 text-center">Redaman OPM</th>
-                        <th className="px-3.5 py-3">No. BASTP / Teknisi</th>
+                        <th className="px-3.5 py-3 whitespace-nowrap">Serial Number (SN Barcode)</th>
+                        <th className="px-3.5 py-3 whitespace-nowrap">Model ONT</th>
+                        <th className="px-3.5 py-3 text-center whitespace-nowrap">Status Aset</th>
+                        <th className="px-3.5 py-3 min-w-[220px]">Alokasi / Pelanggan</th>
+                        <th className="px-3.5 py-3 whitespace-nowrap">Titik ODP</th>
+                        <th className="px-3.5 py-3 text-center whitespace-nowrap">Redaman OPM</th>
+                        <th className="px-3.5 py-3 whitespace-nowrap">BASTP &amp; Teknisi</th>
+                        <th className="px-3.5 py-3 text-center whitespace-nowrap">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
                       {filteredOntList.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="text-center py-6 text-slate-500 italic">
+                          <td colSpan={8} className="text-center py-8 text-slate-500 italic">
                             Tidak ada Serial Number ONT yang cocok dengan pencarian / filter ini.
                           </td>
                         </tr>
                       ) : (
                         filteredOntList.map(item => {
                           const isInstalled = item.status === 'Terpasang';
-                          const isTransit = item.status === 'Di Perjalanan';
+                          const isTransit = item.status === 'Dibawa Teknisi' || item.status === 'Di Perjalanan';
 
                           return (
-                          <tr key={item.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
-                            <td className="px-3.5 py-3">
-                              <div className="font-mono font-bold text-xs text-purple-400 flex items-center gap-1.5">
-                                <Barcode className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                                <span>{item.sn}</span>
-                              </div>
-                              <span className="text-[10px] text-slate-500 font-mono">{item.id}</span>
-                            </td>
-                            <td className="px-3.5 py-3 font-medium text-[11px] text-slate-300">
-                              {item.model}
-                            </td>
-                            <td className="px-3.5 py-3 text-center">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-flex items-center gap-1 ${
-                                isInstalled
-                                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                  : isTransit
-                                  ? 'bg-blue-500/20 text-blue-400 border-blue-500/30 animate-pulse'
-                                  : 'bg-slate-800 text-slate-400 border-slate-700'
-                              }`}>
-                                {isInstalled && <Check className="w-3 h-3" />}
-                                {isTransit && <Truck className="w-3 h-3" />}
-                                <span>{item.status}</span>
-                              </span>
-                            </td>
-                            <td className="px-3.5 py-3">
-                              <div className={`font-semibold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                {item.pelanggan_nama}
-                              </div>
-                              <div className="text-[10px] text-slate-400">{item.pelanggan_telp}</div>
-                            </td>
-                            <td className="px-3.5 py-3 text-[11px] text-slate-400 max-w-[160px] truncate">
-                              {item.lokasi}
-                            </td>
-                            <td className="px-3.5 py-3 font-mono text-[11px] text-amber-400">
-                              {item.odp_id}
-                            </td>
-                            <td className="px-3.5 py-3 text-center font-mono text-[11px]">
-                              {item.redaman_dbm === '-' ? (
-                                <span className="text-slate-600">-</span>
-                              ) : (
-                                <span className="text-emerald-400 font-bold">{item.redaman_dbm}</span>
-                              )}
-                            </td>
-                            <td className="px-3.5 py-3">
-                              <div className="font-mono text-[10px] text-slate-300">{item.bastp_no}</div>
-                              <div className="text-[10px] text-slate-400">Oleh: {item.teknisi}</div>
-                              {isInstalled && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const taskId = Number(item.id?.replace('ONT-INST-', '').replace('ONT-TRANS-', ''));
-                                    const tsk = tugas.find(t => Number(t.id) === taskId) || {
-                                      id: taskId || 1,
-                                      pelanggan_nama: item.pelanggan_nama,
-                                      pelanggan_telp: item.pelanggan_telp,
-                                      lokasi: item.lokasi,
-                                      odp_kode: item.odp_id,
-                                      sn_ont: item.sn,
-                                      redaman_dbm: item.redaman_dbm,
-                                      status: 'Done'
-                                    };
-                                    setBastpModalTask(tsk);
-                                  }}
-                                  className="mt-1 px-2 py-0.5 rounded-lg bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
-                                  title="Buka Berita Acara Serah Terima Pekerjaan"
-                                >
-                                  <FileText className="w-2.5 h-2.5" />
-                                  <span>Lihat BASTP</span>
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
+                            <tr key={item.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
+                              <td className="px-3.5 py-3 whitespace-nowrap">
+                                <div className="font-mono font-bold text-xs text-rose-400 dark:text-rose-400 flex items-center gap-1.5">
+                                  <Barcode className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                  <span>{item.sn}</span>
+                                </div>
+                              </td>
+                              <td className="px-3.5 py-3 font-medium text-[11px] text-slate-300 whitespace-nowrap">
+                                {item.model}
+                              </td>
+                              <td className="px-3.5 py-3 text-center whitespace-nowrap">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border inline-flex items-center gap-1 ${
+                                  isInstalled
+                                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                    : isTransit
+                                    ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                                }`}>
+                                  {isInstalled && <Check className="w-3 h-3" />}
+                                  {isTransit && <Truck className="w-3 h-3" />}
+                                  <span>{isTransit ? 'Dibawa Teknisi' : item.status}</span>
+                                </span>
+                              </td>
+                              <td className="px-3.5 py-3">
+                                {isInstalled ? (
+                                  <div className="space-y-0.5">
+                                    <div className={`font-semibold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                      {item.pelanggan_nama} {item.pelanggan_telp && item.pelanggan_telp !== '-' ? `• ${item.pelanggan_telp}` : ''}
+                                    </div>
+                                    <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                                      <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                                      <span className="truncate max-w-[260px]">{item.lokasi}</span>
+                                    </div>
+                                  </div>
+                                ) : isTransit ? (
+                                  <div className="space-y-0.5">
+                                    <div className={`font-semibold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                      Dibawa: {item.teknisi}
+                                    </div>
+                                    <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                                      <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                                      <span className="truncate max-w-[260px]">Tujuan: {item.pelanggan_nama} ({item.lokasi})</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400 text-xs italic">
+                                    Rak Logistik Sentral STO
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3.5 py-3 font-mono text-[11px] text-amber-400 whitespace-nowrap">
+                                {item.odpFormatted}
+                              </td>
+                              <td className="px-3.5 py-3 text-center font-mono text-[11px] whitespace-nowrap">
+                                {item.redaman_dbm === '-' ? (
+                                  <span className="text-slate-600">-</span>
+                                ) : (
+                                  <span className="text-emerald-400 font-bold">{item.redaman_dbm}</span>
+                                )}
+                              </td>
+                              <td className="px-3.5 py-3 whitespace-nowrap">
+                                <div className="font-mono text-[10px] text-slate-300">{item.bastp_no}</div>
+                                <div className="text-[10px] text-slate-400">Oleh: {item.teknisi}</div>
+                              </td>
+                              <td className="px-3.5 py-3 text-center whitespace-nowrap">
+                                {isInstalled && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewBastpItem(item)}
+                                    className="px-2 py-1 rounded-lg bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 text-[10px] font-bold transition inline-flex items-center gap-1 cursor-pointer"
+                                    title="Buka Berita Acara Serah Terima Pekerjaan"
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                    <span>Lihat BASTP</span>
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
                   </table>
                 </div>
               </div>

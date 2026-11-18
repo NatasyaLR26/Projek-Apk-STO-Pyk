@@ -13,6 +13,34 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
+import { parseTaskDetails } from '../../utils/taskFormatter';
+
+// Helper pemformat kode terminasi ODP standar Telkom
+const formatOdpCode = (rawOdp, odpList = []) => {
+  if (!rawOdp && rawOdp !== 0) return 'ODP-PYK-FA/001 • Port 01';
+
+  const str = String(rawOdp).trim();
+
+  // Jika berupa ID angka tunggal (contoh: "1", "4", 1)
+  if (/^\d+$/.test(str)) {
+    const num = Number(str);
+    const matched = odpList.find(o => Number(o.id) === num);
+    if (matched && matched.kode_odp) {
+      const portNum = String(matched.port_terpakai || num % 8 || 1).padStart(2, '0');
+      return matched.kode_odp.includes('•') ? matched.kode_odp : `${matched.kode_odp} • Port ${portNum}`;
+    }
+    const paddedId = String(num).padStart(3, '0');
+    const portNum = String(num % 8 || 1).padStart(2, '0');
+    return `ODP-PYK-FA/${paddedId} • Port ${portNum}`;
+  }
+
+  // Jika berformat ODP standar (contoh: "ODP-PYK-FA/003") tanpa informasi Port
+  if (/^ODP-[A-Z0-9\/-]+$/i.test(str)) {
+    return `${str} • Port 01`;
+  }
+
+  return str;
+};
 
 export default function TabelRiwayatMutasi({ onViewBastp }) {
   const { isDark } = useTheme();
@@ -22,6 +50,7 @@ export default function TabelRiwayatMutasi({ onViewBastp }) {
     users = [],
     detailPermohonan = [],
     barang = [],
+    odp: odpList = [],
     showToast
   } = useApp();
 
@@ -59,12 +88,13 @@ export default function TabelRiwayatMutasi({ onViewBastp }) {
 
       if (!q) return true;
 
+      const cust = parseTaskDetails(rel.parentTask);
       const matchId = String(rel.id).includes(q);
       const matchTicket = String(rel.tugas_id || '').includes(q) ||
         (Array.isArray(rel.tugas_ids) && rel.tugas_ids.some(tid => String(tid).includes(q)));
       const matchTech = (rel.tech?.nama_lengkap || '').toLowerCase().includes(q);
-      const matchCustomer = (rel.parentTask?.pelanggan_nama || '').toLowerCase().includes(q);
-      const matchLoc = (rel.parentTask?.lokasi || '').toLowerCase().includes(q);
+      const matchCustomer = (cust.name || '').toLowerCase().includes(q) || (cust.telp || '').includes(q);
+      const matchLoc = (cust.address || '').toLowerCase().includes(q);
       const matchMaterial = rel.details.some(d => (d.item?.nama_barang || '').toLowerCase().includes(q));
 
       return matchId || matchTicket || matchTech || matchCustomer || matchLoc || matchMaterial;
@@ -73,16 +103,19 @@ export default function TabelRiwayatMutasi({ onViewBastp }) {
 
   const handleExportCsv = () => {
     const headers = ['ID Permohonan', 'Tanggal / Waktu Rilis', 'Teknisi Penerima', 'Tiket Acuan', 'Nama Pelanggan', 'Alamat / Lokasi', 'Material yang Diserahkan', 'Status Pemasangan'];
-    const rows = filteredMutasi.map(m => [
-      `"REQ-${m.id}"`,
-      `"${m.waktu_rilis || m.tanggal || '-'}"`,
-      `"${m.tech?.nama_lengkap || m.teknisi_nama || '-'}"`,
-      `"${m.tugas_id ? `#${m.tugas_id}` : (m.tugas_ids ? m.tugas_ids.join(', #') : '-')}"`,
-      `"${(m.parentTask?.pelanggan_nama || '-').replace(/"/g, '""')}"`,
-      `"${(m.parentTask?.lokasi || '-').replace(/"/g, '""')}"`,
-      `"${m.details.map(d => `${d.item?.nama_barang || 'Item'} (${d.jumlah_minta || d.jumlah} ${d.item?.satuan || 'pcs'})`).join(', ')}"`,
-      `"${m.parentTask?.status === 'Done' ? 'Terpasang di Pelanggan' : 'Dipegang Teknisi (On-Hand)'}"`
-    ]);
+    const rows = filteredMutasi.map(m => {
+      const cust = parseTaskDetails(m.parentTask);
+      return [
+        `"REQ-${m.id}"`,
+        `"${m.waktu_rilis || m.tanggal || '-'}"`,
+        `"${m.tech?.nama_lengkap || m.teknisi_nama || '-'}"`,
+        `"${m.tugas_id ? `#${m.tugas_id}` : (m.tugas_ids ? m.tugas_ids.join(', #') : '-')}"`,
+        `"${(cust.name || '-').replace(/"/g, '""')}"`,
+        `"${(cust.address || '-').replace(/"/g, '""')}"`,
+        `"${m.details.map(d => `${d.item?.nama_barang || 'Item'} (${d.jumlah_minta || d.jumlah} ${d.item?.satuan || 'pcs'})`).join(', ')}"`,
+        `"${m.parentTask?.status === 'Done' ? 'Terpasang di Pelanggan' : 'Dibawa Teknisi (In-Hand)'}"`
+      ];
+    });
 
     const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -143,17 +176,17 @@ export default function TabelRiwayatMutasi({ onViewBastp }) {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto">
+          <div className="flex items-center overflow-x-auto no-scrollbar gap-2 w-full whitespace-nowrap py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:w-auto">
             {[
               { id: 'all', label: 'Semua Status' },
-              { id: 'installed', label: '✓ Terpasang di Pelanggan' },
-              { id: 'on-hand', label: 'Dipegang Teknisi (On-Hand)' }
+              { id: 'installed', label: 'Terpasang di Pelanggan' },
+              { id: 'on-hand', label: 'Dibawa Teknisi (In-Hand)' }
             ].map(f => (
               <button
                 key={f.id}
                 type="button"
                 onClick={() => setFilterStatus(f.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition cursor-pointer ${
                   filterStatus === f.id
                     ? 'bg-purple-600 text-white shadow-md shadow-purple-950'
                     : isDark ? 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800' : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200'
@@ -175,8 +208,9 @@ export default function TabelRiwayatMutasi({ onViewBastp }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredMutasi.map((rel) => {
             const isDone = rel.parentTask?.status === 'Done';
-            const odp = rel.parentTask?.odp_id || rel.parentTask?.bastp?.odp_id || 'ODP-PYK-FA/014';
+            const odp = formatOdpCode(rel.parentTask?.odp_id ?? rel.parentTask?.bastp?.odp_id, odpList);
             const sn = rel.parentTask?.sn_ont || rel.parentTask?.bastp?.sn_ont || 'ZTEGC8B90112';
+            const cust = parseTaskDetails(rel.parentTask);
 
             return (
               <div
@@ -187,20 +221,37 @@ export default function TabelRiwayatMutasi({ onViewBastp }) {
                     : isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-mono text-xs font-bold text-slate-400">Permohonan #{rel.id}</span>
-                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
-                      Tiket #{rel.tugas_id || (Array.isArray(rel.tugas_ids) ? rel.tugas_ids.join(', #') : '')} — {rel.parentTask?.pelanggan_nama || 'Pelanggan Telkom'}
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-slate-400">Permohonan #{rel.id}</span>
+                      <span className="text-[11px] text-slate-500">•</span>
+                      <span className="font-mono text-xs text-amber-500 font-semibold">
+                        Tiket #{rel.tugas_id || (Array.isArray(rel.tugas_ids) ? rel.tugas_ids.join(', #') : '')}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-slate-400">Teknisi: <strong>{rel.tech?.nama_lengkap || rel.teknisi_nama || '-'}</strong></div>
+
+                    {/* Baris 1: Nama Pelanggan • No. Telepon */}
+                    <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'} mt-1 truncate`}>
+                      {cust.name} {cust.telp ? `• ${cust.telp}` : ''}
+                    </div>
+
+                    {/* Baris 2: Alamat / Wilayah pekerjaan */}
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5 truncate">
+                      <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                      <span className="truncate">{cust.address || 'Payakumbuh'}</span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-400 mt-1">
+                      Teknisi: <strong className={isDark ? 'text-slate-200' : 'text-slate-700'}>{rel.tech?.nama_lengkap || rel.teknisi_nama || '-'}</strong>
+                    </div>
                   </div>
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 whitespace-nowrap mt-0.5 ${
                     isDone
                       ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                       : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                   }`}>
-                    {isDone ? '✓ TERPASANG DI PELANGGAN' : 'Dipegang Teknisi (On-Hand)'}
+                    {isDone ? '✓ TERPASANG DI PELANGGAN' : 'Dibawa Teknisi (In-Hand)'}
                   </span>
                 </div>
 

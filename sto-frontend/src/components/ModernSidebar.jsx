@@ -103,33 +103,33 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
           },
           {
             key: 'tabel-material',
-            label: 'Tabel Master Material (Stok)',
+            label: 'Tabel Master Material',
             icon: Boxes,
             badge: barang.length > 0 ? `${barang.length} Item` : null,
             badgeColor: 'bg-emerald-500 text-white'
           },
           {
             key: 'input-barang',
-            label: 'Input Barang (Pengadaan Masuk)',
+            label: 'Input Barang Masuk',
             icon: PlusCircle
           },
           {
             key: 'output-barang',
-            label: 'Persetujuan Barang Keluar (Rilis Pasang)',
+            label: 'Persetujuan Pengeluaran',
             icon: Send,
             badge: pendingGudangCount > 0 ? pendingGudangCount : null,
             badgeColor: 'bg-amber-500 text-white'
           },
           {
             key: 'audit-ont',
-            label: 'Audit & Pelacakan Aset ONT',
+            label: 'Audit Serial Number',
             icon: Barcode,
             badge: 'Status SN',
             badgeColor: 'bg-purple-600 text-white'
           },
           {
             key: 'penarikan-aset',
-            label: 'Dismantle & Recovery Aset STO',
+            label: 'Recovery Dismantle',
             icon: ShieldAlert,
             badge: 'Dismantle',
             badgeColor: 'bg-rose-600 text-white'

@@ -3,7 +3,6 @@ import {
   PlusCircle,
   PackageCheck,
   Barcode,
-  Sparkles,
   Camera
 } from 'lucide-react';
 import api from '../api/axiosInstance';
@@ -117,19 +116,6 @@ export default function InputBarangGudang() {
     }
   };
 
-  // Generator SN Otomatis (Opsional) jika tidak ingin scan satu per satu
-  const handleGenerateAutoSn = () => {
-    const count = Math.max(1, Number(form.stok) || 1);
-    const generated = [];
-    const prefix = form.nama_barang.toLowerCase().includes('huawei') ? 'HWTC' : 'ZTEGC';
-    for (let i = 1; i <= count; i++) {
-      const randHex = Math.random().toString(16).substring(2, 8).toUpperCase();
-      generated.push(`${prefix}${randHex}`);
-    }
-    setSerialNumbers(generated);
-    setForm(prev => ({ ...prev, stok: generated.length }));
-    showToast(`${generated.length} SN Modem ONT otomatis dibuat!`, 'success');
-  };
 
   const handleSimulateScan = () => {
     const prefix = form.nama_barang.toLowerCase().includes('huawei') ? 'HWTC' : 'ZTEGC';
@@ -219,31 +205,15 @@ export default function InputBarangGudang() {
   return (
     <div className="space-y-6">
       {/* Form Card */}
-      <div className={`p-5 sm:p-7 rounded-3xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} transition-colors`}>
-        
-        {/* Header Form */}
-        <div className="flex items-center gap-3 pb-4 border-b border-slate-200 dark:border-slate-800 mb-5">
-          <span className="p-2 rounded-2xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30">
-            <PlusCircle className="w-5 h-5" />
-          </span>
-          <div>
-            <h2 className={`text-base sm:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} flex items-center gap-2`}>
-              <span>Input Pengadaan Barang Gudang</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 font-mono border border-emerald-500/30">
-                Logistik STO
-              </span>
-            </h2>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      <div className={`p-4 sm:p-6 lg:p-7 rounded-3xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} transition-colors`}>
+        <form onSubmit={handleSubmit} className="space-y-5 text-xs">
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Dropdown Gulir Saran Nama Material */}
-            <div className="sm:col-span-2 space-y-2">
+            <div className="space-y-2">
               <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'} flex items-center justify-between`}>
-                <span>Pilih Barang / Material (Daftar Gulir) *</span>
+                <span>Pilih Material FTTH *</span>
                 <span className="text-[10px] font-mono text-emerald-400">Total: {availableItems.length} Material</span>
               </label>
 
@@ -269,7 +239,7 @@ export default function InputBarangGudang() {
                 <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5 animate-in fade-in">
                   <div className="text-[11px] font-extrabold text-emerald-400 flex items-center gap-1.5">
                     <PlusCircle className="w-3.5 h-3.5" />
-                    <span>Registrasi Nama Material Baru (Otomatis Masuk ke Dropdown):</span>
+                    <span>Registrasi Nama Material Baru:</span>
                   </div>
                   <input
                     type="text"
@@ -309,51 +279,45 @@ export default function InputBarangGudang() {
                 onChange={e => setForm({ ...form, satuan: e.target.value })}
                 className={`w-full p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} focus:outline-none focus:border-emerald-500 cursor-pointer font-bold text-xs`}
               >
-                <option value="pcs">pcs (buah)</option>
-                <option value="unit">unit (perangkat ONT/modem)</option>
-                <option value="roll">roll (gulungan kabel / sling)</option>
-                <option value="meter">meter</option>
-                <option value="set">set</option>
-                <option value="box">box</option>
+                <option value="unit">Unit</option>
+                <option value="pcs">Pcs</option>
+                <option value="roll">Roll</option>
+                <option value="meter">Meter</option>
               </select>
             </div>
           </div>
 
           {/* OPSI SCAN BARCODE SERIAL NUMBER (OPSIONAL KHUSUS MODEM/ONT) */}
           {isOntItem && (
-            <div className={`p-4 rounded-2xl border ${isDark ? 'bg-purple-950/20 border-purple-500/30' : 'bg-purple-50/70 border-purple-200'} space-y-3 animate-in fade-in`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-purple-500/20">
-                <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30">
+            <div className={`p-4 sm:p-5 rounded-2xl border ${isDark ? 'bg-purple-950/20 border-purple-500/30' : 'bg-purple-50/70 border-purple-200'} space-y-3.5 animate-in fade-in`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-500/20">
+                <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                  <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0 mt-0.5 sm:mt-0">
                     <Barcode className="w-4 h-4" />
                   </span>
-                  <div>
-                    <h4 className="font-extrabold text-xs text-purple-400 flex items-center gap-2">
-                      <span>Serial Number (SN Barcode) Modem ONT</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300 font-mono">Opsional</span>
-                    </h4>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                      Scan barcode dus modem, buat acak otomatis, atau masukkan jumlah stok langsung.
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <h4 className="font-extrabold text-xs text-purple-400">
+                        Serial Number (SN Barcode) Modem ONT
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300 font-mono">
+                        Opsional
+                      </span>
+                    </div>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'} mt-0.5`}>
+                      Scan barcode dus modem atau masukkan jumlah stok langsung.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleGenerateAutoSn}
-                    className="px-2.5 py-1 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/40 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
-                  >
-                    <Sparkles className="w-3 h-3 text-purple-400" />
-                    <span>Buat SN Otomatis</span>
-                  </button>
-
+                {/* Tombol Scan Kamera */}
+                <div className="w-full sm:w-auto shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsScanningCamera(!isScanningCamera)}
-                    className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+                    className="w-full sm:w-auto px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                   >
-                    <Camera className="w-3 h-3 text-slate-400" />
+                    <Camera className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span>{isScanningCamera ? 'Tutup Kamera' : 'Scan Kamera'}</span>
                   </button>
                 </div>
@@ -376,20 +340,20 @@ export default function InputBarangGudang() {
                 </div>
               )}
 
-              {/* Input Manual Box */}
-              <div className="flex gap-2">
+              {/* Input Manual Box: Mobile column full-width, Desktop row berdampingan */}
+              <div className="flex flex-col md:flex-row gap-2 w-full">
                 <input
                   type="text"
                   placeholder="Ketik SN manual (Contoh: ZTEGC8B12345) atau pisahkan spasi..."
                   value={inputSn}
                   onChange={e => setInputSn(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddManualSn(); } }}
-                  className={`flex-1 p-2.5 rounded-xl border font-mono text-xs uppercase ${isDark ? 'bg-slate-950 border-purple-500/40 text-white' : 'bg-white border-purple-300 text-slate-900'}`}
+                  className={`w-full md:flex-1 p-2.5 rounded-xl border font-mono text-xs uppercase ${isDark ? 'bg-slate-950 border-purple-500/40 text-white placeholder-slate-500' : 'bg-white border-purple-300 text-slate-900 placeholder-slate-400'}`}
                 />
                 <button
                   type="button"
                   onClick={handleAddManualSn}
-                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition cursor-pointer shrink-0"
+                  className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition cursor-pointer shrink-0 text-center active:scale-95"
                 >
                   Tambah SN
                 </button>
@@ -433,7 +397,7 @@ export default function InputBarangGudang() {
           )}
 
           {/* Jumlah Stok & Tombol Simpan */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
             <div>
               <label className={`block font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                 Jumlah Stok Masuk Fisik *
@@ -446,11 +410,11 @@ export default function InputBarangGudang() {
                 onChange={e => setForm({ ...form, stok: Math.max(1, parseInt(e.target.value, 10) || 1) })}
                 className={`w-full p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} focus:outline-none focus:border-emerald-500 font-bold text-xs`}
               />
-              <p className="text-[10px] text-slate-500 mt-1">
-                {isOntItem && serialNumbers.length > 0
-                  ? `Kuantitas disesuaikan dengan ${serialNumbers.length} Serial Number.`
-                  : 'Jumlah fisik material yang masuk ke gudang.'}
-              </p>
+              {isOntItem && serialNumbers.length > 0 && (
+                <p className="text-[10px] text-purple-400 mt-1 font-semibold">
+                  Kuantitas disesuaikan dengan {serialNumbers.length} Serial Number terdata.
+                </p>
+              )}
             </div>
 
             <div className="flex items-end">
@@ -460,7 +424,7 @@ export default function InputBarangGudang() {
                 className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xs shadow-lg shadow-emerald-950 transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <PackageCheck className="w-4 h-4" />
-                <span>{isSubmitting ? 'Menyimpan...' : 'Simpan'}</span>
+                <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Penerimaan Material'}</span>
               </button>
             </div>
           </div>
