@@ -2098,7 +2098,7 @@ export function AppProvider({ children }) {
   const removeGpsEntry = useCallback((teknisiId) => {
     const parsedId = parseInt(teknisiId, 10);
     setTrackingGps(prev => prev.filter(g => Number(g.teknisi_id) !== parsedId));
-    showToast(`Teknisi #${parsedId} berhasil dihapus dari radar armada`, 'info');
+    showToast(`Teknisi #${parsedId} berhasil dihapus dari tim lapangan`, 'info');
   }, [showToast]);
 
   const resetGpsTracking = useCallback(() => {

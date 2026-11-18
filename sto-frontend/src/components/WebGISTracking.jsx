@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MapPin,
   Plus,
@@ -116,65 +116,69 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
     return matchSearch && matchStatus;
   });
 
-  // Statistik ODP
+  // Event listener untuk tombol Tambah ODP dari Header Utama
+  useEffect(() => {
+    const handleOpenAddEvent = () => handleOpenAdd();
+    window.addEventListener('sto:open-add-odp', handleOpenAddEvent);
+    return () => window.removeEventListener('sto:open-add-odp', handleOpenAddEvent);
+  }, [odp.length]);
+
+  // Statistik Geospasial ODP & Okupansi Port
   const totalOdp = odp.length;
-  const tersediaOdp = odp.filter(o => o.status === 'Tersedia').length;
-  const penuhOdp = odp.filter(o => o.status === 'Penuh').length;
-  const maintenanceOdp = odp.filter(o => o.status === 'Maintenance').length;
+  const totalIdlePorts = odp.reduce(
+    (acc, curr) => acc + Math.max(0, (Number(curr.kapasitas_port) || 8) - (Number(curr.port_terpakai) || 0)),
+    0
+  );
+  const penuhCount = odp.filter(
+    (o) => o.status === 'Penuh' || (Number(o.kapasitas_port) || 8) - (Number(o.port_terpakai) || 0) <= 0
+  ).length;
+  const optimasiCount = odp.filter(
+    (o) => o.status === 'Maintenance' || Number(o.redaman_dbm) <= -24
+  ).length;
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-300">
-      {/* Header Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <h1 className="text-xl font-extrabold flex items-center gap-2">
-            <span className="p-1.5 rounded-xl bg-blue-600/20 text-blue-500 border border-blue-500/30">
-              <MapPin className="w-5 h-5" />
-            </span>
-            <span>WebGIS Pemetaan Infrastruktur ODP STO Telkom Payakumbuh</span>
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenAdd}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Titik ODP</span>
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Ringkasan ODP */}
+    <div className="space-y-4 animate-in fade-in duration-300">
+      {/* 4 Kartu KPI Atas (Telecom OSS Standard) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="text-[10px] font-bold text-slate-400 uppercase">Total ODP Terdata</div>
-          <div className="text-xl font-black mt-0.5 text-blue-500">{totalOdp} Titik</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Wilayah STO Payakumbuh</div>
+        {/* Card 1: Total ODP */}
+        <div className={`p-3.5 rounded-2xl border transition-all ${
+          isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TOTAL ODP</div>
+          <div className="text-xl sm:text-2xl font-black mt-0.5 text-white font-mono">{totalOdp} Titik</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Tersebar di Payakumbuh</div>
         </div>
 
-        <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="text-[10px] font-bold text-emerald-500 uppercase">ODP Port Tersedia</div>
-          <div className="text-xl font-black mt-0.5 text-emerald-500">{tersediaOdp} Titik</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Siap pasang baru IndiHome</div>
+        {/* Card 2: Port Tersedia */}
+        <div className={`p-3.5 rounded-2xl border transition-all ${
+          isDark ? 'bg-slate-950/70 border-emerald-950/40 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
+          <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">PORT TERSEDIA</div>
+          <div className="text-xl sm:text-2xl font-black mt-0.5 text-emerald-400 font-mono">{totalIdlePorts} Port Idle</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Siap Pasang Baru</div>
         </div>
 
-        <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="text-[10px] font-bold text-rose-500 uppercase">ODP Port Penuh</div>
-          <div className="text-xl font-black mt-0.5 text-rose-500">{penuhOdp} Titik</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Kapasitas splitter 100%</div>
+        {/* Card 3: Port Penuh */}
+        <div className={`p-3.5 rounded-2xl border transition-all ${
+          isDark ? 'bg-slate-950/70 border-rose-950/40 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
+          <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">PORT PENUH</div>
+          <div className="text-xl sm:text-2xl font-black mt-0.5 text-rose-400 font-mono">{penuhCount} Titik</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Okupansi 100%</div>
         </div>
 
-        <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <div className="text-[10px] font-bold text-amber-500 uppercase">Perlu Maintenance</div>
-          <div className="text-xl font-black mt-0.5 text-amber-500">{maintenanceOdp} Titik</div>
+        {/* Card 4: Perlu Optimasi */}
+        <div className={`p-3.5 rounded-2xl border transition-all ${
+          isDark ? 'bg-slate-950/70 border-amber-950/40 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
+          <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">PERLU OPTIMASI</div>
+          <div className="text-xl sm:text-2xl font-black mt-0.5 text-amber-400 font-mono">{optimasiCount} Titik</div>
           <div className="text-[10px] text-slate-400 mt-0.5">Redaman &gt; -24 dBm</div>
         </div>
       </div>
 
       {/* Grid: Map Utama */}
-      <div className="h-[520px] w-full rounded-2xl overflow-hidden shadow-xl">
+      <div className="h-[520px] w-full rounded-2xl overflow-hidden shadow-xl border border-slate-800/80">
         <WebGISMap
           selectedOdpId={selectedOdpId}
           onSelectOdp={setSelectedOdpId}
@@ -190,7 +194,7 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
           <div className="flex items-center gap-2">
             <Radio className="w-4 h-4 text-emerald-500" />
             <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Daftar Titik ODP & Inventarisasi Aset Jaringan Fiber Optic
+              Daftar Inventaris ODP
             </h2>
           </div>
 
@@ -234,18 +238,30 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
             const availablePort = Math.max(0, totalPort - usedPort);
             const percentUsed = Math.round((usedPort / totalPort) * 100);
 
-            let statusBadge = 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30';
+            let statusBadge = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
             let barColor = 'bg-emerald-500';
 
             if (point.status === 'Maintenance' || Number(point.redaman_dbm) <= -24) {
-              statusBadge = 'bg-rose-500/20 text-rose-500 border-rose-500/30';
+              statusBadge = 'bg-rose-500/20 text-rose-400 border-rose-500/30';
               barColor = 'bg-rose-500';
             } else if (availablePort === 0 || point.status === 'Penuh') {
-              statusBadge = 'bg-red-500/20 text-red-500 border-red-500/30';
+              statusBadge = 'bg-red-500/20 text-red-400 border-red-500/30';
               barColor = 'bg-red-500';
             } else if (availablePort <= 1) {
-              statusBadge = 'bg-amber-500/20 text-amber-500 border-amber-500/30';
+              statusBadge = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
               barColor = 'bg-amber-500';
+            }
+
+            // Format redaman: Selalu menyertakan tanda minus, contoh "-18.5 dBm"
+            const rawVal = point.redaman_dbm != null ? Number(point.redaman_dbm) : 18.5;
+            const redamanMag = !isNaN(rawVal) && rawVal !== 0 ? Math.abs(rawVal) : 18.5;
+            const formattedRedaman = `-${redamanMag.toFixed(1)} dBm`;
+
+            let redamanBadgeClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+            if (redamanMag > 24) {
+              redamanBadgeClass = 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+            } else if (redamanMag > 22) {
+              redamanBadgeClass = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
             }
 
             return (
@@ -290,9 +306,9 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
 
                   <div>
                     <div className="flex items-center justify-between text-[10px] mb-1">
-                      <span className="text-slate-400">Port Terpakai:</span>
+                      <span className="text-slate-400">Okupansi Port:</span>
                       <strong className={isDark ? 'text-white' : 'text-slate-900'}>
-                        {usedPort} / {totalPort} Port ({availablePort} Kosong)
+                        {usedPort} dari {totalPort} Port Terpakai ({availablePort} Kosong)
                       </strong>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
@@ -302,8 +318,8 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
 
                   <div className="flex items-center justify-between text-[10px] pt-1">
                     <span className="text-slate-400">Redaman Optik:</span>
-                    <span className={`font-mono font-bold ${Number(point.redaman_dbm) <= -24 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      {point.redaman_dbm ? `${point.redaman_dbm} dBm` : '-18.5 dBm'}
+                    <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border shrink-0 whitespace-nowrap ${redamanBadgeClass}`}>
+                      {formattedRedaman}
                     </span>
                   </div>
 

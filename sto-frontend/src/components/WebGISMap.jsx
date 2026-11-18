@@ -267,7 +267,7 @@ export default function WebGISMap({
     };
 
     window.__handleWebGisDeleteOdp = (id, kode) => {
-      if (window.confirm(`Konfirmasi Hapus: Apakah Anda yakin ingin menghapus titik ODP '${kode}' dari Supabase Cloud?`)) {
+      if (window.confirm(`Konfirmasi Hapus: Apakah Anda yakin ingin menghapus titik ODP '${kode}'?`)) {
         deleteOdp(id);
       }
     };
@@ -457,7 +457,7 @@ export default function WebGISMap({
         });
       }
 
-      showToast(`🎯 ODP '${payload.kode_odp}' berhasil disimpan ke Supabase Cloud & tampil di WebGIS!`, 'success');
+      showToast(`🎯 ODP '${payload.kode_odp}' berhasil disimpan & tampil di WebGIS!`, 'success');
     } catch (err) {
       showToast('Gagal mendaftarkan titik ODP: ' + err.message, 'error');
     } finally {
@@ -490,7 +490,7 @@ export default function WebGISMap({
 
       setShowEditModal(false);
       setEditingOdp(null);
-      showToast(`Data ODP '${editingOdp.kode_odp}' berhasil diperbarui di Supabase!`, 'success');
+      showToast(`Data ODP '${editingOdp.kode_odp}' berhasil diperbarui!`, 'success');
     } catch (err) {
       showToast('Gagal memperbarui data ODP: ' + err.message, 'error');
     }
@@ -617,6 +617,10 @@ export default function WebGISMap({
         });
 
         const address = point.alamat || point.nama_lokasi || 'Koto Nan IV Payakumbuh';
+        const rawOdpDbm = point.redaman_dbm != null ? Number(point.redaman_dbm) : 18.5;
+        const odpDbmMag = !isNaN(rawOdpDbm) && rawOdpDbm !== 0 ? Math.abs(rawOdpDbm) : 18.5;
+        const formattedOdpDbm = `-${odpDbmMag.toFixed(1)} dBm`;
+
         const pimpinanActions = isPimpinan ? `
           <div class="pt-2 mt-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-1.5">
             <button onclick="window.__handleWebGisEditOdp(${point.id})" class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer">
@@ -650,11 +654,16 @@ export default function WebGISMap({
                 <div class="pt-1.5 border-t border-slate-100 dark:border-slate-800">
                   <div class="flex items-center justify-between text-[10px]">
                     <span class="text-slate-400">Okupansi Port:</span>
-                    <strong>${usedPort} / ${totalPort} Port (${availablePort} Tersedia)</strong>
+                    <strong>${usedPort} dari ${totalPort} Port Terpakai (${availablePort} Kosong)</strong>
                   </div>
                   <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden mt-1">
                     <div class="h-full rounded-full transition-all" style="width: ${percentUsed}%; background-color: ${statusBg};"></div>
                   </div>
+                </div>
+
+                <div class="flex items-center justify-between text-[10px] pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <span class="text-slate-400">Redaman Optik:</span>
+                  <span class="font-mono font-bold ${odpDbmMag > 24 ? 'text-rose-500' : 'text-emerald-500'}">${formattedOdpDbm}</span>
                 </div>
 
                 <div class="text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
@@ -762,15 +771,16 @@ export default function WebGISMap({
 
       {/* Top Floating Control Bar */}
       <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-2">
-        {/* Layer Switcher Button */}
+        {/* Dropdown Layer */}
         <div className="relative">
           <button
             onClick={() => setShowLayerPicker(!showLayerPicker)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-900 text-white text-xs font-semibold shadow-lg backdrop-blur border border-slate-700 cursor-pointer transition active:scale-95"
-            title="Ganti Jenis Peta"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-semibold shadow-lg backdrop-blur border border-slate-700 cursor-pointer transition active:scale-95"
+            title="Ganti Tampilan Peta"
           >
-            <Layers className="w-4 h-4 text-rose-400" />
-            <span>{MAP_LAYERS[activeLayerId]?.name || 'Peta'}</span>
+            <Layers className="w-3.5 h-3.5 text-rose-400" />
+            <span>{MAP_LAYERS[activeLayerId]?.name || 'Satelit Hybrid'}</span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
 
           {/* Layer Switcher Dropdown */}
@@ -801,75 +811,34 @@ export default function WebGISMap({
         </div>
 
         {/* Filter Status ODP */}
-        <div className="flex items-center bg-slate-900/90 backdrop-blur rounded-xl border border-slate-700 p-1 text-xs text-white">
+        <div className="flex items-center bg-slate-900/90 backdrop-blur rounded-xl border border-slate-700 p-1 text-xs text-white shadow-lg">
           <Filter className="w-3.5 h-3.5 ml-2 mr-1 text-slate-400" />
           <select
             value={odpStatusFilter}
             onChange={(e) => setOdpStatusFilter(e.target.value)}
             className="bg-transparent text-xs text-white pr-2 py-1 focus:outline-none cursor-pointer"
           >
-            <option value="all" className="bg-slate-900 text-white">Semua Status ODP</option>
+            <option value="all" className="bg-slate-900 text-white">Filter Status ODP</option>
             <option value="Tersedia" className="bg-slate-900 text-emerald-400">ODP Tersedia</option>
             <option value="Penuh" className="bg-slate-900 text-rose-400">ODP Port Penuh</option>
+            <option value="Maintenance" className="bg-slate-900 text-amber-400">ODP Maintenance</option>
           </select>
         </div>
 
-        {/* Tombol Pengelompokan / Grouping ODP */}
+        {/* Toggle Cluster/Grouping */}
         <button
           type="button"
           onClick={() => setShowGroupDrawer(!showGroupDrawer)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border backdrop-blur shadow-lg transition active:scale-95 cursor-pointer ${
             showGroupDrawer
-              ? 'bg-blue-600 text-white border-blue-400'
+              ? 'bg-rose-600 text-white border-rose-400'
               : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:bg-slate-800'
           }`}
-          title="Buka Daftar Pengelompokan ODP per Wilayah"
+          title="Buka Pengelompokan ODP per Wilayah"
         >
-          <FolderTree className="w-4 h-4 text-amber-400" />
-          <span>Grouping ODP ({odp.length})</span>
+          <FolderTree className="w-3.5 h-3.5 text-amber-400" />
+          <span>Cluster/Grouping</span>
         </button>
-
-        {/* Tombol Tambah ODP (Pimpinan) */}
-        {isPimpinan && (
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                setIsPinpointMode(!isPinpointMode);
-                if (!isPinpointMode) {
-                  showToast('🎯 Mode Pinpoint Aktif: Klik lokasi di peta untuk menambah titik ODP presisi!', 'info');
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg transition active:scale-95 cursor-pointer border ${
-                isPinpointMode
-                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-white ring-2 ring-amber-300 animate-pulse'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400'
-              }`}
-            >
-              <MapPin className="w-3.5 h-3.5" />
-              <span>{isPinpointMode ? '❌ Batal Pinpoint' : '+ Tambah ODP (Klik Peta)'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setPinpointCoords({ lat: STO_COORDINATES.lat, lng: STO_COORDINATES.lng });
-                setPinpointForm({
-                  kode_odp: `ODP-PYK-${String(odp.length + 1).padStart(2, '0')}/04`,
-                  alamat: 'Jl. Soekarno-Hatta, Payakumbuh',
-                  kapasitas_port: 8,
-                  port_terpakai: 0,
-                  status: 'Tersedia'
-                });
-                setShowPinpointModal(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-bold shadow-lg border border-slate-700 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-blue-400" />
-              <span>Form Manual</span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Floating Indicator Banner Saat Mode Pinpoint Aktif */}
@@ -895,7 +864,7 @@ export default function WebGISMap({
               <FolderTree className="w-4 h-4 text-amber-400" />
               <div>
                 <h4 className="font-extrabold text-xs">Pengelompokan ODP Wilayah</h4>
-                <p className="text-[10px] text-slate-400">{odp.length} Total Titik Terdata di Supabase</p>
+                <p className="text-[10px] text-slate-400">{odp.length} Total Titik Terdata</p>
               </div>
             </div>
             <button
@@ -1039,7 +1008,7 @@ export default function WebGISMap({
         <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
           <span>WebGIS STO Payakumbuh</span>
           <span className="text-slate-600">|</span>
-          <strong className="text-emerald-400 font-bold">{odp.length} Titik ODP Aktif di Supabase</strong>
+          <strong className="text-emerald-400 font-bold">{odp.length} Titik ODP Terdata</strong>
         </div>
       </div>
 
@@ -1079,7 +1048,7 @@ export default function WebGISMap({
               </div>
               <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500 text-slate-950 flex items-center gap-1 shadow">
                 <Check className="w-3 h-3" />
-                <span>Sinkron Supabase</span>
+                <span>Tersinkronisasi</span>
               </span>
             </div>
 
@@ -1157,7 +1126,7 @@ export default function WebGISMap({
                   className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-950 transition active:scale-95 cursor-pointer flex items-center gap-2"
                 >
                   <Check className="w-4 h-4" />
-                  <span>{isSubmittingOdp ? 'Menyimpan ke Supabase...' : 'Simpan ODP ke Supabase'}</span>
+                  <span>{isSubmittingOdp ? 'Menyimpan...' : 'Simpan Titik ODP'}</span>
                 </button>
               </div>
             </form>
@@ -1299,7 +1268,7 @@ export default function WebGISMap({
                   className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-950 transition active:scale-95 cursor-pointer flex items-center gap-2"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Update ODP di Supabase</span>
+                  <span>Simpan Perubahan ODP</span>
                 </button>
               </div>
             </form>

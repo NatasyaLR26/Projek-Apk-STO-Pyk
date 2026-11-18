@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   PlusCircle,
+  Plus,
+  Network,
   MapPin,
   ArrowRight,
   FileText,
@@ -47,7 +49,59 @@ export const parseTelecomTaskDetails = (task) => {
   // Pola regex nomor telepon fleksibel (6 s/d 16 digit: 08, +62, 0)
   const phonePattern = /(?:\+?62|08|0)[0-9\-\s]{6,16}/g;
 
-  // 1. Ekstraksi nomor telepon jika belum tersedia
+  // 1. Ekstraksi dari blok tanda kurung "(Pelanggan: ... | Telp: ... | Catatan: ...)"
+  const parenBlockMatch = rawLoc.match(/\(([^)]*(?:pelanggan|telp|catatan)[^)]*)\)/i);
+  if (parenBlockMatch) {
+    const inside = parenBlockMatch[1];
+    
+    const pMatch = inside.match(/pelanggan:\s*([^|•]+)/i);
+    if (pMatch && (!rawName || rawName.toLowerCase().includes('pelanggan'))) {
+      rawName = pMatch[1].trim();
+    }
+    
+    const tMatch = inside.match(/telp:\s*([^|•]+)/i);
+    if (tMatch && !rawTelp) {
+      rawTelp = tMatch[1].trim();
+    }
+
+    const cMatch = inside.match(/catatan:\s*([^|•]+)/i);
+    if (cMatch && !rawNotes) {
+      rawNotes = cMatch[1].trim();
+    }
+
+    // Hapus seluruh blok kurung dari rawLoc
+    rawLoc = rawLoc.replace(parenBlockMatch[0], ' ').trim();
+  }
+
+  // 2. Ekstraksi langsung jika format tanpa kurung: "Alamat... Pelanggan: Nama | Telp: NoHp | Catatan: Ket"
+  const pipePelangganMatch = rawLoc.match(/Pelanggan:\s*([^|•]+)/i);
+  if (pipePelangganMatch) {
+    if (!rawName || rawName.toLowerCase().includes('pelanggan')) {
+      rawName = pipePelangganMatch[1].trim();
+    }
+    rawLoc = rawLoc.replace(/Pelanggan:\s*[^|•]+/gi, ' ').trim();
+  }
+
+  const pipeTelpMatch = rawLoc.match(/Telp:\s*([^|•]+)/i);
+  if (pipeTelpMatch) {
+    if (!rawTelp) rawTelp = pipeTelpMatch[1].trim();
+    rawLoc = rawLoc.replace(/Telp:\s*[^|•]+/gi, ' ').trim();
+  }
+
+  const pipeNoteMatch = rawLoc.match(/Catatan:\s*([^|•]+)/i);
+  if (pipeNoteMatch) {
+    if (!rawNotes) rawNotes = pipeNoteMatch[1].trim();
+    rawLoc = rawLoc.replace(/Catatan:\s*[^|•]+/gi, ' ').trim();
+  }
+
+  // 3. Ekstraksi kurung siku catatan [catatan]
+  const bracketNoteMatch = rawLoc.match(/\[(.*?)\]/);
+  if (bracketNoteMatch) {
+    if (!rawNotes) rawNotes = bracketNoteMatch[1].trim();
+    rawLoc = rawLoc.replace(/\[(.*?)\]/g, ' ').trim();
+  }
+
+  // 4. Cari nomor telepon dari string jika belum didapat
   if (!rawTelp) {
     const matchName = rawName.match(phonePattern);
     const matchLoc = rawLoc.match(phonePattern);
@@ -57,39 +111,11 @@ export const parseTelecomTaskDetails = (task) => {
     else if (matchNotes) rawTelp = matchNotes[0].trim();
   }
 
-  // 2. Ekstraksi pola backend "Telp:\s*...", "Pelanggan:\s*...", "Catatan:\s*..."
-  const pipeTelpMatch = rawLoc.match(/Telp:\s*([^|•]+)/i);
-  if (pipeTelpMatch) {
-    if (!rawTelp) rawTelp = pipeTelpMatch[1].trim();
-    rawLoc = rawLoc.replace(/Telp:\s*[^|•]+/gi, '').trim();
-  }
-
-  const pipePelangganMatch = rawLoc.match(/Pelanggan:\s*([^|•]+)/i);
-  if (pipePelangganMatch) {
-    if (!rawName || rawName.toLowerCase() === 'pelanggan' || rawName.toLowerCase() === 'pelanggan sto' || rawName.toLowerCase() === 'pelanggan telkom') {
-      rawName = pipePelangganMatch[1].trim();
-    }
-    rawLoc = rawLoc.replace(/Pelanggan:\s*[^|•]+/gi, '').trim();
-  }
-
-  const pipeNoteMatch = rawLoc.match(/Catatan:\s*([^|]+)/i);
-  if (pipeNoteMatch) {
-    if (!rawNotes) rawNotes = pipeNoteMatch[1].trim();
-    rawLoc = rawLoc.replace(/\|\s*Catatan:\s*[^|]+/gi, '').trim();
-  }
-
-  // 3. Ekstraksi kurung siku catatan [catatan]
-  const bracketNoteMatch = rawLoc.match(/\[(.*?)\]/);
-  if (bracketNoteMatch) {
-    if (!rawNotes) rawNotes = bracketNoteMatch[1].trim();
-    rawLoc = rawLoc.replace(/\[(.*?)\]/g, '').trim();
-  }
-
-  // 4. Bersihkan nomor telepon
+  // 5. Bersihkan nomor telepon
   const digitsOnly = (rawTelp || '').replace(/[^0-9]/g, '');
   const cleanTelp = digitsOnly.length >= 7 ? rawTelp.replace(/[()—_]/g, '').replace(/\s+/g, ' ').trim() : null;
 
-  // 5. Bersihkan nama dari digit telepon, kurung, dan simbol artefak
+  // 6. Bersihkan nama dari digit telepon, kurung, dan simbol artefak
   let name = rawName
     .replace(phonePattern, '')
     .replace(/[0-9]{6,}/g, '')
@@ -130,7 +156,7 @@ export const parseTelecomTaskDetails = (task) => {
   }
   if (!name) name = 'Pelanggan STO';
 
-  // 6. Bersihkan alamat dari nomor telepon dan nama pelanggan berulang
+  // 7. Bersihkan alamat dari nomor telepon, nama pelanggan, dan karakter artefak
   let address = rawLoc
     .replace(phonePattern, '')
     .replace(/[0-9]{6,}/g, '');
@@ -140,13 +166,23 @@ export const parseTelecomTaskDetails = (task) => {
     address = address.replace(new RegExp(escapedName, 'gi'), ' ');
   }
 
+  // Hapus blok kurung meta/catatan seperti ([baru] ...), (catatan: ...), dll
   address = address
-    .replace(/\(\s*\)/g, '')
-    .replace(/\[\s*\]/g, '')
+    .replace(/\((?:[^)]*(?:pelanggan|telp|catatan|baru|psb|gangguan|los|repair)[^)]*)\)/gi, ' ')
+    .replace(/\([^)]*$/g, ' ') // Hapus kurung buka tanpa tutup di akhir string
+    .replace(/\(\s*\)/g, ' ')
+    .replace(/\[\s*\]/g, ' ')
     .replace(/[|•]/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^[\s,.-]+|[\s,.-]+$/g, '')
     .trim();
+
+  // PENTING: Bersihkan karakter menggantung di awal atau akhir alamat (seperti "(", ")", ",", "-", ".", "|")
+  while (address.endsWith('(') || address.endsWith(')') || address.endsWith('[') || address.endsWith(']') || address.endsWith('-') || address.endsWith('|') || address.endsWith(',') || address.endsWith('.')) {
+    address = address.slice(0, -1).trim();
+  }
+  while (address.startsWith('(') || address.startsWith(')') || address.startsWith('-') || address.startsWith('|') || address.startsWith(',') || address.startsWith('.')) {
+    address = address.slice(1).trim();
+  }
 
   if (!address) address = 'Wilayah STO Payakumbuh';
 
@@ -158,56 +194,89 @@ export const parseTelecomTaskDetails = (task) => {
   };
 };
 
+// Helper pemotong alamat aman tanpa tanda kurung / koma menggantung sebelum "..."
+const truncateAddress = (addr, max = 40) => {
+  if (!addr) return 'Payakumbuh';
+  if (addr.length <= max) return addr;
+  let sliced = addr.slice(0, max).trim();
+  while (sliced.endsWith('(') || sliced.endsWith(')') || sliced.endsWith('[') || sliced.endsWith(']') || sliced.endsWith(',') || sliced.endsWith('-') || sliced.endsWith('|') || sliced.endsWith('.')) {
+    sliced = sliced.slice(0, -1).trim();
+  }
+  return `${sliced}...`;
+};
+
 // Helper badge konfigurasi jenis penugasan teknisi
 const getTaskTypeConfig = (jenisKerja) => {
   const jk = (jenisKerja || '').toLowerCase();
   if (jk.includes('pasang') || jk.includes('psb')) {
     return {
       label: 'Pasang Baru',
-      badgeBg: 'bg-blue-950/60 text-blue-400 border border-blue-500/30',
+      badgeBg: 'bg-blue-950/60 text-blue-400 border border-blue-500/30 whitespace-nowrap',
       badgeText: 'Pasang Baru'
     };
   }
   if (jk.includes('kabel') || jk.includes('putus') || jk.includes('dropcore') || jk.includes('gangguan') || jk.includes('repair') || jk.includes('los')) {
     return {
       label: 'Gangguan',
-      badgeBg: 'bg-rose-950/60 text-rose-400 border border-rose-500/30',
+      badgeBg: 'bg-rose-950/60 text-rose-400 border border-rose-500/30 whitespace-nowrap',
       badgeText: 'Gangguan'
     };
   }
   if (jk.includes('maintenance') || jk.includes('odp') || jk.includes('feeder')) {
     return {
       label: 'Maintenance',
-      badgeBg: 'bg-purple-950/60 text-purple-400 border border-purple-500/30',
+      badgeBg: 'bg-purple-950/60 text-purple-400 border border-purple-500/30 whitespace-nowrap',
       badgeText: 'Maintenance'
     };
   }
   return {
     label: 'Relokasi',
-    badgeBg: 'bg-amber-950/60 text-amber-400 border border-amber-500/30',
+    badgeBg: 'bg-amber-950/60 text-amber-400 border border-amber-500/30 whitespace-nowrap',
     badgeText: 'Relokasi'
   };
 };
 
-// Helper pembeda nama teknisi agar tidak ada badge kembar membingungkan (contoh: "Reza R." dan "Reza T.")
+// Helper pembeda nama teknisi agar tidak ada badge kembar membingungkan di daftar Siaga di Posko
 const getTechDisplayName = (tech, allTechs = []) => {
-  if (!tech?.nama_lengkap) return 'Teknisi';
-  const fullName = tech.nama_lengkap.trim();
+  if (!tech) return 'Teknisi';
+  const fullName = (tech.nama_lengkap || tech.nama || '').trim();
+  const username = tech.username || (tech.email ? tech.email.split('@')[0] : null);
+
+  if (!fullName) return username ? `@${username}` : `Teknisi #${tech.id}`;
+
   const parts = fullName.split(/\s+/);
-  if (parts.length === 1) return parts[0];
-
   const firstName = parts[0];
-  const hasDuplicateFirstName = allTechs.some(t =>
-    Number(t.id) !== Number(tech.id) &&
-    t.nama_lengkap?.trim().toLowerCase().split(/\s+/)[0] === firstName.toLowerCase()
-  );
 
-  if (hasDuplicateFirstName) {
-    const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
-    return `${firstName} ${lastInitial}.`;
+  // Cari apakah ada teknisi lain yang memiliki nama depan yang sama
+  const duplicateTechs = allTechs.filter(t => {
+    if (Number(t.id) === Number(tech.id)) return false;
+    const otherFull = (t.nama_lengkap || t.nama || '').trim();
+    const otherFirst = otherFull.split(/\s+/)[0];
+    return otherFirst.toLowerCase() === firstName.toLowerCase();
+  });
+
+  if (duplicateTechs.length > 0) {
+    // 1. Jika nama lengkap berbeda dan memiliki lebih dari 1 kata, gunakan nama lengkap
+    if (parts.length > 1) {
+      const isFullNameUnique = !duplicateTechs.some(t => {
+        const otherFull = (t.nama_lengkap || t.nama || '').trim().toLowerCase();
+        return otherFull === fullName.toLowerCase();
+      });
+      if (isFullNameUnique) {
+        return fullName;
+      }
+    }
+
+    // 2. Jika nama depan identik atau hanya 1 kata ("Reza"):
+    // Gunakan format nama dengan username unik: `${user.nama} (${user.username})`
+    if (username) {
+      return `${firstName} (${username})`;
+    }
+    return `${firstName} (#${tech.id})`;
   }
 
-  return parts.length > 1 ? `${firstName} ${parts[parts.length - 1].charAt(0)}.` : firstName;
+  // Jika nama unik di daftar teknisi, cukup tampilkan nama depan / nama panggilan
+  return firstName;
 };
 
 function DashboardPimpinan() {
@@ -303,6 +372,10 @@ function DashboardPimpinan() {
     }).length;
   }, [tugas]);
 
+  const otherCount = useMemo(() => {
+    return Math.max(0, totalTasks - psbCount - gangguanCount);
+  }, [totalTasks, psbCount, gangguanCount]);
+
   // Breakdown mikro Kolom 2: Teknisi Aktif
   const activeTechCount = useMemo(() => {
     return fieldTechnicians.filter(tech =>
@@ -355,24 +428,56 @@ function DashboardPimpinan() {
           {/* Header Banner (Enterprise Telecom Standard) */}
           <div className="p-3 sm:p-3.5 rounded-2xl border bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-colors">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
-                <h1 className="text-lg font-extrabold text-white tracking-tight">
-                  {activeMenu === 'dashboard' && 'Dashboard Pimpinan'}
-                  {activeMenu === 'tracking' && 'Peta WebGIS & Radar Armada'}
-                  {activeMenu === 'tabel-odp' && 'Inventarisasi Aset Jaringan'}
-                  {activeMenu === 'kelola-tugas' && 'Kelola Tiket Tugas'}
-                  {activeMenu === 'approval' && 'Persetujuan Material'}
-                  {activeMenu === 'laporan-kerja' && 'Laporan Kerja Lapangan'}
-                  {activeMenu === 'laporan-gudang' && 'Laporan Logistik Gudang'}
-                  {activeMenu === 'tabel-pelanggan' && 'Data Pelanggan & Aset'}
-                  {activeMenu === 'kelola-pegawai' && 'Kelola Pegawai'}
-                </h1>
-              </div>
+              {activeMenu === 'tracking' ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="p-1 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                    <Network className="w-4 h-4" />
+                  </div>
+                  <h1 className="text-lg font-extrabold text-white tracking-tight">
+                    Pemetaan ODP &amp; Aset Jaringan
+                  </h1>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                    STO Payakumbuh
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+                  <h1 className="text-lg font-extrabold text-white tracking-tight">
+                    {activeMenu === 'dashboard' && 'Dashboard Pimpinan'}
+                    {activeMenu === 'tabel-odp' && 'Inventarisasi Aset Jaringan'}
+                    {activeMenu === 'kelola-tugas' && 'Kelola Tiket Tugas'}
+                    {activeMenu === 'approval' && 'Persetujuan Material'}
+                    {activeMenu === 'laporan-kerja' && 'Laporan Kerja Lapangan'}
+                    {activeMenu === 'laporan-gudang' && 'Laporan Logistik Gudang'}
+                    {activeMenu === 'tabel-pelanggan' && 'Data Pelanggan & Aset'}
+                    {activeMenu === 'kelola-pegawai' && 'Kelola Pegawai'}
+                  </h1>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
-              {activeMenu === 'kelola-pegawai' ? (
+              {activeMenu === 'tracking' ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('sto:open-add-odp'))}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Tambah ODP</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateTaskModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95 whitespace-nowrap"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>+ Tiket Baru</span>
+                  </button>
+                </div>
+              ) : activeMenu === 'kelola-pegawai' ? (
                 <button
                   type="button"
                   onClick={() => setShowAddPegawaiModal(true)}
@@ -464,10 +569,12 @@ function DashboardPimpinan() {
                       {totalTasks}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-white/5 text-[10px] font-mono">
+                  <div className="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-white/5 text-[10px] font-mono truncate">
                     <span className="text-blue-400 font-bold">{psbCount} PSB</span>
                     <span className="text-slate-500">•</span>
                     <span className="text-rose-400 font-bold">{gangguanCount} Gangguan</span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-amber-400 font-bold">{otherCount} Lainnya</span>
                   </div>
                 </div>
 
@@ -616,7 +723,7 @@ function DashboardPimpinan() {
                               {/* Kolom 2: Informasi Pelanggan & Alamat (Diparsing Bersih Tanpa Duplikasi) */}
                               <td className="px-2.5 py-2">
                                 <div className="space-y-0.5 min-w-0">
-                                  <div className="font-extrabold text-white text-xs truncate">
+                                  <div className="font-semibold text-slate-100 text-xs truncate">
                                     <span>{cust.name}</span>
                                     {cust.telp && (
                                       <span className="text-[10px] text-slate-400 font-mono font-normal ml-1">
@@ -624,10 +731,10 @@ function DashboardPimpinan() {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-[11px] text-slate-400 flex items-center gap-1 truncate" title={cust.address}>
+                                  <div className="text-xs text-slate-400 flex items-center gap-1 truncate" title={cust.address}>
                                     <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
                                     <span className="truncate max-w-[240px]">
-                                      {cust.address?.length > 40 ? `${cust.address.slice(0, 40)}...` : cust.address}
+                                      {truncateAddress(cust.address, 40)}
                                     </span>
                                   </div>
                                 </div>
@@ -647,7 +754,7 @@ function DashboardPimpinan() {
                                       <span className="truncate">{tech.nama_lengkap}</span>
                                     </button>
                                   ) : (
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-950/60 text-amber-400 border border-amber-500/30">
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-950/60 text-amber-400 border border-amber-500/30 whitespace-nowrap">
                                       📢 Open Pool
                                     </span>
                                   )}
@@ -659,20 +766,20 @@ function DashboardPimpinan() {
                                 <div className="flex items-center justify-center gap-1">
                                   {isDone ? (
                                     <>
-                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.2)] whitespace-nowrap">
                                         Done
                                       </span>
                                       <button
                                         type="button"
                                         onClick={() => setBastpModalTask(t)}
-                                        className="p-1 rounded-md bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-[9px] font-bold transition cursor-pointer"
+                                        className="p-1 rounded-md bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-[9px] font-bold transition cursor-pointer shrink-0"
                                         title="Buka Rekap BASTP"
                                       >
                                         <FileText className="w-2.5 h-2.5" />
                                       </button>
                                     </>
                                   ) : (
-                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
                                       isProgress
                                         ? 'bg-blue-950/60 text-blue-400 border border-blue-500/30 shadow-[0_0_8px_rgba(59,130,246,0.2)]'
                                         : 'bg-amber-950/60 text-amber-400 border border-amber-500/30'
@@ -705,7 +812,7 @@ function DashboardPimpinan() {
                       className="px-2 py-0.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 hover:border-rose-400 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
                     >
                       <MapPin className="w-3 h-3 text-rose-400" />
-                      <span>Radar WebGIS</span>
+                      <span>Peta Sebaran ODP</span>
                     </button>
                   </div>
 

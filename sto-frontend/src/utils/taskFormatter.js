@@ -116,13 +116,23 @@ export const parseTaskDetails = (item) => {
   }
 
   loc = loc
-    .replace(/\(\s*\)/g, '')
-    .replace(/\[\s*\]/g, '')
+    .replace(/\((?:[^)]*(?:pelanggan|telp|catatan|baru|psb|gangguan|los|repair)[^)]*)\)/gi, ' ')
+    .replace(/\([^)]*$/g, ' ')
+    .replace(/\(\s*\)/g, ' ')
+    .replace(/\[\s*\]/g, ' ')
     .replace(/[|•()—]/g, ' ')
     .replace(/\s*-\s*-\s*/g, ' - ')
-    .replace(/^[-:,\s|•]+|[-:,\s|•]+$/g, '')
+    .replace(/^[\s,.\-—()|/]+/, '')
+    .replace(/[\s,.\-—()|/]+$/, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  while (loc.endsWith('(') || loc.endsWith(')') || loc.endsWith('[') || loc.endsWith(']') || loc.endsWith('-') || loc.endsWith('|') || loc.endsWith(',') || loc.endsWith('.')) {
+    loc = loc.slice(0, -1).trim();
+  }
+  while (loc.startsWith('(') || loc.startsWith(')') || loc.startsWith('-') || loc.startsWith('|') || loc.startsWith(',') || loc.startsWith('.')) {
+    loc = loc.slice(1).trim();
+  }
 
   // 8. Normalisasi catatan
   let note = rawNotes;
