@@ -239,7 +239,7 @@ export default function AuditReportPage() {
               onChange={e => setJenisFilter(e.target.value)}
               className={`${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} border rounded-xl px-3 py-2`}
             >
-              <option value="all">Semua Jenis Kerja</option>
+              <option value="all">Semua Jenis Pekerjaan</option>
               <option value="Pasang Baru">Pasang Baru</option>
               <option value="Gangguan">Gangguan</option>
               <option value="ODP">ODP Maintenance</option>

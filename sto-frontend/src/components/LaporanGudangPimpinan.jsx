@@ -9,8 +9,10 @@ import {
   Search,
   Check,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  MapPin
 } from 'lucide-react';
+import { parseTaskDetails } from '../utils/taskFormatter';
 
 export default function LaporanGudangPimpinan() {
   const { isDark } = useTheme();
@@ -94,14 +96,17 @@ export default function LaporanGudangPimpinan() {
 
     const mutasiTitle = ['\n\n=== RIWAYAT PENGELUARAN MATERIAL KE TEKNISI (SUPABASE REALTIME) ===', '', '', '', '', ''];
     const mutasiHeaders = ['ID Permohonan', 'Tanggal Rilis', 'Teknisi Penerima', 'Tiket / Pelanggan', 'Material Diberikan', 'Status'];
-    const mutasiRows = releasedMutations.map(m => [
-      `"REQ-${m.id}"`,
-      `"${m.waktu_rilis || m.tanggal || '-'}"`,
-      `"${m.tech?.nama_lengkap || m.teknisi_nama || '-'}"`,
-      `"${m.parentTask ? `#${m.parentTask.id} - ${m.parentTask.pelanggan_nama}` : '-'}"`,
-      `"${m.items ? m.items.map(it => `${it.nama_barang || it.nama} (${it.jumlah} ${it.satuan || 'pcs'})`).join(', ') : '-'}"`,
-      `"${m.status}"`
-    ]);
+    const mutasiRows = releasedMutations.map(m => {
+      const cust = parseTaskDetails(m.parentTask);
+      return [
+        `"REQ-${m.id}"`,
+        `"${m.waktu_rilis || m.tanggal || '-'}"`,
+        `"${m.tech?.nama_lengkap || m.teknisi_nama || '-'}"`,
+        `"${m.parentTask ? `#${m.parentTask.id} - ${cust.name} (${cust.address})` : '-'}"`,
+        `"${m.items ? m.items.map(it => `${it.nama_barang || it.nama} (${it.jumlah} ${it.satuan || 'pcs'})`).join(', ') : '-'}"`,
+        `"${m.status}"`
+      ];
+    });
 
     const csvContent = '\uFEFF' + [
       headers.join(';'),
@@ -129,15 +134,15 @@ export default function LaporanGudangPimpinan() {
   }, [handleExportCsv]);
 
   return (
-    <div className={`p-6 sm:p-8 rounded-3xl border ${
+    <div className={`p-3.5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border w-full min-w-0 ${
       isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-    } space-y-6 animate-in fade-in duration-200`}>
+    } space-y-5 animate-in fade-in duration-200`}>
 
       {/* 4 Kartu KPI Ringkasan Logistik */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 w-full">
+        <div className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
           <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span>Total Volume Fisik</span>
+            <span>Total Stok Fisik</span>
             <Boxes className="w-4 h-4 text-emerald-400" />
           </div>
           <div className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -147,7 +152,7 @@ export default function LaporanGudangPimpinan() {
 
         <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
           <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span>Katalog Master SKU</span>
+            <span>Total Varian SKU</span>
             <Package className="w-4 h-4 text-blue-400" />
           </div>
           <div className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -176,47 +181,39 @@ export default function LaporanGudangPimpinan() {
         </div>
       </div>
 
-      {/* Sub-Tab Switcher: Master Stok vs Riwayat Mutasi Keluar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="flex items-center gap-2 overflow-x-auto">
+      {/* Sub-Tab Switcher: Master Stok vs Riwayat Mutasi Keluar (Adaptif Mobile 2-Kolom & Desktop, Tanpa Tombol Export Redundan) */}
+      <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="grid grid-cols-2 gap-2 w-full md:flex md:w-auto md:items-center">
           <button
             type="button"
             onClick={() => setSubTabGudang('master')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            className={`px-3 py-2 sm:px-4 rounded-xl text-xs font-bold transition cursor-pointer text-center whitespace-nowrap ${
               subTabGudang === 'master'
                 ? 'bg-rose-600 text-white shadow-md'
                 : isDark ? 'text-slate-400 hover:text-white bg-slate-950/50' : 'text-slate-600 hover:text-slate-900 bg-slate-100'
             }`}
           >
-            Master Stok Fisik Gudang ({barang.length} Material)
+            <span className="md:hidden">Stok Fisik ({barang.length})</span>
+            <span className="hidden md:inline">Master Stok Fisik Gudang ({barang.length} Material)</span>
           </button>
           <button
             type="button"
             onClick={() => setSubTabGudang('mutasi')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+            className={`px-3 py-2 sm:px-4 rounded-xl text-xs font-bold transition cursor-pointer text-center whitespace-nowrap ${
               subTabGudang === 'mutasi'
                 ? 'bg-rose-600 text-white shadow-md'
                 : isDark ? 'text-slate-400 hover:text-white bg-slate-950/50' : 'text-slate-600 hover:text-slate-900 bg-slate-100'
             }`}
           >
-            Riwayat Serah Terima ke Teknisi ({releasedMutations.length} Transaksi)
+            <span className="md:hidden">Riwayat Keluar ({releasedMutations.length})</span>
+            <span className="hidden md:inline">Riwayat Serah Terima ke Teknisi ({releasedMutations.length} Transaksi)</span>
           </button>
         </div>
-
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition cursor-pointer self-start sm:self-auto whitespace-nowrap"
-          title="Export data ke format CSV"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Export CSV</span>
-        </button>
       </div>
 
       {/* TAMPILAN SUB-TAB 1: MASTER STOK FISIK GUDANG */}
       {subTabGudang === 'master' && (
-        <div className="space-y-4 animate-in fade-in">
+        <div className="space-y-4 animate-in fade-in w-full min-w-0">
           {/* Toolbar Filter & Pencarian */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950/50 border border-slate-800">
             <div className="relative flex-1">
@@ -234,7 +231,7 @@ export default function LaporanGudangPimpinan() {
               <select
                 value={filterKategoriGudang}
                 onChange={(e) => setFilterKategoriGudang(e.target.value)}
-                className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-rose-500 cursor-pointer"
+                className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-rose-500 cursor-pointer w-full sm:w-auto"
               >
                 <option value="all">Semua Kategori</option>
                 <option value="Kabel & Serat Optik">Kabel & Serat Optik</option>
@@ -245,16 +242,78 @@ export default function LaporanGudangPimpinan() {
             </div>
           </div>
 
-          {/* Tabel Master Stok Database */}
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+          {/* 1. Tampilan Mobile Card View (< md: block md:hidden) */}
+          <div className="block md:hidden space-y-2.5">
+            {filteredPimpinanBarang.length === 0 ? (
+              <div className="p-6 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-xs text-slate-500 italic">
+                Tidak ada material yang cocok dengan filter ini.
+              </div>
+            ) : (
+              filteredPimpinanBarang.map(item => {
+                const isCritical = Number(item.stok) <= 20;
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-3.5 rounded-2xl border transition space-y-2.5 ${
+                      isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    {/* Header Card: Kode SKU & Status Gudang */}
+                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/5">
+                      <span className="font-mono text-xs font-bold text-rose-400">
+                        {item.kode}
+                      </span>
+                      {isCritical ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                          <AlertTriangle className="w-2.5 h-2.5" />
+                          Perlu Restock
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          Aman
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Body Card: Nama Material & Kategori */}
+                    <div className="space-y-1">
+                      <div className={`font-bold text-sm leading-snug ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {item.nama_barang}
+                      </div>
+                      <div>
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                          {item.kategori}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Footer Card: Jumlah Stok Fisik */}
+                    <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+                      <span className="text-slate-400 text-[11px]">Jumlah Stok Fisik:</span>
+                      <div className="text-right">
+                        <span className={`font-mono font-black text-sm ${isCritical ? 'text-rose-400' : isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {Number(item.stok).toLocaleString()}
+                        </span>{' '}
+                        <span className="text-slate-400 text-[11px]">{item.satuan}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* 2. Tampilan Desktop Table View (md:table) */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
             <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               <thead className={`${isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
                 <tr>
-                  <th className="px-4 py-3">Kode SKU</th>
-                  <th className="px-4 py-3">Nama Material</th>
-                  <th className="px-4 py-3">Kategori</th>
-                  <th className="px-4 py-3 text-right">Stok</th>
-                  <th className="px-4 py-3 text-center">Status Gudang</th>
+                  <th className="px-4 py-3 w-[140px] whitespace-nowrap">Kode SKU</th>
+                  <th className="px-4 py-3 min-w-[200px]">Nama Material</th>
+                  <th className="px-4 py-3 w-[180px] whitespace-nowrap">Kategori</th>
+                  <th className="px-4 py-3 w-[120px] text-right whitespace-nowrap">Stok</th>
+                  <th className="px-4 py-3 w-[140px] text-center whitespace-nowrap">Status Gudang</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -269,27 +328,27 @@ export default function LaporanGudangPimpinan() {
                     const isCritical = Number(item.stok) <= 20;
                     return (
                       <tr key={item.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
-                        <td className="px-4 py-3 font-mono text-slate-400">{item.kode}</td>
+                        <td className="px-4 py-3 font-mono text-slate-400 whitespace-nowrap">{item.kode}</td>
                         <td className={`px-4 py-3 font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.nama_barang}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
                             {item.kategori}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
                           <span className={`font-semibold ${isCritical ? 'text-rose-400 font-bold' : isDark ? 'text-white' : 'text-slate-900'}`}>
                             {Number(item.stok).toLocaleString()}
                           </span>{' '}
                           <span className="text-slate-400 text-xs">{item.satuan}</span>
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           {isCritical ? (
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap inline-flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" />
                               Perlu Restock
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 whitespace-nowrap">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               Aman
                             </span>
@@ -307,17 +366,93 @@ export default function LaporanGudangPimpinan() {
 
       {/* TAMPILAN SUB-TAB 2: RIWAYAT SERAH TERIMA / MUTASI KELUAR */}
       {subTabGudang === 'mutasi' && (
-        <div className="space-y-4 animate-in fade-in">
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="space-y-4 animate-in fade-in w-full min-w-0">
+          {/* 1. Tampilan Mobile Card View (< md: block md:hidden) */}
+          <div className="block md:hidden space-y-2.5">
+            {releasedMutations.length === 0 ? (
+              <div className="p-6 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-xs text-slate-500 italic">
+                Belum ada mutasi material yang dirilis ke teknisi.
+              </div>
+            ) : (
+              releasedMutations.map(req => {
+                const cust = parseTaskDetails(req.parentTask);
+                return (
+                  <div
+                    key={req.id}
+                    className={`p-3.5 rounded-2xl border transition space-y-2.5 ${
+                      isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    {/* Header Card: Nomor Permohonan & Status Logistik */}
+                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/5">
+                      <span className="font-mono font-bold text-xs text-rose-400">
+                        #REQ-{String(req.id).padStart(4, '0')}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1 whitespace-nowrap">
+                        <Check className="w-2.5 h-2.5" />
+                        <span>Released</span>
+                      </span>
+                    </div>
+
+                    {/* Body Card: Info Pelanggan & Alamat, serta Teknisi */}
+                    <div className="space-y-1.5 text-xs">
+                      <div>
+                        <div className={`font-semibold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          <span>{cust.name}</span>
+                          {cust.telp && (
+                            <span className="text-[10px] text-slate-400 font-mono font-normal ml-1">
+                              • {cust.telp}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1 truncate pt-0.5" title={cust.address}>
+                          <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                          <span className="truncate">{cust.address}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-slate-400 flex items-center gap-1.5 pt-1 border-t border-white/5">
+                        <span>Teknisi:</span>
+                        <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>
+                          {req.tech?.nama_lengkap || req.teknisi_nama || 'Teknisi STO'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Footer Card: Material yang diserahkan dan waktu rilis */}
+                    <div className="pt-2 border-t border-white/5 space-y-1.5">
+                      <div className="flex flex-wrap gap-1">
+                        {req.items && req.items.length > 0 ? (
+                          req.items.map((it, idx) => (
+                            <span key={idx} className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
+                              {it.nama_barang || it.nama}: <strong>{it.jumlah} {it.satuan || 'pcs'}</strong>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-500 italic text-[11px]">Material Standar Lapangan</span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono text-right">
+                        {req.waktu_rilis || req.created_at || 'Hari ini'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* 2. Tampilan Desktop Table View (md:table) */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
             <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               <thead className={`${isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
                 <tr>
-                  <th className="px-4 py-3">No. Permohonan</th>
-                  <th className="px-4 py-3">Waktu Rilis</th>
-                  <th className="px-4 py-3">Teknisi Lapangan</th>
-                  <th className="px-4 py-3">Acuan Tiket &amp; Lokasi</th>
-                  <th className="px-4 py-3">Material yang Diberikan</th>
-                  <th className="px-4 py-3 text-center">Status Logistik</th>
+                  <th className="px-4 py-3 w-[130px] whitespace-nowrap">No. Permohonan</th>
+                  <th className="px-4 py-3 w-[140px] whitespace-nowrap">Waktu Rilis</th>
+                  <th className="px-4 py-3 w-[160px]">Teknisi Lapangan</th>
+                  <th className="px-4 py-3 min-w-[200px]">Acuan Tiket &amp; Lokasi</th>
+                  <th className="px-4 py-3 min-w-[200px]">Material yang Diberikan</th>
+                  <th className="px-4 py-3 w-[140px] text-center whitespace-nowrap">Status Logistik</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -328,49 +463,60 @@ export default function LaporanGudangPimpinan() {
                     </td>
                   </tr>
                 ) : (
-                  releasedMutations.map(req => (
-                    <tr key={req.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
-                      <td className="px-4 py-3 font-mono font-bold text-rose-400">
-                        REQ-{String(req.id).padStart(4, '0')}
-                      </td>
-                      <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
-                        {req.waktu_rilis || req.created_at || 'Hari ini'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {req.tech?.nama_lengkap || req.teknisi_nama || 'Teknisi STO'}
-                        </div>
-                        <div className="text-[10px] text-slate-400">Role: Teknisi Lapangan</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className={`font-semibold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {req.parentTask?.pelanggan_nama ? `Pelanggan: ${req.parentTask.pelanggan_nama}` : `Tiket #${req.tugas_id}`}
-                        </div>
-                        <div className="text-[10px] text-slate-400 max-w-[200px] truncate">
-                          {req.parentTask?.lokasi || 'Koto Nan IV, Payakumbuh'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="space-y-1">
-                          {req.items && req.items.length > 0 ? (
-                            req.items.map((it, idx) => (
-                              <span key={idx} className="inline-block mr-1.5 px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                                {it.nama_barang || it.nama}: <strong>{it.jumlah} {it.satuan || 'pcs'}</strong>
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-slate-500 italic">Material Standar Lapangan</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1">
-                          <Check className="w-3 h-3" />
-                          <span>Released / Diserahkan</span>
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  releasedMutations.map(req => {
+                    const cust = parseTaskDetails(req.parentTask);
+                    return (
+                      <tr key={req.id} className={`${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'} transition`}>
+                        <td className="px-4 py-3 font-mono font-bold text-rose-400 whitespace-nowrap">
+                          REQ-{String(req.id).padStart(4, '0')}
+                        </td>
+                        <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
+                          {req.waktu_rilis || req.created_at || 'Hari ini'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {req.tech?.nama_lengkap || req.teknisi_nama || 'Teknisi STO'}
+                          </div>
+                          <div className="text-[10px] text-slate-400">Role: Teknisi Lapangan</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-0.5 min-w-0">
+                            <div className={`font-semibold text-xs truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                              <span>{cust.name}</span>
+                              {cust.telp && (
+                                <span className="text-[10px] text-slate-400 font-mono font-normal ml-1">
+                                  • {cust.telp}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1 truncate" title={cust.address}>
+                              <MapPin className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+                              <span className="truncate max-w-[200px]">{cust.address}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            {req.items && req.items.length > 0 ? (
+                              req.items.map((it, idx) => (
+                                <span key={idx} className="inline-block mr-1.5 px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
+                                  {it.nama_barang || it.nama}: <strong>{it.jumlah} {it.satuan || 'pcs'}</strong>
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-slate-500 italic">Material Standar Lapangan</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1 whitespace-nowrap">
+                            <Check className="w-3 h-3" />
+                            <span>Released / Diserahkan</span>
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

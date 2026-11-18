@@ -23,7 +23,7 @@ import {
 import ModalDetailRiwayatTeknisi from './ModalDetailRiwayatTeknisi';
 import { parseTaskDetails, formatWaktuBuat } from '../utils/taskFormatter';
 
-export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
+export default function KelolaTugas({ onOpenCreateModal, onOpenBastp, hideHeader = false }) {
   const { isDark } = useTheme();
   const {
     tugas = [],
@@ -49,6 +49,40 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
     status: '',
     keterangan: ''
   });
+
+  const getTaskTypeBadge = (jenisKerja = '') => {
+    const jk = (jenisKerja || '').toLowerCase();
+    if (jk.includes('pasang') || jk.includes('psb')) {
+      return 'bg-blue-950/60 text-blue-400 border-blue-500/30';
+    }
+    if (jk.includes('gangguan') || jk.includes('putus') || jk.includes('los') || jk.includes('repair') || jk.includes('kabel')) {
+      return 'bg-rose-950/60 text-rose-400 border-rose-500/30';
+    }
+    if (jk.includes('odp') || jk.includes('maintenance') || jk.includes('feeder')) {
+      return 'bg-purple-950/60 text-purple-400 border-purple-500/30';
+    }
+    return 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30';
+  };
+
+  const getStatusBadge = (status = '') => {
+    const s = (status || '').toLowerCase();
+    if (s === 'done' || s === 'selesai') {
+      return {
+        text: 'Done',
+        className: 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+      };
+    }
+    if (s === 'progress' || s === 'in-progress' || s === 'dikerjakan') {
+      return {
+        text: 'In-Progress',
+        className: 'bg-blue-950/60 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
+      };
+    }
+    return {
+      text: status || 'Menunggu',
+      className: 'bg-amber-950/60 text-amber-400 border-amber-500/30'
+    };
+  };
 
   const technicians = users.filter(u => u.role === 'teknisi');
 
@@ -104,50 +138,51 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Top Header */}
-      <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/40 rounded-3xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+    <div className="space-y-4 animate-in fade-in duration-300">
+      {/* Top Header Terpadu (Hanya muncul jika hideHeader bernilai false) */}
+      {!hideHeader && (
+        <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/40 rounded-2xl p-4 sm:p-5 shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-2xl bg-rose-600/20 text-rose-500 border border-rose-500/30 shadow-[0_0_12px_rgba(225,29,72,0.2)]">
+            <div className="p-1.5 rounded-lg bg-rose-950/60 border border-rose-500/30 text-rose-400">
               <ClipboardList className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl font-extrabold text-white">Manajemen Penugasan Lapangan (CRUD Tiket)</h1>
+            </div>
+            <h1 className="text-lg font-extrabold text-white tracking-tight">
+              Manajemen Tiket Lapangan
+            </h1>
           </div>
-        </div>
 
-        {onOpenCreateModal && (
-          <button
-            onClick={onOpenCreateModal}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50 hover:shadow-rose-900/40 transition cursor-pointer self-start sm:self-auto shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Terbitkan Tiket Baru</span>
-          </button>
-        )}
-      </div>
+          {onOpenCreateModal && (
+            <button
+              type="button"
+              onClick={onOpenCreateModal}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/50 hover:shadow-rose-900/40 transition cursor-pointer active:scale-95 whitespace-nowrap w-full sm:w-auto"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Terbitkan Tiket Baru</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
-      <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/40 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari ID tiket, nama pelanggan, lokasi jalan, atau jenis pekerjaan..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl text-xs border bg-slate-950/80 border-rose-950/40 text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/60 focus:ring-1 focus:ring-rose-500/30 transition"
-            />
-          </div>
+      <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/40 rounded-2xl p-3.5 sm:p-4 shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="relative flex-1 w-full">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Cari ID tiket, nama pelanggan, lokasi jalan, atau jenis pekerjaan..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 rounded-xl text-xs border bg-slate-950/80 border-rose-950/40 text-white placeholder-slate-400 focus:outline-none focus:border-rose-500/60 focus:ring-1 focus:ring-rose-500/30 transition"
+          />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
           {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold border bg-slate-950/80 border-rose-950/40 text-slate-200 focus:outline-none focus:border-rose-500/60 cursor-pointer"
+            className="w-full sm:w-auto px-3 py-2 rounded-xl text-xs font-semibold border bg-slate-950/80 border-rose-950/40 text-slate-200 focus:outline-none focus:border-rose-500/60 cursor-pointer"
           >
             <option value="all">Semua Status</option>
             <option value="Open">Open (Menunggu)</option>
@@ -159,9 +194,9 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
           <select
             value={jenisFilter}
             onChange={(e) => setJenisFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold border bg-slate-950/80 border-rose-950/40 text-slate-200 focus:outline-none focus:border-rose-500/60 cursor-pointer"
+            className="w-full sm:w-auto px-3 py-2 rounded-xl text-xs font-semibold border bg-slate-950/80 border-rose-950/40 text-slate-200 focus:outline-none focus:border-rose-500/60 cursor-pointer"
           >
-            <option value="all">Semua Jenis Kerja</option>
+            <option value="all">Semua Jenis Pekerjaan</option>
             <option value="Pasang Baru">Pasang Baru</option>
             <option value="Gangguan">Gangguan (LOS)</option>
             <option value="ODP">Maintenance ODP</option>
@@ -169,24 +204,24 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
         </div>
       </div>
 
-      {/* Tabel Data Tiket dengan Dark-Red Glassmorphism */}
-      <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/40 rounded-3xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
+      {/* Tampilan Desktop: Tabel Data Tiket (hidden md:block) */}
+      <div className="hidden md:block bg-slate-950/70 backdrop-blur-xl border border-rose-950/40 rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.37)]">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
+          <table className="w-full text-left text-xs text-slate-300 table-auto">
             <thead className="bg-slate-950/90 text-slate-400 border-b border-rose-950/40 uppercase text-[10px] tracking-wider">
               <tr>
-                <th className="px-5 py-3.5">ID Tiket</th>
-                <th className="px-5 py-3.5">Jenis Pekerjaan</th>
-                <th className="px-5 py-3.5">Pelanggan &amp; Lokasi</th>
-                <th className="px-5 py-3.5">Teknisi Bertugas</th>
-                <th className="px-5 py-3.5 text-center">Status</th>
-                <th className="px-5 py-3.5 text-right">Aksi Manajemen</th>
+                <th className="px-3.5 py-3 whitespace-nowrap w-[68px]">ID Tiket</th>
+                <th className="px-3 py-3 whitespace-nowrap w-[115px]">Jenis Pekerjaan</th>
+                <th className="px-3.5 py-3 min-w-[180px]">Pelanggan &amp; Lokasi</th>
+                <th className="px-3 py-3 whitespace-nowrap w-[130px]">Teknisi Bertugas</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap w-[100px]">Status</th>
+                <th className="px-3.5 py-3 text-right whitespace-nowrap w-[130px]">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-rose-950/20">
               {filteredTugas.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-5 py-8 text-center text-slate-400 italic">
+                  <td colSpan="6" className="px-4 py-8 text-center text-slate-400 italic">
                     Tidak ada tiket pekerjaan yang sesuai dengan kriteria filter.
                   </td>
                 </tr>
@@ -194,98 +229,83 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
                 filteredTugas.map((task) => {
                   const tech = users.find(u => Number(u.id) === Number(task.teknisi_id));
                   const isDone = task.status === 'Done';
-                  const isProgress = task.status === 'Progress';
                   const cust = parseTaskDetails(task);
+                  const statusInfo = getStatusBadge(task.status);
 
                   return (
                     <tr key={task.id} className="hover:bg-rose-950/10 transition-colors">
                       {/* Kolom ID Tiket */}
-                      <td className="px-5 py-3.5 font-mono font-black text-rose-500 text-sm tracking-wider whitespace-nowrap">
+                      <td className="px-3.5 py-2.5 font-mono font-bold text-rose-400 text-xs tracking-wider whitespace-nowrap">
                         #{task.id}
                       </td>
 
                       {/* Kolom Jenis Pekerjaan */}
-                      <td className="px-5 py-3.5 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap border tracking-wide ${
-                          task.jenis_kerja?.toLowerCase().includes('pasang')
-                            ? 'bg-blue-950/60 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.15)]'
-                            : (task.jenis_kerja?.toLowerCase().includes('gangguan') || task.jenis_kerja?.toLowerCase().includes('putus'))
-                            ? 'bg-rose-950/60 text-rose-400 border-rose-500/30 shadow-[0_0_10px_rgba(225,29,72,0.15)]'
-                            : task.jenis_kerja?.toLowerCase().includes('modem')
-                            ? 'bg-amber-950/60 text-amber-400 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)]'
-                            : 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.15)]'
-                        }`}>
-                          {task.jenis_kerja}
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap border tracking-wide ${getTaskTypeBadge(task.jenis_kerja)}`}>
+                          {task.jenis_kerja || 'Penugasan'}
                         </span>
                       </td>
 
-                      {/* Kolom Pelanggan & Lokasi (Bebas String Clutter) */}
-                      <td className="px-5 py-3.5 min-w-[260px]">
-                        <div className="space-y-1">
-                          <div className="font-extrabold text-white text-xs tracking-wide">
-                            {cust.name}
+                      {/* Kolom Pelanggan & Lokasi (Diparsing Bersih Tanpa Duplikasi) */}
+                      <td className="px-3.5 py-2.5">
+                        <div className="space-y-0.5">
+                          {/* Baris 1: Nama Pelanggan & No. Telepon */}
+                          <div className="font-semibold text-slate-100 text-xs tracking-wide truncate">
+                            <span>{cust.name}</span>
+                            {cust.telp && (
+                              <span className="text-slate-300 font-mono font-normal ml-1.5">
+                                • {cust.telp}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
-                            <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
-                            <span className="truncate max-w-xs" title={cust.address}>{cust.address}</span>
+
+                          {/* Baris 2: Alamat Jalan Singkat dengan MapPin */}
+                          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                            <span className="truncate max-w-[200px] xl:max-w-[280px]" title={cust.address}>{cust.address}</span>
                           </div>
-                          {cust.telp && (
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-300 font-mono">
-                              <Phone className="w-3 h-3 text-emerald-400 shrink-0" />
-                              <span>{cust.telp}</span>
-                            </div>
-                          )}
-                          {cust.note && (
-                            <div className="flex items-center gap-1.5 text-[10px] text-amber-300/80 italic">
-                              <FileText className="w-3 h-3 text-amber-400 shrink-0" />
-                              <span className="truncate max-w-xs" title={cust.note}>{cust.note}</span>
-                            </div>
-                          )}
-                          <div className="text-[10px] text-slate-500 font-mono pt-0.5">
+
+                          {/* Baris 3: Waktu Buat kecil */}
+                          <div className="text-[11px] text-slate-500 font-mono">
                             Waktu Buat: {formatWaktuBuat(task)}
                           </div>
                         </div>
                       </td>
 
-                      {/* Kolom Teknisi */}
-                      <td className="px-5 py-3.5 whitespace-nowrap">
+                      {/* Kolom Teknisi Bertugas */}
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         {tech ? (
                           <button
                             type="button"
                             onClick={() => setSelectedTechnician(tech)}
                             className="flex items-center gap-1.5 text-rose-400 hover:text-rose-300 hover:underline cursor-pointer font-semibold transition text-left"
-                            title="Lihat detail & riwayat kerja teknisi ini"
+                            title="Lihat riwayat teknisi"
                           >
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0"></span>
-                            <span>{tech.nama_lengkap}</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0"></span>
+                            <span className="truncate max-w-[120px]">{tech.nama_lengkap}</span>
                           </button>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-950/60 text-amber-400 border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)] inline-flex items-center gap-1">
-                            📢 Terbuka di Pool
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/60 text-amber-400 border border-amber-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                            📢 Open Pool
                           </span>
                         )}
                       </td>
 
-                      {/* Kolom Status (Neon Glow Badges) */}
-                      <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase inline-block ${
-                          isDone
-                            ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                            : isProgress
-                            ? 'bg-blue-950/60 text-blue-400 border border-blue-500/30 shadow-[0_0_12px_rgba(59,130,246,0.2)]'
-                            : 'bg-amber-950/60 text-amber-400 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
-                        }`}>
-                          ● {task.status || 'Open'}
+                      {/* Kolom Status (Badge Status Bersih) */}
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase inline-block whitespace-nowrap border ${statusInfo.className}`}>
+                          ● {statusInfo.text}
                         </span>
                       </td>
 
                       {/* Kolom Aksi */}
-                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                      <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           {isDone && onOpenBastp && (
                             <button
+                              type="button"
                               onClick={() => onOpenBastp(task)}
-                              className="px-2.5 py-1 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 hover:border-rose-400 shadow-[0_0_10px_rgba(225,29,72,0.2)] hover:shadow-[0_0_15px_rgba(225,29,72,0.35)] text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer active:scale-95 whitespace-nowrap"
                               title="Buka Dokumen Resmi BASTP"
                             >
                               <FileText className="w-3 h-3" />
@@ -294,21 +314,22 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
                           )}
 
                           <button
+                            type="button"
                             onClick={() => handleStartEdit(task)}
-                            className="px-2.5 py-1 rounded-xl bg-blue-950/40 hover:bg-blue-900/60 text-blue-300 border border-blue-500/40 hover:border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.2)] text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer active:scale-95"
                             title="Edit Data Tiket"
                           >
-                            <Edit2 className="w-3 h-3" />
-                            <span>Edit</span>
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span className="hidden xl:inline">Edit</span>
                           </button>
 
                           <button
+                            type="button"
                             onClick={() => handleDelete(task.id)}
-                            className="px-2.5 py-1 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-600/40 hover:border-rose-500 shadow-[0_0_10px_rgba(225,29,72,0.2)] text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
-                            title="Batalkan / Hapus Tiket"
+                            className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer active:scale-95"
+                            title="Hapus Tiket"
                           >
-                            <Trash2 className="w-3 h-3" />
-                            <span>Hapus</span>
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -319,6 +340,118 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp }) {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Tampilan Mobile: Mobile Card View (block md:hidden, bebas overflow horizontal) */}
+      <div className="block md:hidden space-y-3">
+        {filteredTugas.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 rounded-2xl border bg-slate-950/70 border-rose-950/40 italic">
+            Tidak ada tiket pekerjaan yang sesuai dengan kriteria filter.
+          </div>
+        ) : (
+          filteredTugas.map((task) => {
+            const tech = users.find(u => Number(u.id) === Number(task.teknisi_id));
+            const isDone = task.status === 'Done';
+            const cust = parseTaskDetails(task);
+            const statusInfo = getStatusBadge(task.status);
+
+            return (
+              <div
+                key={task.id}
+                className="p-4 rounded-2xl border bg-slate-950/70 border-rose-950/40 backdrop-blur-xl shadow-lg space-y-2.5"
+              >
+                {/* Header Card: ID Tiket (#38), Badge Jenis Kerja, Badge Status di kanan atas */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-mono font-bold text-rose-400 text-xs shrink-0">
+                      #{task.id}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[9px] font-bold border tracking-wide truncate ${getTaskTypeBadge(task.jenis_kerja)}`}>
+                      {task.jenis_kerja || 'Penugasan'}
+                    </span>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold border whitespace-nowrap shrink-0 ${statusInfo.className}`}>
+                    ● {statusInfo.text}
+                  </span>
+                </div>
+
+                {/* Body Card */}
+                <div className="space-y-1.5 text-xs">
+                  {/* Nama Pelanggan & Nomor Telepon (Bold putih) */}
+                  <div className="font-bold text-white text-xs truncate">
+                    <span>{cust.name}</span>
+                    {cust.telp && (
+                      <span className="text-slate-300 font-mono font-normal ml-1.5">
+                        • {cust.telp}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Alamat lokasi (dengan ikon MapPin) */}
+                  <div className="flex items-start gap-1.5 text-[11px] text-slate-400">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                    <span className="leading-snug">{cust.address}</span>
+                  </div>
+
+                  {/* Teknisi bertugas & Tanggal terbit tiket */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/5 text-[11px]">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {tech ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTechnician(tech)}
+                          className="flex items-center gap-1.5 text-rose-400 hover:text-rose-300 font-semibold cursor-pointer truncate"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                          <span className="truncate">{tech.nama_lengkap}</span>
+                        </button>
+                      ) : (
+                        <span className="text-amber-400 text-[10px] font-bold">
+                          📢 Open Pool
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-500" />
+                      <span>{formatWaktuBuat(task)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Card: Action bar horizontal penuh */}
+                <div className={`grid ${isDone && onOpenBastp ? 'grid-cols-3' : 'grid-cols-2'} gap-2 pt-2 border-t border-white/5 text-xs font-bold`}>
+                  {isDone && onOpenBastp && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenBastp(task)}
+                      className="min-h-[38px] px-2 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Lihat BASTP</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(task)}
+                    className="min-h-[38px] px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(task.id)}
+                    className="min-h-[38px] px-2 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Modal Edit Tiket Penugasan */}

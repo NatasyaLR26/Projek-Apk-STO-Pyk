@@ -10,131 +10,222 @@ export const parseTaskDetails = (item) => {
     return { name: 'Pelanggan STO', telp: null, address: 'Payakumbuh', note: null };
   }
 
-  let rawName = (item.pelanggan_nama || '').trim();
-  let rawTelp = (item.pelanggan_telp || item.telepon || '').trim();
-  let rawLoc = (item.lokasi || item.alamat || '').trim();
-  let rawNotes = (item.keterangan || item.catatan || '').trim();
-
-  // Regex fleksibel nomor telepon (6 s/d 16 digit dengan awalan 08, +62, atau 0)
-  const phonePattern = /(?:\+?62|08|0)[0-9\-\s]{6,16}/g;
-
-  // 1. Ekstraksi no telepon jika rawTelp kosong
-  if (!rawTelp) {
-    const matchName = rawName.match(phonePattern);
-    const matchLoc = rawLoc.match(phonePattern);
-    const matchNotes = rawNotes.match(phonePattern);
-    if (matchName) rawTelp = matchName[0].trim();
-    else if (matchLoc) rawTelp = matchLoc[0].trim();
-    else if (matchNotes) rawTelp = matchNotes[0].trim();
-  }
-
-  // 2. Ekstraksi catatan dari kurung siku [catatan] atau pola "| Catatan: ..."
+  let rawName = String(item.pelanggan_nama || '').trim();
+  let rawTelp = String(item.pelanggan_telp || item.telepon || '').trim();
+  let rawLoc = String(item.lokasi || item.alamat || '').trim();
+  let rawNotes = String(item.keterangan || item.catatan || '').trim();
   let extractedNote = '';
-  const bracketNoteMatch = rawLoc.match(/\[(.*?)\]/);
-  if (bracketNoteMatch) {
-    extractedNote = bracketNoteMatch[1].trim();
-    rawLoc = rawLoc.replace(/\[(.*?)\]/g, '').trim();
-  }
-  const pipeNoteMatch = rawLoc.match(/\|\s*Catatan:\s*([^|]+)/i);
-  if (pipeNoteMatch) {
-    extractedNote = pipeNoteMatch[1].trim();
-    rawLoc = rawLoc.replace(/\|\s*Catatan:\s*[^|]+/gi, '').trim();
+
+  // 1. Ekstraksi Catatan Terlebih Dahulu
+  const bracketMatch = (rawLoc + ' ' + rawName).match(/\[(.*?)\]/);
+  if (bracketMatch) {
+    extractedNote = bracketMatch[1].trim();
+    rawLoc = rawLoc.replace(/\[(.*?)\]/g, ' ').trim();
+    rawName = rawName.replace(/\[(.*?)\]/g, ' ').trim();
   }
 
-  // 3. Ekstraksi nama pelanggan dari pola "Pelanggan:\s*([^|]+)"
-  const pipePelangganMatch = rawLoc.match(/Pelanggan:\s*([^|•]+)/i);
-  if (pipePelangganMatch) {
-    if (!rawName || rawName.toLowerCase() === 'pelanggan' || rawName.toLowerCase() === 'pelanggan telkom' || rawName.toLowerCase() === 'pelanggan sto') {
-      rawName = pipePelangganMatch[1].trim();
+  const notePattern = /(?:Catatan|Ket|Keterangan)\s*:\s*([^|•\n()\[\]]+)/i;
+  const matchNoteLoc = rawLoc.match(notePattern);
+  const matchNoteName = rawName.match(notePattern);
+  if (matchNoteLoc) {
+    if (!extractedNote) extractedNote = matchNoteLoc[1].trim();
+    rawLoc = rawLoc.replace(/(?:Catatan|Ket|Keterangan)\s*:\s*[^|•\n()\[\]]+/gi, ' ').trim();
+  }
+  if (matchNoteName) {
+    if (!extractedNote) extractedNote = matchNoteName[1].trim();
+    rawName = rawName.replace(/(?:Catatan|Ket|Keterangan)\s*:\s*[^|•\n()\[\]]+/gi, ' ').trim();
+  }
+
+  // 2. Ekstraksi dari blok tanda kurung lengkap: (Pelanggan: ... | Telp: ...)
+  const parenBlockMatch = rawLoc.match(/\(([^)]*(?:pelanggan|telp|hp)[^)]*)\)/i);
+  if (parenBlockMatch) {
+    const inside = parenBlockMatch[1];
+    const pM = inside.match(/pelanggan\s*:\s*([^|•]+)/i);
+    if (pM) rawName = pM[1].trim();
+    const tM = inside.match(/(?:telp|hp|telepon)\s*:\s*([^|•]+)/i);
+    if (tM && !rawTelp) rawTelp = tM[1].trim();
+    rawLoc = rawLoc.replace(parenBlockMatch[0], ' ').trim();
+  }
+
+  // 3. Ekstraksi Nomor Telepon dan Pelanggan dari rawLoc & rawName
+  const pelPattern = /Pelanggan\s*:\s*(.*?)(?=\s*(?:\||•|Telp:|Catatan:|Ket:|Hp:|No\.?\s*Hp:|Alamat:|\(|$))/i;
+  const telPattern = /(?:Telp|Hp|Telepon|No\.?\s*Hp)\s*:\s*(.*?)(?=\s*(?:\||•|Catatan:|Ket:|Pelanggan:|Alamat:|\(|$))/i;
+
+  // Ekstrak telepon dari rawLoc & rawName sebelum nama dioverwrite
+  const matchTelLoc = rawLoc.match(telPattern);
+  if (matchTelLoc && matchTelLoc[1].trim() && !rawTelp) {
+    rawTelp = matchTelLoc[1].trim();
+    rawLoc = rawLoc.replace(telPattern, ' ').trim();
+  }
+
+  const matchTelName = rawName.match(telPattern);
+  if (matchTelName && matchTelName[1].trim() && !rawTelp) {
+    rawTelp = matchTelName[1].trim();
+    rawName = rawName.replace(telPattern, ' ').trim();
+  }
+
+  // Ekstrak nama pelanggan dari rawLoc
+  const matchPelLoc = rawLoc.match(pelPattern);
+  if (matchPelLoc && matchPelLoc[1].trim()) {
+    if (!rawName || rawName.toLowerCase().includes('pelanggan')) {
+      rawName = matchPelLoc[1].trim();
     }
-    rawLoc = rawLoc.replace(/Pelanggan:\s*[^|•]+/gi, '').trim();
+    rawLoc = rawLoc.replace(pelPattern, ' ').trim();
   }
 
-  // 4. Ekstraksi telepon dari pola "Telp:\s*([^|]+)"
-  const pipeTelpMatch = rawLoc.match(/Telp:\s*([^|•]+)/i);
-  if (pipeTelpMatch) {
-    if (!rawTelp) {
-      rawTelp = pipeTelpMatch[1].trim();
+  // Ekstrak nama pelanggan dari rawName
+  const matchPelName = rawName.match(pelPattern);
+  if (matchPelName && matchPelName[1].trim()) {
+    const prefix = rawName.substring(0, rawName.indexOf(matchPelName[0])).trim();
+    if (prefix && (prefix.toLowerCase().startsWith('jl') || prefix.toLowerCase().startsWith('jalan') || !rawLoc || rawLoc.toLowerCase() === 'payakumbuh')) {
+      rawLoc = prefix + (rawLoc && rawLoc !== 'Payakumbuh' ? `, ${rawLoc}` : '');
     }
-    rawLoc = rawLoc.replace(/Telp:\s*[^|•]+/gi, '').trim();
+    rawName = matchPelName[1].trim();
   }
 
-  // 5. Bersihkan nomor telepon
-  const digitsOnly = (rawTelp || '').replace(/[^0-9]/g, '');
-  const cleanTelp = digitsOnly.length >= 7 ? rawTelp.replace(/[()—_]/g, '').replace(/\s+/g, ' ').trim() : null;
+  // 4. Deteksi format " - " di rawLoc (contoh: "siti rahma (0888081280) - Jl. Soekarno Hatta...")
+  if (rawLoc.includes(' - ')) {
+    const parts = rawLoc.split(' - ');
+    const candidateName = parts[0].trim();
+    const restLoc = parts.slice(1).join(' - ').trim();
 
-  // 6. Bersihkan nama dari format no HP, angka panjang, kurung kosong, dan simbol artefak
+    if (
+      (!rawName || rawName.toLowerCase().includes('pelanggan')) &&
+      !candidateName.toLowerCase().startsWith('jl') &&
+      !candidateName.toLowerCase().startsWith('jalan') &&
+      !candidateName.toLowerCase().startsWith('kel') &&
+      !candidateName.toLowerCase().startsWith('kec') &&
+      candidateName.length < 50
+    ) {
+      const parenPhoneMatch = candidateName.match(/\(([^)]+)\)/);
+      if (parenPhoneMatch) {
+        if (!rawTelp) rawTelp = parenPhoneMatch[1].trim();
+        rawName = candidateName.replace(/\([^)]+\)/g, '').trim();
+      } else {
+        rawName = candidateName;
+      }
+      rawLoc = restLoc;
+    }
+  }
+
+  // 5. Ekstraksi pemisah bullet "•" atau pipe "|" di rawName (contoh: "dea • 3422342" atau "Raka • 081212121")
+  if (rawName.includes('•') || rawName.includes('|')) {
+    const parts = rawName.split(/[•|]/);
+    const candidateName = parts[0].trim();
+    const candidateTelp = parts.slice(1).join(' ').trim();
+    if (candidateName) rawName = candidateName;
+    if (candidateTelp && !rawTelp) rawTelp = candidateTelp;
+  }
+
+  // 6. Ekstraksi nomor telepon jika masih belum ada
+  const phonePattern = /(?:\+?62|08|0)[0-9\-\s]{6,16}/;
+  if (!rawTelp) {
+    const mName = rawName.match(phonePattern);
+    const mLoc = rawLoc.match(phonePattern);
+    const mNotes = rawNotes.match(phonePattern);
+    if (mName) {
+      rawTelp = mName[0].trim();
+      rawName = rawName.replace(mName[0], '').trim();
+    } else if (mLoc) {
+      rawTelp = mLoc[0].trim();
+      rawLoc = rawLoc.replace(mLoc[0], '').trim();
+    } else if (mNotes) {
+      rawTelp = mNotes[0].trim();
+    }
+  }
+
+  // Sanitasi Nomor Telepon
+  let cleanTelp = null;
+  if (rawTelp) {
+    const digitsOnly = rawTelp.replace(/[^0-9]/g, '');
+    if (digitsOnly.length >= 6) {
+      cleanTelp = rawTelp.replace(/[()—_]/g, '').replace(/\s+/g, ' ').trim();
+    }
+  }
+
+  // 7. Sanitasi NAMA PELANGGAN (Strict)
   let name = rawName
-    .replace(phonePattern, '')
-    .replace(/[0-9]{6,}/g, '')
+    .replace(/(?:Pelanggan|Telp|Telepon|Hp|Catatan|Ket|Keterangan)\s*:/gi, '')
+    .replace(/(?:\+?62|08|0)[0-9\-\s]{6,16}/g, '')
     .replace(/\(\s*\)/g, '')
     .replace(/\[\s*\]/g, '')
-    .replace(/[|•()—-]/g, ' ')
+    .replace(/[|•()—_]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Jika ada nomor telepon yang bersih, pastikan digitnya tidak tertinggal di dalam string nama
   if (cleanTelp) {
     const rawDigits = cleanTelp.replace(/[^0-9]/g, '');
-    if (rawDigits.length >= 7) {
+    if (rawDigits.length >= 6) {
       name = name.replace(new RegExp(rawDigits, 'g'), '').trim();
     }
   }
 
-  // Jika nama masih default/kosong, cek apakah bagian awal lokasi sebelum '-' adalah nama
-  if (!name || name.toLowerCase() === 'pelanggan' || name.toLowerCase() === 'pelanggan telkom' || name.toLowerCase() === 'pelanggan sto') {
-    if (rawLoc.includes(' - ')) {
-      const parts = rawLoc.split(' - ');
-      const possibleName = parts[0]
-        .replace(phonePattern, '')
-        .replace(/[0-9]{6,}/g, '')
-        .replace(/[•()—]/g, '')
-        .trim();
-      if (
-        possibleName &&
-        !possibleName.toLowerCase().startsWith('jl') &&
-        !possibleName.toLowerCase().startsWith('jalan') &&
-        !possibleName.toLowerCase().startsWith('kel') &&
-        !possibleName.toLowerCase().startsWith('kec') &&
-        possibleName.length < 35
-      ) {
-        name = possibleName;
-        rawLoc = parts.slice(1).join(' - ');
+  if (cleanTelp) {
+    name = name.replace(/\b[0-9]{5,}\b/g, '').trim();
+  }
+
+  const roadKeywords = ['jl.', 'jalan', 'gang', 'komplek', 'lorong', 'kel.', 'kelurahan', 'kec.', 'kecamatan'];
+  const nameLower = name.toLowerCase();
+  for (const rk of roadKeywords) {
+    if (nameLower.startsWith(rk)) {
+      if (!rawLoc || rawLoc.toLowerCase() === 'payakumbuh') {
+        rawLoc = name;
       }
+      name = 'Pelanggan STO';
+      break;
     }
   }
-  if (!name) name = 'Pelanggan STO';
 
-  // 7. Bersihkan lokasi dari nomor telepon, nama pelanggan yang berulang, dan artefak
+  if (!name || name.toLowerCase() === 'pelanggan' || name.toLowerCase() === 'pelanggan sto' || name.toLowerCase() === 'pelanggan telkom') {
+    name = 'Pelanggan STO';
+  }
+
+  // 8. Sanitasi ALAMAT (Strict)
   let loc = rawLoc
-    .replace(phonePattern, '')
-    .replace(/[0-9]{6,}/g, '');
+    .replace(/(?:Pelanggan|Telp|Telepon|Hp|Catatan|Ket|Keterangan)\s*:/gi, '')
+    .replace(/(?:\+?62|08|0)[0-9\-\s]{6,16}/g, '');
 
-  if (name && name.toLowerCase() !== 'pelanggan' && name.toLowerCase() !== 'pelanggan sto' && name.toLowerCase() !== 'pelanggan telkom') {
+  if (name && name !== 'Pelanggan STO') {
     const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    loc = loc.replace(new RegExp(escapedName, 'gi'), ' ');
+    loc = loc.replace(new RegExp('\\b' + escapedName + '\\b', 'gi'), ' ');
+  }
+
+  if (cleanTelp) {
+    const rawDigits = cleanTelp.replace(/[^0-9]/g, '');
+    if (rawDigits.length >= 6) {
+      loc = loc.replace(new RegExp(rawDigits, 'g'), ' ');
+    }
   }
 
   loc = loc
-    .replace(/\((?:[^)]*(?:pelanggan|telp|catatan|baru|psb|gangguan|los|repair)[^)]*)\)/gi, ' ')
+    .replace(/\((?:[^)]*(?:pelanggan|telp|hp|catatan|baru|psb|gangguan|los|repair)[^)]*)\)/gi, ' ')
     .replace(/\([^)]*$/g, ' ')
     .replace(/\(\s*\)/g, ' ')
     .replace(/\[\s*\]/g, ' ')
-    .replace(/[|•()—]/g, ' ')
+    .replace(/[|•—_]/g, ' ')
     .replace(/\s*-\s*-\s*/g, ' - ')
-    .replace(/^[\s,.\-—()|/]+/, '')
-    .replace(/[\s,.\-—()|/]+$/, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-  while (loc.endsWith('(') || loc.endsWith(')') || loc.endsWith('[') || loc.endsWith(']') || loc.endsWith('-') || loc.endsWith('|') || loc.endsWith(',') || loc.endsWith('.')) {
+  // Bersihkan karakter simbol yang tersisa di awal dan akhir
+  while (loc.endsWith('(') || loc.endsWith('[') || loc.endsWith('-') || loc.endsWith('|') || loc.endsWith(',') || loc.endsWith('.')) {
     loc = loc.slice(0, -1).trim();
   }
   while (loc.startsWith('(') || loc.startsWith(')') || loc.startsWith('-') || loc.startsWith('|') || loc.startsWith(',') || loc.startsWith('.')) {
     loc = loc.slice(1).trim();
   }
 
-  // 8. Normalisasi catatan
+  // Unmatched ')' at end
+  const openCount = (loc.match(/\(/g) || []).length;
+  const closeCount = (loc.match(/\)/g) || []).length;
+  if (closeCount > openCount && loc.endsWith(')')) {
+    loc = loc.slice(0, -1).trim();
+  }
+
+  if (!loc || loc === '-') {
+    loc = 'Payakumbuh';
+  }
+
   let note = rawNotes;
   if (extractedNote && !note.toLowerCase().includes(extractedNote.toLowerCase())) {
     note = note ? `${note} (${extractedNote})` : extractedNote;
@@ -146,7 +237,7 @@ export const parseTaskDetails = (item) => {
   return {
     name,
     telp: cleanTelp,
-    address: loc && loc !== '-' ? loc : 'Koto Nan IV Payakumbuh',
+    address: loc,
     note: note || null
   };
 };
