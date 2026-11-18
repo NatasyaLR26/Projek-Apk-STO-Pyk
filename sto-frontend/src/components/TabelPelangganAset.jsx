@@ -29,18 +29,79 @@ import {
   Phone,
   Home,
   Copy,
-  Camera,
   Clock
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { parseTaskDetails } from '../utils/taskFormatter';
 
-// Helper pembersih alamat agar tidak menduplikasi nama dan nomor telepon pelanggan
+// Helper pembersih alamat & sanitasi dev-leak string
 const cleanAddressOnly = (rawAddr, customerName) => {
   if (!rawAddr) return '-';
-  const cust = parseTaskDetails({ lokasi: rawAddr, pelanggan_nama: customerName });
-  return cust.address || rawAddr;
+
+  let addr = String(rawAddr).trim();
+
+  // 1. Bersihkan prefix sampah dev seperti "11111) - ", "sasas121) - ", "123) - ", "test) -"
+  addr = addr.replace(/^[a-zA-Z0-9_\-\s.]+[\)\]]\s*[-–:]*\s*/g, '');
+
+  // 2. Bersihkan tag kurung dev seperti (new), (baru), (ont), (modem), (psb), (tiket terbit...)
+  addr = addr.replace(/\((?:new|baru|ont|modem|psb|dismantle|isolir|tiket terbit.*?|catatan.*?)\)/gi, ' ');
+  addr = addr.replace(/\[(?:new|baru|ont|modem|psb|dismantle|isolir|tiket terbit.*?|catatan.*?|)\]/gi, ' ');
+
+  // 3. Bersihkan angka residu testing seperti (121), (11111), atau angka kurung lainnya
+  addr = addr.replace(/\s*\(\s*\d+\s*\)/g, ' ');
+
+  // 4. Gunakan parseTaskDetails untuk mengekstrak alamat bersih jika ada format telp/nama terconcat
+  const cust = parseTaskDetails({ lokasi: addr, pelanggan_nama: customerName });
+  let cleaned = cust.address || addr;
+
+  // 5. Bersihkan lagi residu prefix sampah, tag dev, atau angka kurung jika masih tersisa
+  cleaned = cleaned
+    .replace(/^[a-zA-Z0-9_\-\s.]+[\)\]]\s*[-–:]*\s*/g, '')
+    .replace(/\b(?:new|baru|ont)\b/gi, '')
+    .replace(/tiket terbit\s*[-–]?\s*[^,;()]*[)\]]?/gi, '')
+    .replace(/\s*\(\s*\d+\s*\)/g, ' ')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\[\s*\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 6. Bersihkan karakter dangling di awal & akhir
+  while (cleaned.endsWith('(') || cleaned.endsWith('[') || cleaned.endsWith('-') || cleaned.endsWith('|') || cleaned.endsWith(',') || cleaned.endsWith('.')) {
+    cleaned = cleaned.slice(0, -1).trim();
+  }
+  while (cleaned.startsWith('(') || cleaned.startsWith(')') || cleaned.startsWith('-') || cleaned.startsWith('|') || cleaned.startsWith(',') || cleaned.startsWith('.')) {
+    cleaned = cleaned.slice(1).trim();
+  }
+
+  // 7. Jika terdapat kurung tutup tanpa kurung buka
+  if (!cleaned.includes('(') && cleaned.endsWith(')')) {
+    cleaned = cleaned.slice(0, -1).trim();
+  }
+
+  return cleaned || 'Payakumbuh';
+};
+
+// Helper pembersih patokan agar tidak memuat dev-leak string
+const cleanPatokanOnly = (patokan) => {
+  if (!patokan) return null;
+  const p = String(patokan).trim();
+  if (/tiket terbit|penanganan teknisi|^new$|^baru$|^ont$|undefined|null/i.test(p)) {
+    return null;
+  }
+  let cleaned = p
+    .replace(/\((?:new|baru|ont|modem|tiket terbit.*?)\)/gi, '')
+    .replace(/^[a-zA-Z0-9_\-\s.]+[\)\]]\s*[-–:]*\s*/g, '')
+    .replace(/\s*\(\s*\d+\s*\)/g, ' ')
+    .replace(/^\(+|\)+$/g, '')
+    .trim();
+
+  // Jika teks patokan hanya berupa angka/digit acak murni (seperti "121") atau tidak ada karakter huruf
+  if (!cleaned || /^\d+$/.test(cleaned) || !/[a-zA-Z]/.test(cleaned)) {
+    return null;
+  }
+
+  return cleaned || null;
 };
 
 // Helper pemformat kode ODP agar selalu lengkap (contoh: "4" -> "ODP-PYK-FA/004")
@@ -128,9 +189,15 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
         (p.alamat || '').toLowerCase().includes(q) ||
         (p.odp_id || '').toLowerCase().includes(q);
 
-      const statusStr = (p.status_langganan || '').toLowerCase();
-      const isDismantle = statusStr.includes('penarikan') || statusStr.includes('debt') || statusStr.includes('dismantle') || statusStr.includes('tunggak');
-      const isIsolir = statusStr.includes('isolir');
+      const statusStr = `${p.status_langganan || ''} ${p.status || ''}`.toLowerCase();
+      const isDismantle =
+        statusStr.includes('penarikan') ||
+        statusStr.includes('debt') ||
+        statusStr.includes('dismantle') ||
+        statusStr.includes('tunggak') ||
+        statusStr.includes('sita') ||
+        statusStr.includes('3+');
+      const isIsolir = statusStr.includes('isolir') || statusStr.includes('1-2') || statusStr.includes('1–2');
       const isLancar = !isDismantle && !isIsolir;
 
       const matchStatus =
@@ -151,10 +218,17 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
     let isolir = 0;
     let lancar = 0;
     (pelanggan || []).forEach(p => {
-      const statusStr = (p.status_langganan || '').toLowerCase();
-      if (statusStr.includes('penarikan') || statusStr.includes('debt') || statusStr.includes('dismantle') || statusStr.includes('tunggak')) {
+      const statusStr = `${p.status_langganan || ''} ${p.status || ''}`.toLowerCase();
+      if (
+        statusStr.includes('penarikan') ||
+        statusStr.includes('debt') ||
+        statusStr.includes('dismantle') ||
+        statusStr.includes('tunggak') ||
+        statusStr.includes('sita') ||
+        statusStr.includes('3+')
+      ) {
         dismantle++;
-      } else if (statusStr.includes('isolir')) {
+      } else if (statusStr.includes('isolir') || statusStr.includes('1-2') || statusStr.includes('1–2')) {
         isolir++;
       } else {
         lancar++;
@@ -165,18 +239,23 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
 
   const handleExportCSV = useCallback(() => {
     const headers = ['ID Pelanggan', 'Nama Pelanggan', 'No HP', 'Alamat & Patokan', 'Titik ODP', 'SN Modem ONT', 'SN STB TV', 'Status Layanan', 'Total Tunggakan', 'Koordinat GPS'];
-    const rows = filteredPelanggan.map(p => [
-      `"${p.id_pelanggan}"`,
-      `"${isPrivileged ? p.nama : maskName(p.nama)}"`,
-      `"${isPrivileged ? p.no_telp : maskPhone(p.no_telp)}"`,
-      `"${(p.alamat || '').replace(/"/g, '""')} [${p.patokan || ''}]"`,
-      `"${getOdpPortText(p.odp_id, p.port_odp, odp)}"`,
-      `"${p.sn_ont}"`,
-      `"${p.sn_stb}"`,
-      `"${p.status_langganan}"`,
-      `"${p.total_tunggakan}"`,
-      `"${p.latitude}, ${p.longitude}"`
-    ]);
+    const rows = filteredPelanggan.map(p => {
+      const cleanAddr = cleanAddressOnly(p.alamat, p.nama || p.nama_pelanggan);
+      const validPatokan = cleanPatokanOnly(p.patokan);
+      const fullAddr = validPatokan ? `${cleanAddr} [${validPatokan}]` : cleanAddr;
+      return [
+        `"${p.id_pelanggan}"`,
+        `"${isPrivileged ? p.nama : maskName(p.nama)}"`,
+        `"${isPrivileged ? p.no_telp : maskPhone(p.no_telp)}"`,
+        `"${fullAddr.replace(/"/g, '""')}"`,
+        `"${getOdpPortText(p.odp_id, p.port_odp, odp)}"`,
+        `"${p.sn_ont}"`,
+        `"${p.sn_stb}"`,
+        `"${p.status_langganan}"`,
+        `"${p.total_tunggakan}"`,
+        `"${p.latitude}, ${p.longitude}"`
+      ];
+    });
 
     const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -187,7 +266,7 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [filteredPelanggan, isPrivileged, maskName, maskPhone]);
+  }, [filteredPelanggan, isPrivileged, maskName, maskPhone, odp]);
 
   // Listener event eksternal dari tombol header Command Center Pimpinan (Aman dengan dependency array)
   useEffect(() => {
@@ -197,57 +276,12 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
   }, [handleExportCSV]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header Banner (Hanya jika bukan di dalam tab terintegrasi) */}
-      {!hideHeader && (
-        <div className={`p-6 rounded-3xl border ${
-          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-        } flex flex-col lg:flex-row lg:items-center justify-between gap-4`}>
-          <div>
-            <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Master Data Pelanggan &amp; Audit Penarikan Aset STO
-            </h1>
-          </div>
-
-          {/* Action Controls & Privacy Toggle */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Toggle Sensor Privasi untuk Pimpinan */}
-            {isPimpinan && !isGudang && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPrivacyPreview(!privacyPreview);
-                  showToast(privacyPreview ? 'Mode Pimpinan Aktif: Data nama & kontak tampil bersih.' : 'Mode Lapangan: Data pribadi disensor (***) demi privasi.', 'info');
-                }}
-                className={`px-3 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
-                  privacyPreview
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                    : 'bg-slate-800 text-slate-300 hover:text-white border-slate-700'
-                }`}
-                title="Simulasi Sensor Data Privasi Lapangan (UU PDP Telkom)"
-              >
-                {privacyPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                <span>{privacyPreview ? 'Mode Sensor Privasi Aktif' : 'Simulasi Sensor Dismantle'}</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 transition cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export CSV</span>
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
       {/* 3 KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5">
         <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span>Pelanggan Aktif &amp; Lancar</span>
+            <span>Layanan Aktif (Normal)</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-black text-emerald-400">{totalLancarCount}</div>
@@ -255,7 +289,7 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
 
         <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span>Menunggak 1-2 Bulan (Isolir)</span>
+            <span>Status Isolir (Tunggak 1–2 Bln)</span>
             <AlertTriangle className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl font-black text-amber-400">{totalIsolirCount}</div>
@@ -263,48 +297,70 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
 
         <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-900/60 border-rose-900/40' : 'bg-rose-50/60 border-rose-200 shadow-sm'}`}>
           <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span className="text-rose-500 font-bold">Target Dismantle &amp; Recovery Aset</span>
+            <span className="text-rose-500 font-bold">Target Dismantle (Tunggak 3+ Bln)</span>
             <ShieldAlert className="w-4 h-4 text-rose-500" />
           </div>
           <div className="text-2xl font-black text-rose-500">{totalDismantleCount}</div>
         </div>
       </div>
 
-      {/* Toolbar Filter & Pencarian */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-        <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Control Bar: Pencarian, Filter Dropdown, & Export CSV */}
+      <div className={`p-3 sm:p-3.5 rounded-2xl border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3`}>
+        {/* Input Search */}
+        <div className="relative flex-1 min-w-0">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            placeholder="Cari ID IndiHome / Nama Pelanggan / SN Modem / Alamat / Titik ODP..."
+            placeholder="Cari ID, nama pelanggan, SN modem, atau ODP..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 font-mono"
+            className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-800 text-slate-200 placeholder-slate-500 rounded-lg text-xs md:text-sm focus:outline-none focus:border-rose-500 font-mono transition"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1 w-full sm:w-auto">
-          {[
-            { id: 'all', label: 'Semua Pelanggan' },
-            { id: 'dismantle', label: '⚠️ Target Dismantle & Recovery' },
-            { id: 'isolir', label: 'Menunggak (Isolir)' },
-            { id: 'lancar', label: 'Lancar' }
-          ].map(f => (
+        {/* Filter Dropdown & Action Controls */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+          {/* Dropdown Status NOC */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full sm:w-auto bg-slate-900 border border-slate-800 text-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm focus:outline-none focus:border-rose-500 cursor-pointer"
+          >
+            <option value="all">Semua Status</option>
+            <option value="dismantle">Target Dismantle (Tunggak 3+ Bln)</option>
+            <option value="isolir">Status Isolir (Tunggak 1–2 Bln)</option>
+            <option value="lancar">Layanan Aktif (Normal)</option>
+          </select>
+
+          {/* Toggle Sensor Privasi untuk Pimpinan */}
+          {isPimpinan && !isGudang && (
             <button
-              key={f.id}
               type="button"
-              onClick={() => setStatusFilter(f.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                statusFilter === f.id
-                  ? f.id === 'dismantle'
-                    ? 'bg-rose-600 text-white shadow-md shadow-rose-950'
-                    : 'bg-slate-700 text-white'
-                  : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+              onClick={() => {
+                setPrivacyPreview(!privacyPreview);
+                showToast(privacyPreview ? 'Mode Pimpinan Aktif: Data nama & kontak tampil bersih.' : 'Mode Lapangan: Data pribadi disensor (***) demi privasi.', 'info');
+              }}
+              className={`w-full sm:w-auto px-3 py-2 rounded-lg text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${
+                privacyPreview
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                  : 'bg-slate-900 text-slate-300 hover:text-white border-slate-800'
               }`}
+              title="Simulasi Sensor Data Privasi Lapangan (UU PDP Telkom)"
             >
-              {f.label}
+              {privacyPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              <span>{privacyPreview ? 'Sensor Aktif' : 'Sensor PDP'}</span>
             </button>
-          ))}
+          )}
+
+          {/* Tombol Export CSV */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="w-full sm:w-auto px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs md:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-emerald-950/40 transition cursor-pointer active:scale-95 shrink-0"
+          >
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span>Export CSV</span>
+          </button>
         </div>
       </div>
 
@@ -316,10 +372,17 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
           </div>
         ) : (
           filteredPelanggan.map(item => {
-            const statusStr = (item.status_langganan || '').toLowerCase();
-            const isTargetSita = statusStr.includes('penarikan') || statusStr.includes('debt') || statusStr.includes('dismantle') || statusStr.includes('tunggak');
-            const isIsolir = statusStr.includes('isolir');
+            const statusStr = `${item.status_langganan || ''} ${item.status || ''}`.toLowerCase();
+            const isTargetSita =
+              statusStr.includes('penarikan') ||
+              statusStr.includes('debt') ||
+              statusStr.includes('dismantle') ||
+              statusStr.includes('tunggak') ||
+              statusStr.includes('sita') ||
+              statusStr.includes('3+');
+            const isIsolir = statusStr.includes('isolir') || statusStr.includes('1-2') || statusStr.includes('1–2');
             const cleanAddr = cleanAddressOnly(item.alamat, item.nama || item.nama_pelanggan);
+            const validPatokan = cleanPatokanOnly(item.patokan);
             const odpText = getOdpPortText(item.odp_id, item.port_odp, odp);
             const isWaitingBastp = String(item.sn_ont || '').toLowerCase().includes('menunggu');
 
@@ -333,7 +396,7 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
                 }`}
               >
                 {/* Header Card: ID IndiHome & Badge Status */}
-                <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800/60">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800/60">
                   <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-slate-200">
                     <span className="text-cyan-400">{item.id_pelanggan}</span>
                     <button
@@ -349,17 +412,17 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
                     </button>
                   </div>
                   {isTargetSita ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap inline-flex items-center gap-1 shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                      Tunggak (3+ Bln)
+                      Tunggakan 3+ Bln
                     </span>
                   ) : isIsolir ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap inline-flex items-center gap-1 shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                       Isolir (1-2 Bln)
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap inline-flex items-center gap-1 shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                       Lancar
                     </span>
@@ -368,12 +431,12 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
 
                 {/* Sub-header: Nama Pelanggan & No Telepon */}
                 <div className="py-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} truncate`}>
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} min-w-0 break-words`}>
                       {isPrivileged ? item.nama : maskName(item.nama)}
                     </div>
                     {item.paket && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 shrink-0 font-medium">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 font-medium shrink-0">
                         {item.paket}
                       </span>
                     )}
@@ -391,12 +454,14 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
 
                 {/* Lokasi & Jaringan */}
                 <div className="py-2.5 border-t border-slate-800/60 space-y-1 text-xs">
-                  <div className={`font-medium ${isDark ? 'text-slate-200' : 'text-slate-800'} line-clamp-2 leading-relaxed`}>
+                  <div className={`font-medium ${isDark ? 'text-slate-200' : 'text-slate-800'} leading-relaxed break-words`}>
                     {cleanAddr}
-                    {item.patokan && !cleanAddr.toLowerCase().includes(item.patokan.toLowerCase()) && (
-                      <span className="text-slate-400 font-normal"> ({item.patokan})</span>
-                    )}
                   </div>
+                  {validPatokan && !cleanAddr.toLowerCase().includes(validPatokan.toLowerCase()) && (
+                    <div className="text-slate-400 text-xs">
+                      Patokan: {validPatokan}
+                    </div>
+                  )}
                   <div className="text-[11px] font-mono text-amber-400 font-semibold flex items-center gap-1 pt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <span>{odpText}</span>
@@ -406,24 +471,26 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
                 {/* Data Perangkat STO Terpasang */}
                 <div className="py-2.5 border-t border-slate-800/60 text-xs">
                   {isWaitingBastp ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
                         <Clock className="w-3 h-3 shrink-0" />
                         <span>Menunggu BASTP</span>
                       </span>
                       <span className="text-[11px] text-slate-400 truncate">{item.model_ont || 'Modem ONT Telkom'}</span>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-1.5 font-mono text-xs text-cyan-400 font-bold">
-                        <Barcode className="w-3.5 h-3.5 shrink-0 text-cyan-500" />
-                        <span>ONT: {item.sn_ont}</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-cyan-400 font-bold">
+                          <Barcode className="w-3.5 h-3.5 shrink-0 text-cyan-500" />
+                          <span>ONT: {item.sn_ont}</span>
+                        </div>
+                        {item.model_ont && (
+                          <span className="text-[10px] text-slate-400">({item.model_ont})</span>
+                        )}
                       </div>
-                      {item.model_ont && (
-                        <span className="text-[10px] text-slate-400 truncate">({item.model_ont})</span>
-                      )}
                       {item.sn_stb && item.sn_stb !== '-' && (
-                        <div className="w-full flex items-center gap-1 text-[11px] font-mono text-sky-400 mt-0.5">
+                        <div className="flex items-center gap-1 text-[11px] font-mono text-sky-400">
                           <Tv className="w-3 h-3 text-sky-500 shrink-0" />
                           <span>STB: {item.sn_stb}</span>
                         </div>
@@ -432,29 +499,17 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
                   )}
                 </div>
 
-                {/* Footer Card: GPS + Foto + Aksi Utama */}
+                {/* Footer Card: GPS + Aksi Utama */}
                 <div className="pt-2.5 border-t border-slate-800/60 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <a
-                      href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-blue-600/20 text-slate-300 hover:text-blue-400 hover:border-blue-500/40 transition cursor-pointer"
-                      title="Buka Navigasi Rute GPS"
-                    >
-                      <MapPin className="w-4 h-4 text-blue-400" />
-                    </a>
-                    {item.foto_rumah && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedPelanggan(item)}
-                        className="p-2 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-emerald-600/20 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/40 transition cursor-pointer"
-                        title="Lihat Foto Dokumentasi Rumah"
-                      >
-                        <Camera className="w-4 h-4 text-emerald-400" />
-                      </button>
-                    )}
-                  </div>
+                  <a
+                    href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-blue-600/20 text-slate-300 hover:text-blue-400 hover:border-blue-500/40 transition cursor-pointer"
+                    title="Buka Navigasi Rute GPS"
+                  >
+                    <MapPin className="w-4 h-4 text-blue-400" />
+                  </a>
 
                   <div className="flex-1 flex justify-end">
                     {isTargetSita ? (
@@ -484,32 +539,37 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
       </div>
 
       {/* 2. Tampilan Desktop Table (hidden md:block) */}
-      <div className="hidden md:block overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-800">
-        <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+      <div className="hidden md:block overflow-x-auto w-full rounded-3xl border border-slate-200 dark:border-slate-800">
+        <table className={`table-fixed w-full border-collapse text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
           <thead className={`${isDark ? 'bg-slate-950/80 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
             <tr>
-              <th className="px-4 py-3 whitespace-nowrap w-[150px]">ID IndiHome</th>
-              <th className="px-4 py-3 min-w-[170px]">Nama Pelanggan</th>
-              <th className="px-4 py-3 whitespace-nowrap w-[150px]">Status Layanan</th>
-              <th className="px-4 py-3 min-w-[220px] max-w-[280px]">Alamat &amp; Titik ODP</th>
-              <th className="px-4 py-3 min-w-[180px]">Perangkat CPE (ONT / STB)</th>
-              <th className="px-4 py-3 text-center w-[110px] whitespace-nowrap">Titik GPS &amp; Foto</th>
-              <th className="px-4 py-3 text-center w-[140px] whitespace-nowrap">Aksi</th>
+              <th className="w-[26%] px-3 py-3">Pelanggan &amp; ID</th>
+              <th className="w-[14%] px-3 py-3 whitespace-nowrap">Status Layanan</th>
+              <th className="w-[28%] px-3 py-3">Alamat &amp; ODP</th>
+              <th className="w-[18%] px-3 py-3">Perangkat CPE</th>
+              <th className="w-[14%] px-3 py-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
             {filteredPelanggan.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-8 text-slate-500 italic">
+                <td colSpan={5} className="text-center py-8 text-slate-500 italic">
                   Tidak ada data pelanggan yang sesuai dengan filter pencarian.
                 </td>
               </tr>
             ) : (
               filteredPelanggan.map(item => {
-                const statusStr = (item.status_langganan || '').toLowerCase();
-                const isTargetSita = statusStr.includes('penarikan') || statusStr.includes('debt') || statusStr.includes('dismantle') || statusStr.includes('tunggak');
-                const isIsolir = statusStr.includes('isolir');
+                const statusStr = `${item.status_langganan || ''} ${item.status || ''}`.toLowerCase();
+                const isTargetSita =
+                  statusStr.includes('penarikan') ||
+                  statusStr.includes('debt') ||
+                  statusStr.includes('dismantle') ||
+                  statusStr.includes('tunggak') ||
+                  statusStr.includes('sita') ||
+                  statusStr.includes('3+');
+                const isIsolir = statusStr.includes('isolir') || statusStr.includes('1-2') || statusStr.includes('1–2');
                 const cleanAddr = cleanAddressOnly(item.alamat, item.nama || item.nama_pelanggan);
+                const validPatokan = cleanPatokanOnly(item.patokan);
                 const odpText = getOdpPortText(item.odp_id, item.port_odp, odp);
 
                 return (
@@ -521,153 +581,138 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
                         : isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'
                     }`}
                   >
-                    {/* ID Pelanggan */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-slate-300">
-                        <span className="text-cyan-400">{item.id_pelanggan}</span>
+                    {/* Kolom 1: Pelanggan & ID (w-[26%]) */}
+                    <td className="w-[26%] px-3 py-3">
+                      {/* Baris 1: Copy button + ID IndiHome + badge PDP */}
+                      <div className="flex items-center gap-1.5 font-mono text-xs">
                         <button
                           type="button"
                           onClick={() => {
                             navigator.clipboard.writeText(item.id_pelanggan);
                             showToast(`ID ${item.id_pelanggan} disalin!`, 'info');
                           }}
-                          className="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition cursor-pointer"
+                          className="p-0.5 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition cursor-pointer shrink-0"
                           title="Salin ID Pelanggan"
                         >
                           <Copy className="w-3 h-3" />
                         </button>
-                      </div>
-                      <div className="text-[10px] text-slate-400">{item.paket}</div>
-                    </td>
-
-                    {/* Nama Pelanggan & Kontak (Sensitif PDP) */}
-                    <td className="px-4 py-3">
-                      <div className={`font-bold text-xs ${isDark ? 'text-white' : 'text-slate-900'} flex items-center gap-1.5`}>
-                        <span>{isPrivileged ? item.nama : maskName(item.nama)}</span>
+                        <span className="font-semibold text-cyan-400">{item.id_pelanggan}</span>
                         {!isPrivileged && (
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
+                          <span className="text-[10px] px-1 bg-slate-800 text-slate-400 rounded font-mono">
                             PDP
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mt-0.5">
-                        <Phone className="w-2.5 h-2.5 text-slate-500" />
-                        <span>{isPrivileged ? item.no_telp : maskPhone(item.no_telp)}</span>
+
+                      {/* Baris 2: Nama Pelanggan */}
+                      <div className={`truncate text-xs font-medium mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`} title={item.nama}>
+                        {isPrivileged ? item.nama : maskName(item.nama)}
                       </div>
                     </td>
 
-                    {/* Status Pembayaran / Kontrak */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    {/* Kolom 2: Status Layanan (w-[14%]) */}
+                    <td className="w-[14%] px-3 py-3 whitespace-nowrap">
                       {isTargetSita ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap inline-flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                          Tunggak (3+ Bln)
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                          Tunggakan 3+ Bln
                         </span>
                       ) : isIsolir ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap inline-flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
                           Isolir (1-2 Bln)
                         </span>
                       ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap inline-flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                           Lancar
                         </span>
                       )}
-                      {item.total_tunggakan && item.total_tunggakan !== 'Rp 0 (Lunas)' && (
-                        <div className="text-[11px] text-slate-400 mt-0.5">
+                      {item.total_tunggakan && item.total_tunggakan !== 'Rp 0 (Lunas)' ? (
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">
                           {item.total_tunggakan}
                         </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          Rp 0
+                        </div>
                       )}
                     </td>
 
-                    {/* Alamat Fisik & ODP */}
-                    <td className="px-4 py-3 max-w-[280px]">
-                      <div className={`text-xs font-medium ${isDark ? 'text-slate-200' : 'text-slate-800'} line-clamp-2 leading-snug`}>
+                    {/* Kolom 3: Alamat & ODP (w-[28%]) */}
+                    <td className="w-[28%] px-3 py-3">
+                      {/* Baris 1: Alamat jalan dengan class truncate block max-w-full */}
+                      <span
+                        className={`truncate block max-w-full text-xs font-medium ${isDark ? 'text-slate-200' : 'text-slate-800'}`}
+                        title={`${cleanAddr}${validPatokan ? ` (Patokan: ${validPatokan})` : ''}`}
+                      >
                         {cleanAddr}
-                        {item.patokan && !cleanAddr.toLowerCase().includes(item.patokan.toLowerCase()) && (
-                          <span className="text-[11px] text-slate-400 font-normal"> ({item.patokan})</span>
-                        )}
-                      </div>
-                      <div className="text-[11px] font-mono text-amber-400 mt-1 font-semibold flex items-center gap-1">
+                      </span>
+
+                      {/* Baris 2: Badge Titik ODP & Port */}
+                      <div className="text-[11px] font-mono text-amber-400 font-semibold flex items-center gap-1 mt-0.5 truncate">
                         <MapPin className="w-3 h-3 text-amber-500 shrink-0" />
-                        <span>{odpText}</span>
+                        <span className="truncate">{odpText}</span>
                       </div>
                     </td>
 
-                    {/* Perangkat STO Terpasang */}
-                    <td className="px-4 py-3">
+                    {/* Kolom 4: Perangkat CPE (w-[18%]) */}
+                    <td className="w-[18%] px-3 py-3">
                       {String(item.sn_ont || '').toLowerCase().includes('menunggu') ? (
-                        <div className="space-y-1">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap">
-                            <Clock className="w-3 h-3 shrink-0" />
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap">
+                            <Clock className="w-2.5 h-2.5 shrink-0" />
                             <span>Menunggu BASTP</span>
                           </span>
-                          <div className="text-[10px] text-slate-400 truncate">{item.model_ont || 'Modem ONT Telkom'}</div>
+                          <div className="text-[11px] text-slate-400 truncate" title={item.model_ont || 'Modem ONT Telkom'}>
+                            {item.model_ont || 'Modem ONT Telkom'}
+                          </div>
                         </div>
                       ) : (
-                        <>
-                          <div className="flex items-center gap-1.5 font-mono text-xs text-purple-400 font-bold">
-                            <Barcode className="w-3.5 h-3.5 shrink-0" />
-                            <span>ONT: {item.sn_ont}</span>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1 font-mono text-xs text-purple-300 font-semibold truncate">
+                            <Barcode className="w-3 h-3 shrink-0" />
+                            <span className="truncate" title={item.sn_ont}>{item.sn_ont}</span>
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">{item.model_ont}</div>
-                          {item.sn_stb && item.sn_stb !== '-' && (
-                            <div className="flex items-center gap-1 text-[10px] font-mono text-sky-400 mt-0.5">
-                              <Tv className="w-2.5 h-2.5" />
-                              <span>STB: {item.sn_stb}</span>
-                            </div>
-                          )}
-                        </>
+                          <div className="text-[11px] text-slate-400 truncate" title={item.model_ont}>
+                            {item.model_ont}
+                          </div>
+                        </div>
                       )}
                     </td>
 
-                    {/* Titik GPS & Foto Rumah */}
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1.5">
+                    {/* Kolom 5: Aksi (w-[14%] text-right) */}
+                    <td className="w-[14%] px-3 py-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                         <a
                           href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-blue-600/20 text-slate-400 hover:text-blue-400 hover:border-blue-500/40 transition cursor-pointer"
+                          className="p-1 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-blue-400 hover:border-blue-500/40 transition cursor-pointer shrink-0"
                           title="Buka Navigasi Rute GPS ke Rumah Pelanggan"
                         >
-                          <MapPin className="w-4 h-4" />
+                          <MapPin className="w-3.5 h-3.5" />
                         </a>
-                        {item.foto_rumah && (
+                        {isTargetSita ? (
+                          <button
+                            type="button"
+                            onClick={() => setSuratTugasPelanggan(item)}
+                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900 rounded cursor-pointer whitespace-nowrap shrink-0 transition"
+                            title="Terbitkan Surat Tugas Penarikan Aset STO"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Cetak SP</span>
+                          </button>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => setSelectedPelanggan(item)}
-                            className="p-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-emerald-600/20 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/40 transition cursor-pointer"
-                            title="Lihat Foto Dokumentasi Rumah Pelanggan"
+                            className="px-2 py-1 text-xs bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800 rounded cursor-pointer whitespace-nowrap shrink-0 transition"
                           >
-                            <Camera className="w-4 h-4" />
+                            Detail
                           </button>
                         )}
                       </div>
-                    </td>
-
-                    {/* Aksi Tim Lapangan */}
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
-                      {isTargetSita ? (
-                        <button
-                          type="button"
-                          onClick={() => setSuratTugasPelanggan(item)}
-                          className="px-2.5 py-1 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-medium text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
-                          title="Terbitkan Surat Tugas Penarikan Aset STO"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>Surat Penarikan</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPelanggan(item)}
-                          className="px-2.5 py-1 rounded-xl border border-slate-700 bg-transparent hover:bg-slate-800 text-slate-300 font-medium text-xs inline-flex items-center gap-1 transition cursor-pointer"
-                        >
-                          Detail Aset
-                        </button>
-                      )}
                     </td>
                   </tr>
                 );
@@ -735,8 +780,13 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-slate-950/40 border border-slate-800 text-[11px]">
-                <strong>Alamat Fisik:</strong> {selectedPelanggan.alamat} (Patokan: {selectedPelanggan.patokan})
+              <div className="p-3 rounded-2xl bg-slate-950/40 border border-slate-800 text-[11px] space-y-1">
+                <div><strong>Alamat Fisik:</strong> {cleanAddressOnly(selectedPelanggan.alamat, selectedPelanggan.nama)}</div>
+                {cleanPatokanOnly(selectedPelanggan.patokan) && (
+                  <div className="text-slate-400 text-xs">
+                    <strong>Patokan:</strong> {cleanPatokanOnly(selectedPelanggan.patokan)}
+                  </div>
+                )}
               </div>
 
               {selectedPelanggan.catatan_kolektor && (
@@ -778,7 +828,7 @@ export default function TabelPelangganAset({ isGudangView = false, hideHeader = 
               <div className="p-3 rounded-xl bg-slate-100 border border-slate-300 space-y-1">
                 <div><strong>ID Pelanggan (IndiHome):</strong> {suratTugasPelanggan.id_pelanggan}</div>
                 <div><strong>Nama Pelanggan:</strong> {maskName(suratTugasPelanggan.nama)}</div>
-                <div><strong>Alamat Penarikan:</strong> {suratTugasPelanggan.alamat}</div>
+                <div><strong>Alamat Penarikan:</strong> {cleanAddressOnly(suratTugasPelanggan.alamat, suratTugasPelanggan.nama)}{cleanPatokanOnly(suratTugasPelanggan.patokan) ? ` (Patokan: ${cleanPatokanOnly(suratTugasPelanggan.patokan)})` : ''}</div>
                 <div><strong>Koordinat GPS Lokasi:</strong> {suratTugasPelanggan.latitude}, {suratTugasPelanggan.longitude}</div>
                 <div><strong>Titik Distribusi ODP:</strong> {getOdpPortText(suratTugasPelanggan.odp_id, suratTugasPelanggan.port_odp, odp)}</div>
                 <div><strong>Tunggakan Tagihan:</strong> <span className="font-bold text-red-600">{suratTugasPelanggan.total_tunggakan}</span></div>

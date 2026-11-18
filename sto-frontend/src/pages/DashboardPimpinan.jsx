@@ -264,13 +264,13 @@ function DashboardPimpinan() {
   }, [fieldTechnicians, tugas, isProgressTask]);
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#0a0f1d] text-white transition-colors duration-300">
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#0a0f1d] text-white transition-colors duration-300">
       
       {/* Left Sidebar Layout */}
       <ModernSidebar activeTab={activeMenu} onTabChange={handleSetActiveMenu} />
 
       {/* Main Content Area beside Sidebar */}
-      <main className={`flex-1 min-w-0 flex flex-col ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'} transition-all duration-300`}>
+      <main className={`flex-1 min-w-0 flex flex-col overflow-y-auto ${sidebarCollapsed ? 'md:pl-20' : 'md:pl-72'} transition-all duration-300`}>
         <div className="p-2.5 sm:p-4 space-y-3 flex-1 max-w-7xl w-full mx-auto">
           
           {/* Header Banner (Enterprise Telecom Standard) */}

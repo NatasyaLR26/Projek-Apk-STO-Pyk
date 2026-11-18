@@ -77,7 +77,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
 
           {
             key: 'status-approval',
-            label: 'Persetujuan & Gudang',
+            label: 'Pengambilan Material',
             icon: Clock,
             badge: approvedForReleaseCount > 0 ? 'Siap Ambil' : null,
             badgeColor: 'bg-emerald-500 text-white'
@@ -129,7 +129,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
           },
           {
             key: 'penarikan-aset',
-            label: 'Recovery Dismantle',
+            label: 'Recovery Perangkat',
             icon: ShieldAlert,
             badge: 'Dismantle',
             badgeColor: 'bg-rose-600 text-white'
@@ -217,7 +217,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
   return (
     <>
       {/* Mobile Top Header with Hamburger Button */}
-      <div className={`lg:hidden flex items-center justify-between px-4 py-3 border-b ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} sticky top-0 z-30 shadow-sm`}>
+      <div className={`md:hidden flex items-center justify-between px-4 py-3 border-b ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} sticky top-0 z-30 shadow-sm`}>
         <BrandLogo size="sm" onClick={handleLogoClick} />
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
@@ -231,7 +231,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
       {/* Mobile Backdrop (No heavy blur that ruins view, simple clean dimmer with click-outside) */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden animate-in fade-in"
+          className="fixed inset-0 z-40 bg-black/50 md:hidden animate-in fade-in"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -243,7 +243,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
             ? 'bg-gradient-to-b from-[#0a0f1d] via-slate-950 to-[#070b14] border-r border-slate-800/80 text-white'
             : 'bg-white border-r border-slate-200 text-slate-900 shadow-sm'
         } ${collapsed ? 'w-20' : 'w-72'} ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
         {/* Sidebar Header */}
@@ -253,7 +253,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
           {/* Collapse Button on Desktop */}
           <button
             onClick={toggleSidebar}
-            className={`hidden lg:flex p-1.5 rounded-xl ${
+            className={`hidden md:flex p-1.5 rounded-xl ${
               isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-black'
             } transition cursor-pointer`}
             title={collapsed ? 'Perluas Sidebar' : 'Ciutkan Sidebar'}
@@ -264,7 +264,7 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
           {/* Close button on Mobile */}
           <button
             onClick={() => setMobileOpen(false)}
-            className="lg:hidden p-1.5 rounded-xl text-slate-400 hover:text-white"
+            className="md:hidden p-1.5 rounded-xl text-slate-400 hover:text-white"
           >
             <X className="w-5 h-5" />
           </button>

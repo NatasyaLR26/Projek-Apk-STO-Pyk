@@ -8,6 +8,7 @@ import ModalBASTP from '../components/ModalBASTP';
 import CetakSuratPermohonan from '../components/CetakSuratPermohonan';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
+import { parseTaskDetails } from '../utils/taskFormatter';
 import {
   Wrench,
   MapPin,
@@ -45,21 +46,36 @@ import {
 // Helper pembersih lokasi agar tidak mengulang nama/no telepon pelanggan
 const cleanLocation = (rawLoc, custName) => {
   if (!rawLoc) return '-';
-  let loc = String(rawLoc);
-  const phoneRegex = /(?:\+?62|08)[0-9\-\s]{8,14}/g;
-  loc = loc.replace(phoneRegex, ' ');
-  if (custName && custName.toLowerCase() !== 'pelanggan') {
-    const escapedName = custName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    loc = loc.replace(new RegExp(escapedName, 'gi'), ' ');
-  }
-  loc = loc
-    .replace(/[•()—]/g, ' ')
-    .replace(/\s*-\s*-\s*/g, ' - ')
-    .replace(/^[-:,\s]+|[-:,\s]+$/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return loc || rawLoc;
+  const cust = parseTaskDetails({ lokasi: rawLoc, pelanggan_nama: custName });
+  return cust.address || rawLoc;
 };
+
+// Komponen Thumbnail Bukti Foto dengan fallback jika image error/broken (e.g. Tiket #29)
+function BuktiThumbnail({ src, alt = "Bukti Foto", onClick, className = "w-14 h-14 rounded-lg object-cover border border-slate-700 shrink-0 cursor-pointer hover:opacity-90" }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (!src || hasError) {
+    return (
+      <div
+        onClick={onClick}
+        className="w-14 h-14 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 cursor-pointer hover:bg-slate-750 transition"
+        title="Bukti Foto"
+      >
+        <Camera className="w-5 h-5 text-slate-500" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setHasError(true)}
+      className={className}
+      onClick={onClick}
+    />
+  );
+}
 
 export default function DashboardTeknisi() {
   const navigate = useNavigate();
@@ -226,7 +242,7 @@ export default function DashboardTeknisi() {
 
 
   return (
-    <div className={`min-h-screen flex flex-col lg:flex-row ${
+    <div className={`min-h-screen flex flex-col md:flex-row ${
       isDark ? 'bg-[#0a0f1d] text-white' : 'bg-slate-50 text-slate-900'
     } transition-colors duration-300`}>
       
@@ -234,7 +250,7 @@ export default function DashboardTeknisi() {
       <ModernSidebar activeTab={activeMenu} onTabChange={handleSetActiveMenu} />
 
       {/* Main Content Area */}
-      <main className={`flex-1 min-w-0 flex flex-col ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'} transition-all duration-300`}>
+      <main className={`flex-1 min-w-0 flex flex-col overflow-y-auto ${sidebarCollapsed ? 'md:pl-20' : 'md:pl-72'} transition-all duration-300`}>
         <div className="p-4 sm:p-6 lg:p-8 space-y-6 flex-1 max-w-7xl w-full mx-auto">
           
           {/* Header Banner */}
@@ -250,9 +266,9 @@ export default function DashboardTeknisi() {
               </div>
               <h1 className={`text-xl sm:text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {activeMenu === 'tiket' && 'Dashboard Teknisi'}
-                {activeMenu === 'surat-permohonan' && 'Permohonan Material'}
+                {activeMenu === 'surat-permohonan' && 'Pengajuan Kebutuhan Material'}
                 {activeMenu === 'cetak-surat' && 'Cetak Surat Permohonan'}
-                {activeMenu === 'status-approval' && 'Persetujuan & Gudang'}
+                {activeMenu === 'status-approval' && 'Pengambilan Material di Gudang'}
                 {activeMenu === 'pengerjaan' && 'Pemasangan & BASTP Digital'}
               </h1>
             </div>
@@ -261,7 +277,7 @@ export default function DashboardTeknisi() {
             <div className="flex items-center gap-2">
               <span className="px-3.5 py-2 rounded-2xl bg-blue-600/10 border border-blue-500/30 text-blue-400 font-bold text-xs flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                <span>{myActiveTasks.length} Tiket Aktif Dikerjakan</span>
+                <span>{myActiveTasks.length} Tiket Aktif</span>
               </span>
             </div>
           </div>
@@ -270,41 +286,6 @@ export default function DashboardTeknisi() {
           {activeMenu === 'tiket' && (
             <div className="space-y-8 animate-in fade-in duration-200">
               
-              {/* Saldo Sisa Material di Mobil Teknisi (Mobile Stock) */}
-              {saldoTeknisi && (
-                <div className="p-4 rounded-3xl bg-linear-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-500/25 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center justify-center shrink-0">
-                      <Package className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                        <span>Mobile Stock di Kendaraan (Sisa Material Sebelumnya)</span>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 font-mono">Tercatat</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 font-mono text-xs">
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center shrink-0">
-                      <span className="text-[9px] text-slate-400 block">Sisa Dropcore</span>
-                      <strong className="text-emerald-400 font-black">{saldoTeknisi.kabel_m || 0} m</strong>
-                    </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center shrink-0">
-                      <span className="text-[9px] text-slate-400 block">Roset FO</span>
-                      <strong className="text-sky-400 font-black">{saldoTeknisi.roset || 0} pcs</strong>
-                    </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center shrink-0">
-                      <span className="text-[9px] text-slate-400 block">Fast Conn</span>
-                      <strong className="text-amber-400 font-black">{saldoTeknisi.fast_connector || 0} pcs</strong>
-                    </div>
-                    <div className="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-center shrink-0">
-                      <span className="text-[9px] text-slate-400 block">Klem Segitiga</span>
-                      <strong className="text-purple-400 font-black">{saldoTeknisi.klem_segitiga || 0} pcs</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* SECTION 1: POOL TIKET TERBUKA (DIUMUMKAN PIMPINAN) */}
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -313,11 +294,8 @@ export default function DashboardTeknisi() {
                       <span className="p-1.5 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
                         📢
                       </span>
-                      <span>Siaran Tiket Terbuka (Pool Pekerjaan Siap Diambil)</span>
+                      <span>Broadcast Tiket Terbuka (Open Pool)</span>
                     </h2>
-                    <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Tiket kerja yang baru saja diumumkan Pimpinan STO. Klik <strong>Ambil Pekerjaan Ini</strong> untuk menugaskan ke diri Anda.
-                    </p>
                   </div>
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 self-start sm:self-auto">
                     {openTasks.length} Tiket Tersedia
@@ -340,7 +318,9 @@ export default function DashboardTeknisi() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {openTasks.map(t => (
+                    {openTasks.map(t => {
+                      const cust = parseTaskDetails(t);
+                      return (
                       <div
                         key={t.id}
                         className={`p-5 rounded-3xl border transition-all ${
@@ -355,8 +335,8 @@ export default function DashboardTeknisi() {
                                 Pool Terbuka
                               </span>
                             </div>
-                            <h3 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} mt-1`}>
-                              {t.pelanggan_nama}
+                            <h3 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} mt-1 truncate capitalize`} title={cust.name}>
+                              {cust.name}
                             </h3>
                           </div>
                           <span className={`whitespace-nowrap inline-flex items-center px-3 py-1 rounded-xl text-[11px] font-bold border shadow-xs tracking-wide ${
@@ -370,19 +350,14 @@ export default function DashboardTeknisi() {
                         </div>
 
                         <div className={`p-3.5 rounded-2xl text-xs space-y-2 ${isDark ? 'bg-slate-950/70 border border-slate-800 text-slate-300' : 'bg-slate-50 border border-slate-200 text-slate-700'}`}>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
                             <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                            <span className="truncate">{cleanLocation(t.lokasi, t.pelanggan_nama)}</span>
+                            <span className="truncate block max-w-full" title={cust.address}>{cust.address}</span>
                           </div>
-                          {t.pelanggan_telp && (
+                          {(cust.telp || t.pelanggan_telp) && (
                             <div className="flex items-center gap-2">
                               <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                              <span>{t.pelanggan_telp}</span>
-                            </div>
-                          )}
-                          {t.keterangan && (
-                            <div className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800/40">
-                              "{t.keterangan}"
+                              <span>{cust.telp || t.pelanggan_telp}</span>
                             </div>
                           )}
                         </div>
@@ -395,10 +370,11 @@ export default function DashboardTeknisi() {
                           }}
                           className="w-full py-3 px-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-blue-900/40 transition active:scale-98 cursor-pointer flex items-center justify-center gap-2"
                         >
-                          <span>✋ Ambil Pekerjaan Ini (Klaim Tiket)</span>
+                          <span>Ambil Pekerjaan</span>
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -411,14 +387,11 @@ export default function DashboardTeknisi() {
                       <span className="p-1.5 rounded-xl bg-amber-600/20 text-amber-400 border border-amber-500/30">
                         <Wrench className="w-4 h-4" />
                       </span>
-                      <span>Tiket Aktif yang Sedang Saya Tangani</span>
+                      <span>Tiket Dalam Pengerjaan</span>
                     </h2>
-                    <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Lanjutkan SOP: Ajukan material ke gudang, cetak formulir fisik, aktifkan pelacakan GPS, dan upload bukti selesai.
-                    </p>
                   </div>
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 self-start sm:self-auto">
-                    {myActiveTasks.length} Tiket Sedang Dikerjakan
+                    {myActiveTasks.length} Tiket Aktif
                   </span>
                 </div>
 
@@ -438,38 +411,42 @@ export default function DashboardTeknisi() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {myActiveTasks.map(t => (
+                    {myActiveTasks.map(t => {
+                      const cust = parseTaskDetails(t);
+                      return (
                       <div
                         key={t.id}
                         className={`p-5 rounded-3xl border transition-all ${
                           isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
                         } space-y-4`}
                       >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <span className="font-mono text-xs font-bold text-blue-500">#{t.id}</span>
-                            <h3 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
-                              {t.pelanggan_nama}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-blue-500">#{t.id}</span>
+                              <span className={`whitespace-nowrap inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border shadow-xs tracking-wide ${
+                                (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru') ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' :
+                                (t.jenis_kerja?.includes('Gangguan') || t.jenis_kerja?.includes('Putus')) ? 'bg-rose-600/20 text-rose-400 border-rose-500/40' :
+                                t.jenis_kerja?.includes('Modem') ? 'bg-amber-600/20 text-amber-400 border-amber-500/40' :
+                                'bg-purple-600/20 text-purple-400 border-purple-500/40'
+                              }`}>
+                                {t.jenis_kerja || 'Perbaikan'}
+                              </span>
+                            </div>
+                            <h3 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} mt-1 truncate capitalize`} title={cust.name}>
+                              {cust.name}
                             </h3>
                           </div>
-                          <span className={`whitespace-nowrap inline-flex items-center px-3 py-1 rounded-xl text-[11px] font-bold border shadow-xs tracking-wide ${
-                            (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru') ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' :
-                            (t.jenis_kerja?.includes('Gangguan') || t.jenis_kerja?.includes('Putus')) ? 'bg-rose-600/20 text-rose-400 border-rose-500/40' :
-                            t.jenis_kerja?.includes('Modem') ? 'bg-amber-600/20 text-amber-400 border-amber-500/40' :
-                            'bg-purple-600/20 text-purple-400 border-purple-500/40'
-                          }`}>
-                            {t.jenis_kerja}
-                          </span>
                         </div>
 
                         <div className={`p-3 rounded-2xl text-xs space-y-1.5 ${isDark ? 'bg-slate-950/60 border border-slate-850 text-slate-300' : 'bg-slate-50 border border-slate-200 text-slate-700'}`}>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
                             <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                            <span className="truncate">{cleanLocation(t.lokasi, t.pelanggan_nama)}</span>
+                            <span className="truncate block max-w-full" title={cust.address}>{cust.address}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                            <span>{t.pelanggan_telp || '0812-xxxx-xxxx'}</span>
+                            <span>{cust.telp || t.pelanggan_telp || '0812-xxxx-xxxx'}</span>
                           </div>
                         </div>
 
@@ -554,8 +531,7 @@ export default function DashboardTeknisi() {
                                         onClick={() => showToast('Permohonan telah diteruskan ke Gudang STO Payakumbuh. Silakan temui petugas logistik untuk serah terima barang.', 'info')}
                                         className="flex-1 py-2.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
                                       >
-                                        <Package className="w-4 h-4" />
-                                        <span>🏢 Status: Menunggu Serah Terima di Gudang</span>
+                                        <span>📦 Menunggu Pengambilan di Gudang</span>
                                       </button>
                                     </div>
                                     <button
@@ -563,8 +539,7 @@ export default function DashboardTeknisi() {
                                       onClick={() => handleSetActiveMenu('cetak-surat')}
                                       className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                                     >
-                                      <Printer className="w-3.5 h-3.5 text-slate-400" />
-                                      <span>🖨️ Cetak Surat Permohonan (Pilihan / Opsional)</span>
+                                      <span>🖨️ Cetak Permohonan Material</span>
                                     </button>
                                   </div>
                                 )}
@@ -617,7 +592,8 @@ export default function DashboardTeknisi() {
                           );
                         })()}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -628,54 +604,65 @@ export default function DashboardTeknisi() {
                   <div className="flex items-center justify-between">
                     <h2 className="text-base font-extrabold flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>Riwayat Pekerjaan Selesai (Done)</span>
+                      <span>Riwayat Pekerjaan Selesai</span>
                     </h2>
                     <span className="text-xs text-emerald-400 font-bold">{myDoneTasks.length} Pekerjaan Tuntas</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {myDoneTasks.map(t => (
+                    {myDoneTasks.map(t => {
+                      const cust = parseTaskDetails(t);
+                      return (
                       <div
                         key={t.id}
                         className={`p-4 rounded-3xl border ${
                           isDark ? 'bg-slate-900/60 border-emerald-500/30' : 'bg-white border-emerald-200 shadow-sm'
-                        } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
+                        } flex flex-col justify-between`}
                       >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-slate-400">#{t.id}</span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400">
-                              ✓ Selesai & Terpasang
-                            </span>
+                        {/* Body Atas: Info Pelanggan (Kiri) & Thumbnail Foto (Kanan) */}
+                        <div className="flex items-start justify-between gap-3">
+                          {/* Sisi Kiri (flex-1) */}
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-slate-400">#{t.id}</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400">
+                                ✓ Selesai & Terpasang
+                              </span>
+                            </div>
+                            <div className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'} truncate capitalize`} title={cust.name}>
+                              {cust.name}
+                            </div>
+                            <div className="text-slate-400 text-xs truncate block max-w-full" title={cust.address}>
+                              {cust.address}
+                            </div>
+                            {t.waktu_selesai && (
+                              <div className="text-[10px] text-emerald-400 font-mono">Closing: {t.waktu_selesai}</div>
+                            )}
                           </div>
-                          <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            {t.pelanggan_nama}
-                          </div>
-                          <div className="text-[11px] text-slate-400">{t.lokasi}</div>
-                          {t.waktu_selesai && (
-                            <div className="text-[10px] text-emerald-400 font-mono">Closing: {t.waktu_selesai}</div>
-                          )}
 
-                          <button
-                            type="button"
-                            onClick={() => setBastpModalTask(t)}
-                            className="mt-2 py-1.5 px-3 rounded-xl bg-burgundy-600/20 hover:bg-burgundy-600/30 text-burgundy-400 border border-burgundy-500/30 font-bold text-[11px] flex items-center gap-1.5 transition cursor-pointer"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>Lihat BASTP & Material Terpasang</span>
-                          </button>
+                          {/* Sisi Kanan (flex-shrink-0) */}
+                          <div className="shrink-0">
+                            <BuktiThumbnail
+                              src={t.foto_bukti}
+                              alt="Bukti Foto"
+                              className="w-14 h-14 rounded-lg object-cover border border-slate-700 shrink-0 cursor-pointer hover:opacity-90"
+                              onClick={() => setBastpModalTask(t)}
+                            />
+                          </div>
                         </div>
 
-                        {t.foto_bukti && (
-                          <img
-                            src={t.foto_bukti}
-                            alt="Bukti Foto"
-                            className="w-16 h-16 rounded-xl object-cover border border-emerald-500/40 shrink-0 cursor-pointer hover:opacity-90"
-                            onClick={() => setBastpModalTask(t)}
-                          />
-                        )}
+                        {/* Sisi Bawah: Tombol "Lihat BASTP" */}
+                        <button
+                          type="button"
+                          onClick={() => setBastpModalTask(t)}
+                          className="w-full mt-3 py-2 text-xs font-medium rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 hover:bg-rose-900/50 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Lihat BASTP</span>
+                        </button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -689,8 +676,8 @@ export default function DashboardTeknisi() {
               <div className={`p-6 rounded-3xl border ${
                 isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
               }`}>
-                <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'} mb-2`}>
-                  Pilih Tiket untuk Mengajukan Kebutuhan Material:
+                <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>
+                  Pilih Tiket Pekerjaan
                 </h2>
                 {myActiveTasks.length === 0 ? (
                   <div className="p-8 text-center">
@@ -705,34 +692,60 @@ export default function DashboardTeknisi() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {myActiveTasks.map(t => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                    {myActiveTasks.map(t => {
+                      const cust = parseTaskDetails(t);
+                      return (
                       <div
                         key={t.id}
-                        className={`p-4 rounded-2xl border cursor-pointer transition ${
+                        className={`p-5 rounded-2xl border transition cursor-pointer ${
                           modalTugasId === t.id
-                            ? 'border-burgundy-500 bg-burgundy-500/10 shadow-lg'
+                            ? 'border-rose-500 bg-rose-500/10 shadow-lg'
                             : isDark ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                         }`}
                         onClick={() => setModalTugasId(t.id)}
                       >
-                        <div className="font-mono text-xs text-burgundy-500 font-bold">Tiket #{t.id}</div>
-                        <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'} mt-1 truncate`}>
-                          {t.pelanggan_nama}
+                        {/* Card Header (Flex justify-between items-center mb-2) */}
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-mono text-xs font-bold text-rose-400 bg-rose-950/40 border border-rose-900/60 px-2 py-0.5 rounded">
+                            #{t.id}
+                          </span>
+                          <span className={`whitespace-nowrap inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs tracking-wide ${
+                            (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru') ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' :
+                            (t.jenis_kerja?.includes('Gangguan') || t.jenis_kerja?.includes('Putus')) ? 'bg-rose-600/20 text-rose-400 border-rose-500/40' :
+                            t.jenis_kerja?.includes('Modem') ? 'bg-amber-600/20 text-amber-400 border-amber-500/40' :
+                            'bg-purple-600/20 text-purple-400 border-purple-500/40'
+                          }`}>
+                            {t.jenis_kerja || 'Pasang Baru'}
+                          </span>
                         </div>
-                        <div className="text-[10px] text-slate-400 truncate">{t.jenis_kerja} - {t.lokasi}</div>
+
+                        {/* Card Body */}
+                        <div>
+                          <div className={`font-semibold text-base ${isDark ? 'text-white' : 'text-slate-900'} mb-1 truncate capitalize`} title={cust.name}>
+                            {cust.name}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-slate-400 text-xs mb-4 min-w-0" title={cust.address}>
+                            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                            <span className="truncate block">{cust.address}</span>
+                          </div>
+                        </div>
+
+                        {/* Card Action */}
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setModalTugasId(t.id);
                           }}
-                          className="mt-3 w-full py-1.5 rounded-lg bg-burgundy-600 hover:bg-burgundy-700 text-white font-bold text-[11px] flex items-center justify-center gap-1"
+                          className="w-full py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm active:scale-98"
                         >
                           <FilePlus2 className="w-3.5 h-3.5" />
-                          <span>Buka Form Barang</span>
+                          <span>Ajukan Material</span>
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -757,8 +770,9 @@ export default function DashboardTeknisi() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {myRequests.map(req => {
-                    const task = tugas.find(t => t.id === req.tugas_id);
-                    const details = detailPermohonan.filter(d => d.permohonan_id === req.id);
+                    const task = tugas.find(t => Number(t.id) === Number(req.tugas_id));
+                    const cust = parseTaskDetails(task);
+                    const details = detailPermohonan.filter(d => Number(d.permohonan_id) === Number(req.id));
                     const isApproved = req.status === 'Approved';
                     const isReleased = req.status === 'Released';
 
@@ -773,19 +787,30 @@ export default function DashboardTeknisi() {
                             : isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
                         } space-y-4`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
                             <span className="font-mono text-xs font-bold text-slate-400">Permohonan #{req.id}</span>
-                            <h2 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
-                              Tiket #{req.tugas_id} - {task?.pelanggan_nama}
+                            <h2 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} mt-1 flex items-center gap-1.5 flex-wrap`}>
+                              <span>Tiket #{req.tugas_id}</span>
+                              <span className="text-slate-500">•</span>
+                              <span className={`capitalize font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{cust.name}</span>
                             </h2>
+                            {cust.address && (
+                              <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1 min-w-0">
+                                <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                <span className="truncate block max-w-full" title={cust.address}>{cust.address}</span>
+                              </div>
+                            )}
                           </div>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            isReleased ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                            isApproved ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                            'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap inline-flex items-center gap-1 shrink-0 ${
+                            isReleased
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : isApproved
+                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
                           }`}>
-                            {isReleased ? 'Barang Sudah Dirilis' : isApproved ? 'Disetujui (Siap Ambil)' : 'Menunggu Pimpinan'}
+                            <span className={`w-1.5 h-1.5 rounded-full ${isReleased ? 'bg-emerald-400' : isApproved ? 'bg-amber-400' : 'bg-slate-400'}`} />
+                            {isReleased ? 'Material Diserahkan' : isApproved ? 'Siap Diambil di Gudang' : 'Menunggu Otorisasi'}
                           </span>
                         </div>
 
@@ -793,7 +818,7 @@ export default function DashboardTeknisi() {
                         <div className={`p-3 rounded-2xl text-xs ${isDark ? 'bg-slate-950 border border-slate-850' : 'bg-slate-50 border border-slate-200'} space-y-1`}>
                           <div className="font-semibold text-slate-400 text-[10px] uppercase">Rincian Material:</div>
                           {details.map(d => {
-                            const itm = barang.find(b => b.id === d.barang_id);
+                            const itm = barang.find(b => Number(b.id) === Number(d.barang_id));
                             return (
                               <div key={d.id} className="flex justify-between text-xs">
                                 <span>• {itm?.nama_barang || 'Barang'}</span>
@@ -803,28 +828,25 @@ export default function DashboardTeknisi() {
                           })}
                         </div>
 
-                        {/* Status notification box */}
-                        {isApproved && (
-                          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                            <span>Pimpinan telah menyetujui. Silakan tunjukkan formulir fisik / ID ke petugas gudang!</span>
-                          </div>
-                        )}
-
-                        {isReleased && (
-                          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                            <span>Material telah diserahkan oleh gudang. Stok otomatis terpotong!</span>
-                          </div>
-                        )}
-
+                        {/* Tombol Aksi */}
                         <div className="flex gap-2 pt-1">
                           <button
-                            onClick={() => handleSetActiveMenu('cetak-surat')}
-                            className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                            type="button"
+                            disabled={!isApproved && !isReleased}
+                            onClick={() => {
+                              if (isApproved || isReleased) {
+                                handleSetActiveMenu('cetak-surat');
+                              }
+                            }}
+                            title={!isApproved && !isReleased ? 'Menunggu otorisasi pimpinan sebelum mencetak bukti pengambilan' : 'Cetak Bukti Pengambilan Material'}
+                            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                              !isApproved && !isReleased
+                                ? 'bg-slate-800/50 text-slate-500 border border-slate-800 opacity-50 cursor-not-allowed'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer active:scale-95'
+                            }`}
                           >
                             <Printer className="w-3.5 h-3.5" />
-                            <span>Cetak Formulir</span>
+                            <span>Cetak Bukti Pengambilan</span>
                           </button>
                         </div>
                       </div>
@@ -837,35 +859,17 @@ export default function DashboardTeknisi() {
 
           {/* TAB 5: PENGERJAAN LAPANGAN & UPLOAD BUKTI SELESAI */}
           {activeMenu === 'pengerjaan' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              {/* SOP 6 Closing & QA Standard Banner */}
-              <div className={`p-6 rounded-3xl border ${
-                isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-              } space-y-3`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                      <Camera className="w-5 h-5" />
-                    </span>
-                    <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Prosedur Penutupan & BASTP Hasil Pekerjaan
-                    </h2>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Standar Telkom Akses
-                  </span>
-                </div>
-              </div>
-
+            <div className="space-y-4 animate-in fade-in duration-200">
               {/* Work Orders to Finish */}
               <div className="space-y-4">
                 <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Daftar Pekerjaan yang Sedang Ditangani
+                  Daftar Pekerjaan Siap Ditutup (BASTP)
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {activeTasks.map(t => {
                     const isDone = t.status === 'Done';
+                    const cust = parseTaskDetails(t);
                     return (
                       <div
                         key={t.id}
@@ -878,23 +882,33 @@ export default function DashboardTeknisi() {
                         <div className="flex items-start justify-between">
                           <div>
                             <span className="font-mono text-xs font-bold text-slate-400">Tiket #{t.id}</span>
-                            <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
-                              {t.pelanggan_nama}
+                            <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5 truncate capitalize`} title={cust.name}>
+                              {cust.name}
                             </h3>
-                            <p className="text-xs text-slate-400">{t.lokasi}</p>
+                            <p className="text-xs text-slate-400 truncate block max-w-full" title={cust.address}>{cust.address}</p>
                           </div>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            isDone
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          }`}>
-                            {isDone ? 'Selesai (Done)' : 'Sedang Dikerjakan'}
-                          </span>
+                          {isDone ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                              Selesai (Done)
+                            </span>
+                          ) : (
+                            <span className={`whitespace-nowrap inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs tracking-wide ${
+                              (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru')
+                                ? 'bg-blue-600/20 text-blue-400 border-blue-500/40'
+                                : (t.jenis_kerja?.includes('Gangguan') || t.jenis_kerja?.includes('Putus'))
+                                ? 'bg-rose-600/20 text-rose-400 border-rose-500/40'
+                                : t.jenis_kerja?.includes('Modem')
+                                ? 'bg-amber-600/20 text-amber-400 border-amber-500/40'
+                                : 'bg-purple-600/20 text-purple-400 border-purple-500/40'
+                            }`}>
+                              {t.jenis_kerja || 'Pasang Baru'}
+                            </span>
+                          )}
                         </div>
 
                         {t.foto_bukti && (
                           <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-850">
-                            <img
+                            <BuktiThumbnail
                               src={t.foto_bukti}
                               alt="Bukti Selesai"
                               className="w-16 h-16 object-cover rounded-xl border border-slate-700"
@@ -924,19 +938,14 @@ export default function DashboardTeknisi() {
                               </button>
                             </div>
                           ) : !t.checkin?.verified ? (
-                            <div className="space-y-2">
-                              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs flex items-center gap-2">
-                                <Lock className="w-4 h-4 shrink-0 text-amber-400" />
-                                <span>Wajib tekan Check-In di Lokasi terlebih dahulu sebagai bukti kehadiran Anda.</span>
-                              </div>
-                              <button
-                                onClick={() => handleDoCheckIn(t)}
-                                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                              >
-                                <MapPin className="w-4 h-4 text-amber-300 animate-pulse" />
-                                <span>📍 Check-In di Lokasi Pelanggan Sekarang</span>
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDoCheckIn(t)}
+                              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                            >
+                              <MapPin className="w-4 h-4" />
+                              <span>Check-In Lokasi (GPS)</span>
+                            </button>
                           ) : (
                             <button
                               onClick={() => setUploadTugasId(t.id)}

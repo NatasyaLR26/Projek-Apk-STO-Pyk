@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { Printer, FileCheck, Clock } from 'lucide-react';
+import { parseTaskDetails, formatDateId } from '../utils/taskFormatter';
 
 export default function CetakSuratJalan() {
   const { isDark } = useTheme();
@@ -35,7 +36,7 @@ export default function CetakSuratJalan() {
             <FileCheck className="w-5 h-5" />
           </div>
           <div>
-            <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>Cetak Surat Jalan & Bukti Serah Terima Material</h2>
+            <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>Cetak Surat Jalan &amp; Bukti Serah Terima Material</h2>
           </div>
         </div>
 
@@ -45,11 +46,16 @@ export default function CetakSuratJalan() {
             onChange={(e) => setSelectedReqId(Number(e.target.value))}
             className={`w-full sm:w-auto text-xs px-3 py-2.5 rounded-xl border font-semibold ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} focus:outline-none`}
           >
-            {releasedRequests.map(req => (
-              <option key={req.id} value={req.id}>
-                Surat Jalan #{req.id} - Tiket #{req.tugas_id} ({req.waktu_rilis || req.waktu_request})
-              </option>
-            ))}
+            {releasedRequests.map(req => {
+              const reqTask = tugas.find(t => Number(t.id) === Number(req.tugas_id));
+              const custInfo = parseTaskDetails(reqTask);
+              const formattedDate = formatDateId(req.waktu_rilis || req.waktu_request);
+              return (
+                <option key={req.id} value={req.id}>
+                  SJ #{req.id} • Tiket #{req.tugas_id} – {custInfo.name} ({formattedDate})
+                </option>
+              );
+            })}
           </select>
 
           <button
@@ -58,7 +64,7 @@ export default function CetakSuratJalan() {
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-burgundy-600 hover:bg-burgundy-700 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-burgundy-600/30 transition cursor-pointer active:scale-95 shrink-0"
           >
             <Printer className="w-4 h-4" />
-            <span>Cetak Surat Jalan (Print)</span>
+            <span>Cetak Surat Jalan (PDF)</span>
           </button>
         </div>
       </div>
@@ -68,33 +74,33 @@ export default function CetakSuratJalan() {
         <div className={`p-4 sm:p-8 rounded-2xl border ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'} shadow-2xl print-card`}>
           
           {/* Header */}
-          <div className="border-b-2 border-burgundy-600 pb-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="border-b-2 border-burgundy-600 pb-4 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-burgundy-600 flex items-center justify-center text-white font-black text-xl shadow-lg border border-burgundy-400 shrink-0">
                 TA
               </div>
               <div>
                 <h1 className={`text-base sm:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark tracking-wide`}>
-                  PT TELKOM AKSES - LOGISTIK & WAREHOUSE
+                  PT TELKOM AKSES - LOGISTIK &amp; WAREHOUSE
                 </h1>
                 <div className="text-[11px] font-bold text-burgundy-600 dark:text-burgundy-500">GUDANG MATERIAL STO PAYAKUMBUH - KOTO NAN IV</div>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 print-text-dark">Jl. Soekarno Hatta No. 12, Koto Nan IV, Payakumbuh Barat | Gudang Lt. 1</p>
               </div>
             </div>
 
-            <div className="text-left sm:text-right text-xs text-slate-500 dark:text-slate-400 print-text-dark font-mono mt-1 sm:mt-0">
+            <div className="text-left md:text-right text-xs text-slate-500 dark:text-slate-400 print-text-dark font-mono flex flex-col gap-0.5 mt-2 md:mt-0">
               <div className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'} print-text-dark`}>
                 SJ: SJ-GDG/{new Date().getFullYear()}/{String(activeRequest.id).padStart(5, '0')}
               </div>
-              <div className="text-[10px] text-slate-500 dark:text-slate-400 print-text-dark mt-0.5">
-                Waktu Rilis: {activeRequest.waktu_rilis || activeRequest.waktu_request}
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 print-text-dark">
+                Tanggal Pengeluaran: {formatDateId(activeRequest.waktu_rilis || activeRequest.waktu_request)}
               </div>
             </div>
           </div>
 
           <div className="text-center mb-6">
             <h2 className={`text-base sm:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark uppercase tracking-wide`}>
-              SURAT BUKTI PENGELUARAN & SERAH TERIMA BARANG (SURAT JALAN)
+              SURAT BUKTI PENGELUARAN &amp; SERAH TERIMA BARANG (SURAT JALAN)
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 print-text-dark">
               Verifikasi Pengeluaran Material Resmi Gudang Logistik
@@ -102,45 +108,82 @@ export default function CetakSuratJalan() {
           </div>
 
           {/* Details */}
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border ${isDark ? 'border-slate-800 bg-slate-950/40 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-800'} print-table mb-6 text-xs print-text-dark`}>
-            <div className="space-y-1.5">
-              <div><strong className="text-slate-400">Nomor Tiket:</strong> #{activeTask?.id || activeRequest.tugas_id}</div>
-              <div><strong className="text-slate-400">Jenis Pekerjaan:</strong> {activeTask?.jenis_kerja}</div>
-              <div><strong className="text-slate-400">Pelanggan & Lokasi:</strong> {activeTask?.pelanggan_nama} ({activeTask?.lokasi})</div>
-            </div>
-            <div className="space-y-1.5 text-left sm:text-right">
-              <div><strong className="text-slate-400">Teknisi Pengambil:</strong> {activeTech?.nama_lengkap || 'Teknisi Lapangan'}</div>
-              <div><strong className="text-slate-400">Petugas Logistik:</strong> Siti Rahmawati</div>
-            </div>
-          </div>
+          {(() => {
+            const cust = parseTaskDetails(activeTask);
+            return (
+              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border ${isDark ? 'border-slate-800 bg-slate-950/40 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-800'} print-table mb-6 text-xs print-text-dark`}>
+                <div className="space-y-1.5">
+                  <div><strong className="text-slate-400">Nomor Tiket:</strong> #{activeTask?.id || activeRequest.tugas_id}</div>
+                  <div><strong className="text-slate-400">Jenis Pekerjaan:</strong> {activeTask?.jenis_kerja || 'Pemasangan Baru (PSB)'}</div>
+                  <div>
+                    <strong className="text-slate-400">Nama Pelanggan:</strong> {cust.name} {cust.telp ? `(${cust.telp})` : ''}
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Alamat Instalasi:</strong> {cust.address}
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-left sm:text-right">
+                  <div><strong className="text-slate-400">Teknisi Pengambil:</strong> {activeTech?.nama_lengkap || 'Teknisi Lapangan'}</div>
+                  <div><strong className="text-slate-400">Petugas Logistik:</strong> Siti Rahmawati</div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Items Table */}
-          <div className="overflow-x-auto mb-8">
-            <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-800'} print-table`}>
+          <div className="overflow-x-auto w-full mb-8 custom-scrollbar">
+            <table className={`w-full min-w-[560px] text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-800'} print-table`}>
               <thead className={`${isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-700 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
                 <tr>
                   <th className="px-3 py-2.5 text-center w-12">No</th>
-                  <th className="px-3 py-2.5">Kode Barang</th>
-                  <th className="px-3 py-2.5">Nama Material & Kategori</th>
-                  <th className="px-3 py-2.5 text-center">Satuan</th>
-                  <th className="px-3 py-2.5 text-right">Jumlah Diserahkan</th>
-                  <th className="px-3 py-2.5 text-center">Kondisi Fisik</th>
+                  <th className="px-3 py-2.5 w-28">Kode Barang</th>
+                  <th className="px-3 py-2.5 min-w-[220px]">Nama Material &amp; Kategori</th>
+                  <th className="px-3 py-2.5 text-center w-20">Satuan</th>
+                  <th className="px-3 py-2.5 text-right w-32 whitespace-nowrap">Jumlah Diserahkan</th>
+                  <th className="px-3 py-2.5 text-center w-28 whitespace-nowrap">Kondisi Fisik</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
-                {requestDetails.map((detail, idx) => (
-                  <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
-                    <td className="px-3 py-2.5 text-center font-mono">{idx + 1}</td>
-                    <td className={`px-3 py-2.5 font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{detail.item?.kode || `MAT-0${detail.barang_id}`}</td>
-                    <td className={`px-3 py-2.5 font-semibold ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark`}>
-                      {detail.item?.nama_barang}
-                      <span className={`block text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} font-normal`}>{detail.item?.kategori}</span>
-                    </td>
-                    <td className={`px-3 py-2.5 text-center ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{detail.item?.satuan}</td>
-                    <td className="px-3 py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400 print-text-dark text-sm">{detail.jumlah_minta}</td>
-                    <td className="px-3 py-2.5 text-center text-emerald-600 dark:text-emerald-500 font-semibold text-[10px]">BAIK / BARU</td>
-                  </tr>
-                ))}
+                {requestDetails.map((detail, idx) => {
+                  const itemName = (detail.item?.nama_barang || '').toLowerCase();
+                  const itemKat = (detail.item?.kategori || '').toLowerCase();
+                  const isOntOrModem = itemName.includes('ont') || itemName.includes('modem') || itemKat.includes('ont');
+                  const isStb = itemName.includes('stb') || itemName.includes('set top box');
+
+                  const ontSn = activeTask?.assigned_sn_ont || activeTask?.sn_ont || activeTask?.bastp?.sn_ont ||
+                    (activeRequest?.sn_allocations && (typeof activeRequest.sn_allocations[activeTask?.id] === 'object' ? activeRequest.sn_allocations[activeTask?.id]?.sn : activeRequest.sn_allocations[activeTask?.id])) ||
+                    'ZTEGC8B90112';
+
+                  return (
+                    <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
+                      <td className="px-3 py-2.5 text-center font-mono">{idx + 1}</td>
+                      <td className={`px-3 py-2.5 font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {detail.item?.kode || `MAT-0${detail.barang_id}`}
+                      </td>
+                      <td className={`px-3 py-2.5 font-semibold ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark`}>
+                        <div>{detail.item?.nama_barang}</div>
+                        {isOntOrModem && (
+                          <div className="font-mono text-xs text-rose-400 dark:text-rose-300 font-semibold print-text-dark mt-0.5">
+                            SN: {ontSn}
+                          </div>
+                        )}
+                        {isStb && (
+                          <div className="font-mono text-xs text-rose-400 dark:text-rose-300 font-semibold print-text-dark mt-0.5">
+                            SN: {activeTask?.sn_stb || 'STB4K-PYK-8801'}
+                          </div>
+                        )}
+                        <span className={`block text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'} font-normal mt-0.5`}>
+                          {detail.item?.kategori}
+                        </span>
+                      </td>
+                      <td className={`px-3 py-2.5 text-center ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{detail.item?.satuan}</td>
+                      <td className="px-3 py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400 print-text-dark text-sm">{detail.jumlah_minta}</td>
+                      <td className="px-3 py-2.5 text-center text-emerald-600 dark:text-emerald-500 font-semibold text-[10px] whitespace-nowrap">
+                        BAIK / BARU
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -150,10 +193,10 @@ export default function CetakSuratJalan() {
             <div>
               <p className={`font-semibold ${isDark ? 'text-slate-300' : 'text-slate-800'} print-text-dark`}>Diserahkan Oleh (Petugas Gudang),</p>
               <div className="h-20 flex items-center justify-center">
-                <span className="text-slate-500 italic text-[11px] print-text-dark">( Tanda Tangan & Cap Gudang )</span>
+                <span className="text-slate-500 italic text-[11px] print-text-dark">( Tanda Tangan &amp; Cap Gudang )</span>
               </div>
               <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark underline`}>Siti Rahmawati</p>
-              <p className="text-[10px]">Staff Gudang & Logistik STO</p>
+              <p className="text-[10px]">Staff Gudang &amp; Logistik STO</p>
             </div>
 
             <div>
@@ -171,7 +214,7 @@ export default function CetakSuratJalan() {
         <div className={`p-12 text-center rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
           <Clock className="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
           <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Belum Ada Pengeluaran Barang (Surat Jalan)</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Surat jalan akan otomatis terbuat saat petugas gudang menekan tombol "Rilis Barang & Potong Stok" pada antrean Output Barang.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Surat jalan akan otomatis terbuat saat petugas gudang menekan tombol "Rilis Barang &amp; Potong Stok" pada antrean Output Barang.</p>
         </div>
       )}
     </div>

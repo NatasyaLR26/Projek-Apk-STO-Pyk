@@ -178,6 +178,12 @@ export const parseTaskDetails = (item) => {
 
   if (!name || name.toLowerCase() === 'pelanggan' || name.toLowerCase() === 'pelanggan sto' || name.toLowerCase() === 'pelanggan telkom') {
     name = 'Pelanggan STO';
+  } else {
+    name = name
+      .split(' ')
+      .filter(Boolean)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
   }
 
   // 8. Sanitasi ALAMAT (Strict)
@@ -270,4 +276,26 @@ export const formatWaktuBuat = (item) => {
   // Fallback ke waktu hari ini jika null
   const now = new Date();
   return `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}, ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+};
+
+/**
+ * Format tanggal dari string ISO atau Date object ke format Indonesia: "17 Nov 2026, 17:14 WIB"
+ */
+export const formatDateId = (rawDate) => {
+  if (!rawDate) return '-';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  try {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      const day = d.getDate();
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      return `${day} ${month} ${year}, ${hours}:${mins} WIB`;
+    }
+    return String(rawDate);
+  } catch {
+    return String(rawDate);
+  }
 };
