@@ -21,6 +21,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useApp } from '../context/AppContext';
+import { parseTaskDetails } from '../utils/taskFormatter';
 import {
   Layers,
   Check,
@@ -39,7 +40,9 @@ import {
   Minimize2,
   Network,
   Crosshair,
-  User
+  User,
+  Radio,
+  Wrench
 } from 'lucide-react';
 
 // Konfigurasi jenis pekerjaan, warna, bentuk penanda, dan badge
@@ -216,7 +219,10 @@ export default function WebGISMap({
   selectedOdpId = null,
   onSelectOdp = () => {},
   selectedTugasId = null,
-  onSelectTugas = () => {}
+  onSelectTugas = () => {},
+  odpToEdit = null,
+  onClearEditOdp = () => {},
+  onEditOdp = null
 }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -225,6 +231,7 @@ export default function WebGISMap({
   const layerGroupRef = useRef(null);
   const clusterGroupRef = useRef(null);
   const odpMarkersRef = useRef({});
+  const taskMarkersRef = useRef({});
   const tempMarkerRef = useRef(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -275,7 +282,8 @@ export default function WebGISMap({
 
   // Filter & Grouping State
   const [odpStatusFilter, setOdpStatusFilter] = useState('all'); // 'all' | 'Tersedia' | 'Penuh' | 'Maintenance'
-  const [showOdpPoints] = useState(true);
+  const [showOdpPoints, setShowOdpPoints] = useState(true);
+  const [showTasks, setShowTasks] = useState(true);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(14);
 
@@ -309,13 +317,39 @@ export default function WebGISMap({
   const [editingOdp, setEditingOdp] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  // Helper tutup modal edit ODP & bersihkan referensi parent
+  const handleCloseEditModal = useCallback(() => {
+    setShowEditModal(false);
+    setEditingOdp(null);
+    if (typeof onClearEditOdp === 'function') {
+      onClearEditOdp();
+    }
+  }, [onClearEditOdp]);
+
+  // Sinkronisasi prop odpToEdit dari parent (WebGISTracking) ke modal edit ODP
+  useEffect(() => {
+    if (odpToEdit) {
+      const target = typeof odpToEdit === 'object'
+        ? odpToEdit
+        : odp.find(o => Number(o.id) === Number(odpToEdit));
+      if (target) {
+        setEditingOdp({ ...target });
+        setShowEditModal(true);
+      }
+    }
+  }, [odpToEdit, odp]);
+
   // Expose global callback agar popup Leaflet bisa memanggil Edit/Delete
   useEffect(() => {
     window.__handleWebGisEditOdp = (id) => {
       const target = odp.find(o => Number(o.id) === Number(id));
       if (target) {
-        setEditingOdp(target);
-        setShowEditModal(true);
+        if (typeof onEditOdp === 'function') {
+          onEditOdp(target);
+        } else {
+          setEditingOdp(target);
+          setShowEditModal(true);
+        }
       }
     };
 
@@ -329,7 +363,7 @@ export default function WebGISMap({
       delete window.__handleWebGisEditOdp;
       delete window.__handleWebGisDeleteOdp;
     };
-  }, [odp, deleteOdp]);
+  }, [odp, deleteOdp, onEditOdp]);
 
   // Kelompokkan ODP berdasarkan Wilayah
   const groupedOdps = useMemo(() => {
@@ -428,6 +462,8 @@ export default function WebGISMap({
         layerGroupRef.current.clearLayers();
         layerGroupRef.current = null;
       }
+      odpMarkersRef.current = {};
+      taskMarkersRef.current = {};
       if (mapInstanceRef.current) {
         mapInstanceRef.current.off();
         mapInstanceRef.current.remove();
@@ -703,8 +739,7 @@ export default function WebGISMap({
         status: editingOdp.status
       });
 
-      setShowEditModal(false);
-      setEditingOdp(null);
+      handleCloseEditModal();
       showToast(`Data ODP '${editingOdp.kode_odp}' berhasil diperbarui!`, 'success');
     } catch (err) {
       showToast('Gagal memperbarui data ODP: ' + err.message, 'error');
@@ -743,6 +778,7 @@ export default function WebGISMap({
 
     layerGroup.clearLayers();
     odpMarkersRef.current = {};
+    taskMarkersRef.current = {};
     if (clusterGroupRef.current) {
       clusterGroupRef.current.clearLayers();
       clusterGroupRef.current = null;
@@ -965,8 +1001,97 @@ export default function WebGISMap({
       });
     }
 
-    // 3. PENANDA ARMADA TEKNISI LAPANGAN (LIVE GPS REALTIME - CYAN PIN)
-    if (Array.isArray(fieldTechs)) {
+    // 3. PENANDA TITIK TIKET / TUGAS LAPANGAN
+    if (showTasks && Array.isArray(tugas)) {
+      tugas.forEach(task => {
+        const tLat = parseFloat(task.target_lat ?? task.latitude);
+        const tLng = parseFloat(task.target_lng ?? task.longitude);
+        if (!isValidCoord(tLat, tLng)) return;
+
+        const config = getTaskTypeConfig(task.jenis_kerja);
+        const cust = parseTaskDetails(task);
+        const ticketNum = task.nomor_tiket || `TKG-${String(task.id).padStart(4, '0')}`;
+        const assignedTech = users.find(u => Number(u.id) === Number(task.teknisi_id))?.nama_lengkap || task.teknisi_nama || 'Belum Ditugaskan';
+
+        const taskIcon = L.divIcon({
+          className: 'custom-task-marker',
+          html: `
+            <div id="task-marker-node-${task.id}" class="task-marker-node flex flex-col items-center cursor-pointer transition-transform hover:scale-125" style="transform: translate(-50%, -100%);">
+              <div class="w-8 h-8 rounded-xl border-2 border-white flex items-center justify-center shadow-xl text-white font-black text-xs" style="background-color: ${config.bgColor};">
+                <span class="text-[10px] font-bold">${config.code}</span>
+              </div>
+              <div class="w-2 h-2 rotate-45 -mt-1 border-r-2 border-b-2 border-white" style="background-color: ${config.bgColor};"></div>
+            </div>
+          `,
+          iconSize: [32, 36],
+          iconAnchor: [16, 36]
+        });
+
+        const taskMarker = L.marker([tLat, tLng], { icon: taskIcon })
+          .bindTooltip(`
+            <div class="px-2 py-0.5 rounded-full ${config.bgTw} text-white font-extrabold text-[9px] shadow-lg whitespace-nowrap flex items-center gap-1 border border-white/60">
+              <span>${config.code}</span>
+              <span>${cust.name || ticketNum}</span>
+            </div>
+          `, {
+            direction: 'top',
+            offset: [0, -32],
+            permanent: false,
+            opacity: 1,
+            className: 'odp-leaflet-tooltip'
+          })
+          .bindPopup(`
+            <div class="p-3 text-xs min-w-[250px] text-slate-800 dark:text-slate-100">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                <div>
+                  <span class="font-black text-sm text-blue-600 dark:text-blue-400">#${ticketNum}</span>
+                  <div class="text-[10px] text-slate-400 font-semibold">${config.type}</div>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold ${config.badgeBg}">
+                  ${task.status || 'Open'}
+                </span>
+              </div>
+
+              <div class="mt-2.5 space-y-1.5 text-[11px]">
+                <div>
+                  <span class="text-slate-400 text-[10px]">Pelanggan:</span>
+                  <div class="font-bold text-slate-800 dark:text-slate-100">${cust.name} ${cust.telp ? `(${cust.telp})` : ''}</div>
+                </div>
+
+                <div>
+                  <span class="text-slate-400 text-[10px]">Alamat Pemasangan:</span>
+                  <div class="font-semibold text-slate-700 dark:text-slate-200">${cust.address || task.lokasi}</div>
+                </div>
+
+                <div class="pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
+                  <span class="text-slate-400">Teknisi Penanggung Jawab:</span>
+                  <span class="font-semibold text-slate-700 dark:text-slate-200">${assignedTech}</span>
+                </div>
+
+                <div class="text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <strong>Koordinat GPS:</strong> ${tLat.toFixed(5)}, ${tLng.toFixed(5)}
+                </div>
+              </div>
+            </div>
+          `);
+
+        taskMarker.on('click', () => {
+          onSelectTugas(task.id);
+        });
+
+        taskMarkersRef.current[task.id] = taskMarker;
+        layerGroup.addLayer(taskMarker);
+
+        if (Number(selectedTugasId) === Number(task.id)) {
+          setTimeout(() => {
+            taskMarker.openPopup();
+          }, 150);
+        }
+      });
+    }
+
+    // 4. PENANDA ARMADA TEKNISI LAPANGAN (LIVE GPS REALTIME - CYAN PIN)
+    if (showTasks && Array.isArray(fieldTechs)) {
       fieldTechs.forEach(tech => {
         const techIcon = L.divIcon({
           className: 'custom-tech-marker',
@@ -1033,8 +1158,9 @@ export default function WebGISMap({
         layerGroupRef.current.clearLayers();
       }
       odpMarkersRef.current = {};
+      taskMarkersRef.current = {};
     };
-  }, [odp, STO_COORDINATES, odpStatusFilter, showOdpPoints, isPimpinan, onSelectOdp, currentZoom, isClusterMode, fieldTechs]);
+  }, [odp, tugas, STO_COORDINATES, odpStatusFilter, showOdpPoints, showTasks, isPimpinan, onSelectOdp, onSelectTugas, currentZoom, isClusterMode, fieldTechs, users, selectedTugasId]);
 
   // Efek Seleksi ODP Ringan: Cukup buka popup & panTo tanpa re-render layer (Mendongkrak FPS)
   useEffect(() => {
@@ -1071,6 +1197,47 @@ export default function WebGISMap({
       }
     }
   }, [selectedOdpId]);
+
+  // Efek Seleksi & Navigasi Tiket di Peta (Reaktivitas Lacak Tiket Pimpinan)
+  useEffect(() => {
+    if (!selectedTugasId) {
+      document.querySelectorAll('.task-selected-node').forEach(el => {
+        el.classList.remove('task-selected-node', 'scale-125', 'z-50');
+      });
+      return;
+    }
+
+    // Pastikan layer tugas aktif agar penanda tiket terlihat di peta
+    setShowTasks(true);
+
+    document.querySelectorAll('.task-selected-node').forEach(el => {
+      el.classList.remove('task-selected-node', 'scale-125', 'z-50');
+    });
+
+    const activeNode = document.getElementById(`task-marker-node-${selectedTugasId}`);
+    if (activeNode) {
+      activeNode.classList.add('task-selected-node', 'scale-125', 'z-50');
+    }
+
+    const marker = taskMarkersRef.current[selectedTugasId];
+    if (marker && mapInstanceRef.current) {
+      const latlng = marker.getLatLng();
+      if (latlng) {
+        mapInstanceRef.current.flyTo(latlng, 17, { animate: true, duration: 1.0 });
+        marker.openPopup();
+      }
+    } else {
+      // Fallback: Cari langsung di daftar tugas jika marker belum termount
+      const targetTask = tugas.find(t => Number(t.id) === Number(selectedTugasId));
+      if (targetTask && mapInstanceRef.current) {
+        const tLat = parseFloat(targetTask.target_lat ?? targetTask.latitude);
+        const tLng = parseFloat(targetTask.target_lng ?? targetTask.longitude);
+        if (isValidCoord(tLat, tLng)) {
+          mapInstanceRef.current.flyTo([tLat, tLng], 17, { animate: true, duration: 1.0 });
+        }
+      }
+    }
+  }, [selectedTugasId, tugas]);
 
   // Render Toolbar Kontrol Peta (Dapat digunakan di dalam map untuk desktop & di luar map untuk mobile)
   const renderToolbarControls = () => (
@@ -1155,7 +1322,49 @@ export default function WebGISMap({
         <span>Cluster</span>
       </button>
 
-      {/* 4. Toggle Drawer ODP Wilayah (Lucide FolderTree Icon) */}
+      {/* 4. Toggle Layer Titik ODP */}
+      <button
+        type="button"
+        onClick={() => {
+          setShowOdpPoints(prev => {
+            const next = !prev;
+            showToast(next ? '📍 Layer Titik ODP ditampilkan' : 'Layer Titik ODP disembunyikan', 'info');
+            return next;
+          });
+        }}
+        className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
+          showOdpPoints
+            ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-400 ring-1 ring-emerald-500/40 shadow-emerald-950/40'
+            : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
+        }`}
+        title={showOdpPoints ? 'Sembunyikan Layer ODP' : 'Tampilkan Layer ODP'}
+      >
+        <Radio className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+        <span>ODP</span>
+      </button>
+
+      {/* 5. Toggle Layer Tiket & Teknisi */}
+      <button
+        type="button"
+        onClick={() => {
+          setShowTasks(prev => {
+            const next = !prev;
+            showToast(next ? '👷 Layer Tiket & Teknisi ditampilkan' : 'Layer Tiket & Teknisi disembunyikan', 'info');
+            return next;
+          });
+        }}
+        className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
+          showTasks
+            ? 'bg-blue-950/80 border-blue-500/60 text-blue-400 ring-1 ring-blue-500/40 shadow-blue-950/40'
+            : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
+        }`}
+        title={showTasks ? 'Sembunyikan Layer Tiket & Teknisi' : 'Tampilkan Layer Tiket & Teknisi'}
+      >
+        <User className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+        <span>Tiket & Teknisi</span>
+      </button>
+
+      {/* 6. Toggle Drawer ODP Wilayah (Lucide FolderTree Icon) */}
       <button
         type="button"
         onClick={() => setShowGroupDrawer(prev => !prev)}
@@ -1170,7 +1379,7 @@ export default function WebGISMap({
         <span>Wilayah</span>
       </button>
 
-      {/* 5. Tombol Pinpoint Peta Langsung (Lucide Crosshair Icon) */}
+      {/* 7. Tombol Pinpoint Peta Langsung (Lucide Crosshair Icon) */}
       <button
         type="button"
         onClick={() => {
@@ -1405,7 +1614,15 @@ export default function WebGISMap({
           <span className="text-slate-300 font-medium text-[11px]">Teknisi (GPS)</span>
         </div>
 
-        {/* 6. Total ODP Terdata (Badge dengan margin dan padding yang pas) */}
+        {/* 6. Tiket Lapangan */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="w-3.5 h-3.5 rounded-md bg-sky-600 border border-white flex items-center justify-center shadow-xs text-white font-black text-[8px]">
+            TKG
+          </span>
+          <span className="text-slate-300 font-medium text-[11px]">Tiket</span>
+        </div>
+
+        {/* 7. Total ODP Terdata (Badge dengan margin dan padding yang pas) */}
         <div className="flex items-center pl-2.5 pr-1 border-l border-slate-700/80 shrink-0">
           <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold shadow-xs whitespace-nowrap">
             {odp.length} ODP
@@ -1703,7 +1920,7 @@ export default function WebGISMap({
               </div>
               <button
                 type="button"
-                onClick={() => setShowEditModal(false)}
+                onClick={handleCloseEditModal}
                 className="text-slate-400 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
@@ -1831,7 +2048,7 @@ export default function WebGISMap({
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={handleCloseEditModal}
                   className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition cursor-pointer"
                 >
                   Batal

@@ -12,7 +12,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 
-export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], permohonan = [], onNavigateGudang }) {
+export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNavigateGudang }) {
   const { isDark } = useTheme();
 
   // =========================================================================

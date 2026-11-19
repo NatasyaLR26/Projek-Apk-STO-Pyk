@@ -16,7 +16,7 @@ import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { parseTaskDetails } from '../../utils/taskFormatter';
 
-export default function TabelPermohonanGudang({ onNavigateToSuratJalan, onViewBastp }) {
+export default function TabelPermohonanGudang({ onNavigateToSuratJalan }) {
   const { isDark } = useTheme();
   const {
     barang = [],

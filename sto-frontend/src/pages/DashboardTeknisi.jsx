@@ -20,10 +20,15 @@ import {
   Radio,
   Clock,
   Phone,
+  PhoneCall,
+  MessageSquare,
   CheckCircle2,
   FilePlus2,
   Printer,
   FileText,
+  FileCheck,
+  History,
+  Inbox,
   Lock,
   Barcode,
   Zap,
@@ -169,6 +174,8 @@ export default function DashboardTeknisi() {
   const [modalTugasId, setModalTugasId] = useState(null);
   const [uploadTugasId, setUploadTugasId] = useState(null);
   const [bastpModalTask, setBastpModalTask] = useState(null);
+  const [selectedCetakReqId, setSelectedCetakReqId] = useState(null);
+  const [mobileTicketTab, setMobileTicketTab] = useState('sedang-dikerjakan'); // 'sedang-dikerjakan' | 'tiket-terbuka' | 'riwayat-selesai'
   
   // Filter daftar tugas:
   // 1. Tiket terbuka yang disiarkan Pimpinan (pool terbuka atau siapapun teknisi dapat mengambil)
@@ -224,7 +231,11 @@ export default function DashboardTeknisi() {
   // Permohonan material yang diajukan oleh teknisi ini (Memoized)
   const myRequests = useMemo(() => {
     return permohonan.filter(p => {
-      const parent = tugas.find(t => Number(t.id) === Number(p.tugas_id));
+      if (Number(p.teknisi_id) === currentTechId) return true;
+      const taskIds = Array.isArray(p.tugas_ids) && p.tugas_ids.length > 0
+        ? p.tugas_ids.map(Number)
+        : (p.tugas_id ? [Number(p.tugas_id)] : []);
+      const parent = tugas.find(t => taskIds.includes(Number(t.id)));
       return Number(parent?.teknisi_id) === currentTechId;
     });
   }, [permohonan, tugas, currentTechId]);
@@ -284,104 +295,65 @@ export default function DashboardTeknisi() {
 
           {/* TAB 1: AMBIL TIKET / PEKERJAAN */}
           {activeMenu === 'tiket' && (
-            <div className="space-y-8 animate-in fade-in duration-200">
-              
-              {/* SECTION 1: POOL TIKET TERBUKA (DIUMUMKAN PIMPINAN) */}
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
-                  <div>
-                    <h2 className="text-base font-extrabold flex items-center gap-2">
-                      <span className="p-1.5 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
-                        📢
-                      </span>
-                      <span>Broadcast Tiket Terbuka (Open Pool)</span>
-                    </h2>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 self-start sm:self-auto">
-                    {openTasks.length} Tiket Tersedia
-                  </span>
-                </div>
+            <div className="space-y-6 animate-in fade-in duration-200">
 
-                {openTasks.length === 0 ? (
-                  <div className={`p-8 text-center rounded-3xl border ${
-                    isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              {/* Segmented Tabs untuk Tampilan Mobile (< lg) */}
+              <div className="flex lg:hidden items-center p-1 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setMobileTicketTab('sedang-dikerjakan')}
+                  className={`flex-1 py-2 px-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    mobileTicketTab === 'sedang-dikerjakan'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="truncate">Sedang Dikerjakan</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                    mobileTicketTab === 'sedang-dikerjakan' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'
                   }`}>
-                    <div className="w-12 h-12 rounded-2xl bg-slate-800/60 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl">
-                      📭
-                    </div>
-                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Tidak Ada Tiket Terbuka Saat Ini
-                    </div>
-                    <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Semua pekerjaan telah diambil oleh teknisi atau belum ada tiket baru yang diterbitkan oleh Pimpinan STO.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {openTasks.map(t => {
-                      const cust = parseTaskDetails(t);
-                      return (
-                      <div
-                        key={t.id}
-                        className={`p-5 rounded-3xl border transition-all ${
-                          isDark ? 'bg-slate-900/90 border-blue-900/50 hover:border-blue-500' : 'bg-white border-blue-200 shadow-md hover:border-blue-500'
-                        } space-y-4`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs font-bold text-blue-500">#{t.id}</span>
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                Pool Terbuka
-                              </span>
-                            </div>
-                            <h3 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} mt-1 truncate capitalize`} title={cust.name}>
-                              {cust.name}
-                            </h3>
-                          </div>
-                          <span className={`whitespace-nowrap inline-flex items-center px-3 py-1 rounded-xl text-[11px] font-bold border shadow-xs tracking-wide ${
-                            (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru') ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' :
-                            (t.jenis_kerja?.includes('Gangguan') || t.jenis_kerja?.includes('Putus')) ? 'bg-rose-600/20 text-rose-400 border-rose-500/40' :
-                            t.jenis_kerja?.includes('Modem') ? 'bg-amber-600/20 text-amber-400 border-amber-500/40' :
-                            'bg-purple-600/20 text-purple-400 border-purple-500/40'
-                          }`}>
-                            {t.jenis_kerja}
-                          </span>
-                        </div>
+                    {myActiveTasks.length}
+                  </span>
+                </button>
 
-                        <div className={`p-3.5 rounded-2xl text-xs space-y-2 ${isDark ? 'bg-slate-950/70 border border-slate-800 text-slate-300' : 'bg-slate-50 border border-slate-200 text-slate-700'}`}>
-                          <div className="flex items-center gap-2 min-w-0">
-                            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                            <span className="truncate block max-w-full" title={cust.address}>{cust.address}</span>
-                          </div>
-                          {(cust.telp || t.pelanggan_telp) && (
-                            <div className="flex items-center gap-2">
-                              <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                              <span>{cust.telp || t.pelanggan_telp}</span>
-                            </div>
-                          )}
-                        </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileTicketTab('tiket-terbuka')}
+                  className={`flex-1 py-2 px-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    mobileTicketTab === 'tiket-terbuka'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="truncate">Tiket Terbuka</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                    mobileTicketTab === 'tiket-terbuka' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'
+                  }`}>
+                    {openTasks.length}
+                  </span>
+                </button>
 
-                        {/* Claim Button */}
-                        <button
-                          onClick={async () => {
-                            await claimTugas(t.id, user.id);
-                            showToast(`Tiket #${t.id} berhasil Anda ambil! Segera ajukan permohonan material ke gudang.`, 'success');
-                          }}
-                          className="w-full py-3 px-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-blue-900/40 transition active:scale-98 cursor-pointer flex items-center justify-center gap-2"
-                        >
-                          <span>Ambil Pekerjaan</span>
-                        </button>
-                      </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setMobileTicketTab('riwayat-selesai')}
+                  className={`flex-1 py-2 px-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    mobileTicketTab === 'riwayat-selesai'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="truncate">Riwayat Selesai</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                    mobileTicketTab === 'riwayat-selesai' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'
+                  }`}>
+                    {myDoneTasks.length}
+                  </span>
+                </button>
               </div>
 
-              {/* SECTION 2: TIKET SAYA YANG SEDANG BERJALAN */}
-              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
+              {/* SECTION 1: TIKET SAYA YANG SEDANG BERJALAN (Default Tab 1) */}
+              <div className={`space-y-4 ${mobileTicketTab === 'sedang-dikerjakan' ? 'block' : 'hidden lg:block'}`}>
+                <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
                   <div>
                     <h2 className="text-base font-extrabold flex items-center gap-2">
                       <span className="p-1.5 rounded-xl bg-amber-600/20 text-amber-400 border border-amber-500/30">
@@ -396,17 +368,15 @@ export default function DashboardTeknisi() {
                 </div>
 
                 {myActiveTasks.length === 0 ? (
-                  <div className={`p-8 text-center rounded-3xl border ${
-                    isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                  <div className={`py-10 px-6 text-center rounded-2xl border border-dashed ${
+                    isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-300 shadow-xs'
                   }`}>
-                    <div className="w-12 h-12 rounded-2xl bg-slate-800/60 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl">
-                      🛠️
-                    </div>
+                    <Wrench className="w-10 h-10 text-slate-500/60 mx-auto mb-2" />
                     <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       Belum Ada Pekerjaan Aktif
                     </div>
-                    <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Ambil tiket dari pool siaran terbuka di atas untuk memulai pekerjaan Anda.
+                    <p className={`text-xs mt-1 max-w-sm mx-auto ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Pilih tab &ldquo;Tiket Terbuka&rdquo; untuk mengambil tugas yang disiarkan Pimpinan STO.
                     </p>
                   </div>
                 ) : (
@@ -420,9 +390,10 @@ export default function DashboardTeknisi() {
                           isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
                         } space-y-4`}
                       >
+                        {/* Header Kartu: ID, Badge Jenis Kerja & Subtle GPS Status */}
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono text-xs font-bold text-blue-500">#{t.id}</span>
                               <span className={`whitespace-nowrap inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border shadow-xs tracking-wide ${
                                 (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru') ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' :
@@ -432,6 +403,11 @@ export default function DashboardTeknisi() {
                               }`}>
                                 {t.jenis_kerja || 'Perbaikan'}
                               </span>
+                              {/* Subtle GPS active indicator */}
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span>GPS Aktif</span>
+                              </span>
                             </div>
                             <h3 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} mt-1 truncate capitalize`} title={cust.name}>
                               {cust.name}
@@ -439,15 +415,72 @@ export default function DashboardTeknisi() {
                           </div>
                         </div>
 
-                        <div className={`p-3 rounded-2xl text-xs space-y-1.5 ${isDark ? 'bg-slate-950/60 border border-slate-850 text-slate-300' : 'bg-slate-50 border border-slate-200 text-slate-700'}`}>
-                          <div className="flex items-center gap-2 min-w-0">
-                            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                            <span className="truncate block max-w-full" title={cust.address}>{cust.address}</span>
+                        {/* Info Alamat & Kontak Pelanggan */}
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <p className={`line-clamp-2 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`} title={cust.address}>
+                                {cust.address}
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                            <span>{cust.telp || t.pelanggan_telp || '0812-xxxx-xxxx'}</span>
-                          </div>
+
+                          {/* Nomor Kontak & Icon Actions Kompak */}
+                          {(() => {
+                            const rawTelp = cust.telp || t.pelanggan_telp || '';
+                            const cleanPhone = String(rawTelp).replace(/[^0-9]/g, '');
+                            const isMobile = cleanPhone.startsWith('08') || cleanPhone.startsWith('628');
+                            const waNumber = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+                            const mapsQuery = (t.target_lat && t.target_lng)
+                              ? `${t.target_lat},${t.target_lng}`
+                              : encodeURIComponent(cust.address + ', Payakumbuh');
+
+                            return (
+                              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-800/80">
+                                <span className={`text-xs font-mono truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                  📞 {rawTelp || 'Tidak ada kontak'}
+                                </span>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {/* Tombol Icon Peta (Google Maps) */}
+                                  <a
+                                    href={`https://www.google.com/maps/dir/?api=1&destination=${mapsQuery}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition cursor-pointer flex items-center justify-center"
+                                    title="Navigasi Rute Google Maps"
+                                  >
+                                    <Navigation className="w-3.5 h-3.5" />
+                                  </a>
+
+                                  {/* Tombol Icon Telepon (Dialer HP) */}
+                                  {cleanPhone && (
+                                    <a
+                                      href={`tel:${cleanPhone}`}
+                                      className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition cursor-pointer flex items-center justify-center"
+                                      title="Hubungi Nomor Telepon Langsung"
+                                    >
+                                      <PhoneCall className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+
+                                  {/* Tombol Icon WA (HANYA jika nomor seluler diawali 08 atau 628) */}
+                                  {isMobile && (
+                                    <a
+                                      href={`https://wa.me/${waNumber}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition cursor-pointer flex items-center justify-center"
+                                      title="Chat WhatsApp (Nomor Seluler)"
+                                    >
+                                      <MessageSquare className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* Status Alur Pengerjaan Lapangan Realistis */}
@@ -496,7 +529,7 @@ export default function DashboardTeknisi() {
                                             }
                                             showToast(`Tiket #${t.id} siap diselesaikan via Splicing Mandiri! Langsung aktifkan GPS saat tiba.`, 'success');
                                           }}
-                                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                                          className="w-full py-2.5 px-3 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
                                         >
                                           <Zap className="w-4 h-4 text-amber-300" />
                                           <span>⚡ Selesaikan Gangguan Langsung (Splicing Mandiri Tanpa Gudang)</span>
@@ -536,10 +569,15 @@ export default function DashboardTeknisi() {
                                     </div>
                                     <button
                                       type="button"
-                                      onClick={() => handleSetActiveMenu('cetak-surat')}
-                                      className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                                      onClick={() => {
+                                        const reqId = taskPerm?.id || t.id;
+                                        setSelectedCetakReqId(reqId);
+                                        handleSetActiveMenu('cetak-surat');
+                                      }}
+                                      className="w-full py-2 px-3 rounded-xl border border-slate-700/70 hover:bg-slate-800/60 text-slate-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                                     >
-                                      <span>🖨️ Cetak Permohonan Material</span>
+                                      <Printer className="w-3.5 h-3.5" />
+                                      <span>Cetak Permohonan Material</span>
                                     </button>
                                   </div>
                                 )}
@@ -550,28 +588,31 @@ export default function DashboardTeknisi() {
                                       type="button"
                                       onClick={() => handleDoCheckIn(t)}
                                       disabled={isCheckingInId === t.id}
-                                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer disabled:opacity-75"
+                                      className="w-full py-3 px-4 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer disabled:opacity-75"
                                     >
                                       {isCheckingInId === t.id ? (
                                         <span className="flex items-center gap-2">
                                           <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                          <span>MEMVERIFIKASI LOKASI GPS...</span>
+                                          <span>Memverifikasi Lokasi GPS...</span>
                                         </span>
                                       ) : (
-                                        <>
-                                          <MapPin className="w-4 h-4 text-amber-300" />
-                                          <span>📍 GPS AKTIF: SAYA SUDAH SAMPAI DI LOKASI KERJA</span>
-                                        </>
+                                        <span className="flex items-center gap-2">
+                                          <span>📍 Tiba di Lokasi (Check-in GPS)</span>
+                                        </span>
                                       )}
                                     </button>
                                     {isReleased && (
                                       <button
                                         type="button"
-                                        onClick={() => handleSetActiveMenu('cetak-surat')}
-                                        className="w-full py-1.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 font-medium text-[11px] flex items-center justify-center gap-1.5 transition cursor-pointer"
+                                        onClick={() => {
+                                          const reqId = taskPerm?.id || t.id;
+                                          setSelectedCetakReqId(reqId);
+                                          handleSetActiveMenu('cetak-surat');
+                                        }}
+                                        className="w-full py-1 text-slate-400 hover:text-slate-200 text-xs flex items-center justify-center gap-1.5 transition cursor-pointer hover:underline underline-offset-2"
                                       >
-                                        <Printer className="w-3 h-3" />
-                                        <span>Cetak Surat Jalan / Bukti Gudang (Opsional)</span>
+                                        <Printer className="w-3.5 h-3.5 text-slate-400" />
+                                        <span>Cetak Surat Jalan / Bukti Gudang</span>
                                       </button>
                                     )}
                                   </div>
@@ -581,7 +622,7 @@ export default function DashboardTeknisi() {
                                   <button
                                     type="button"
                                     onClick={() => setUploadTugasId(t.id)}
-                                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                                    className="w-full py-3 px-4 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
                                   >
                                     <Camera className="w-4 h-4" />
                                     <span>📸 AMBIL FOTO SELESAI & SCAN SERIAL NUMBER ONT (BASTP)</span>
@@ -598,74 +639,251 @@ export default function DashboardTeknisi() {
                 )}
               </div>
 
-              {/* SECTION 3: RIWAYAT PEKERJAAN SELESAI */}
-              {myDoneTasks.length > 0 && (
-                <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
+              {/* SECTION 2: BROADCAST TIKET TERBUKA (POOL SIARAN) */}
+              <div className={`space-y-4 ${mobileTicketTab === 'tiket-terbuka' ? 'block' : 'hidden lg:block'} lg:pt-4 lg:border-t lg:border-slate-200 dark:lg:border-slate-800`}>
+                <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+                  <div>
                     <h2 className="text-base font-extrabold flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>Riwayat Pekerjaan Selesai</span>
+                      <span className="p-1.5 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                        📢
+                      </span>
+                      <span>Broadcast Tiket Terbuka (Open Pool)</span>
                     </h2>
-                    <span className="text-xs text-emerald-400 font-bold">{myDoneTasks.length} Pekerjaan Tuntas</span>
                   </div>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 self-start sm:self-auto">
+                    {openTasks.length} Tiket Tersedia
+                  </span>
+                </div>
 
+                {openTasks.length === 0 ? (
+                  <div className={`py-10 px-6 text-center rounded-2xl border border-dashed ${
+                    isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-300 shadow-xs'
+                  }`}>
+                    <Inbox className="w-10 h-10 text-slate-500/60 mx-auto mb-2" />
+                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Tidak Ada Tiket Terbuka Saat Ini
+                    </div>
+                    <p className={`text-xs mt-1 max-w-sm mx-auto ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Semua pekerjaan telah diambil oleh teknisi atau belum ada tiket baru yang diterbitkan oleh Pimpinan STO.
+                    </p>
+                  </div>
+                ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {myDoneTasks.map(t => {
+                    {openTasks.map(t => {
                       const cust = parseTaskDetails(t);
                       return (
                       <div
                         key={t.id}
-                        className={`p-4 rounded-3xl border ${
-                          isDark ? 'bg-slate-900/60 border-emerald-500/30' : 'bg-white border-emerald-200 shadow-sm'
-                        } flex flex-col justify-between`}
+                        className={`p-5 rounded-3xl border transition-all ${
+                          isDark ? 'bg-slate-900/90 border-blue-900/50 hover:border-blue-500' : 'bg-white border-blue-200 shadow-md hover:border-blue-500'
+                        } space-y-4`}
                       >
-                        {/* Body Atas: Info Pelanggan (Kiri) & Thumbnail Foto (Kanan) */}
-                        <div className="flex items-start justify-between gap-3">
-                          {/* Sisi Kiri (flex-1) */}
-                          <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-start justify-between">
+                          <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs font-bold text-slate-400">#{t.id}</span>
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400">
-                                ✓ Selesai & Terpasang
+                              <span className="font-mono text-xs font-bold text-blue-500">#{t.id}</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                Pool Terbuka
                               </span>
                             </div>
-                            <div className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'} truncate capitalize`} title={cust.name}>
+                            <h3 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} mt-1 truncate capitalize`} title={cust.name}>
                               {cust.name}
-                            </div>
-                            <div className="text-slate-400 text-xs truncate block max-w-full" title={cust.address}>
-                              {cust.address}
-                            </div>
-                            {t.waktu_selesai && (
-                              <div className="text-[10px] text-emerald-400 font-mono">Closing: {t.waktu_selesai}</div>
-                            )}
+                            </h3>
                           </div>
-
-                          {/* Sisi Kanan (flex-shrink-0) */}
-                          <div className="shrink-0">
-                            <BuktiThumbnail
-                              src={t.foto_bukti}
-                              alt="Bukti Foto"
-                              className="w-14 h-14 rounded-lg object-cover border border-slate-700 shrink-0 cursor-pointer hover:opacity-90"
-                              onClick={() => setBastpModalTask(t)}
-                            />
-                          </div>
+                          <span className={`whitespace-nowrap inline-flex items-center px-3 py-1 rounded-xl text-[11px] font-bold border shadow-xs tracking-wide ${
+                            (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru') ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' :
+                            (t.jenis_kerja?.includes('Gangguan') || t.jenis_kerja?.includes('Putus')) ? 'bg-rose-600/20 text-rose-400 border-rose-500/40' :
+                            t.jenis_kerja?.includes('Modem') ? 'bg-amber-600/20 text-amber-400 border-amber-500/40' :
+                            'bg-purple-600/20 text-purple-400 border-purple-500/40'
+                          }`}>
+                            {t.jenis_kerja}
+                          </span>
                         </div>
 
-                        {/* Sisi Bawah: Tombol "Lihat BASTP" */}
+                        {/* Info Alamat & Kontak Pelanggan */}
+                        <div className="space-y-2 text-xs">
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <p className={`line-clamp-2 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`} title={cust.address}>
+                                {cust.address}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Nomor Kontak & Icon Actions Kompak */}
+                          {(() => {
+                            const rawTelp = cust.telp || t.pelanggan_telp || '';
+                            const cleanPhone = String(rawTelp).replace(/[^0-9]/g, '');
+                            const isMobile = cleanPhone.startsWith('08') || cleanPhone.startsWith('628');
+                            const waNumber = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+                            const mapsQuery = (t.target_lat && t.target_lng)
+                              ? `${t.target_lat},${t.target_lng}`
+                              : encodeURIComponent(cust.address + ', Payakumbuh');
+
+                            return (
+                              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-800/80">
+                                <span className={`text-xs font-mono truncate ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                  📞 {rawTelp || 'Tidak ada kontak'}
+                                </span>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {/* Tombol Icon Peta (Google Maps) */}
+                                  <a
+                                    href={`https://www.google.com/maps/dir/?api=1&destination=${mapsQuery}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition cursor-pointer flex items-center justify-center"
+                                    title="Navigasi Rute Google Maps"
+                                  >
+                                    <Navigation className="w-3.5 h-3.5" />
+                                  </a>
+
+                                  {/* Tombol Icon Telepon (Dialer HP) */}
+                                  {cleanPhone && (
+                                    <a
+                                      href={`tel:${cleanPhone}`}
+                                      className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition cursor-pointer flex items-center justify-center"
+                                      title="Hubungi Nomor Telepon Langsung"
+                                    >
+                                      <PhoneCall className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+
+                                  {/* Tombol Icon WA (HANYA jika nomor seluler diawali 08 atau 628) */}
+                                  {isMobile && (
+                                    <a
+                                      href={`https://wa.me/${waNumber}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition cursor-pointer flex items-center justify-center"
+                                      title="Chat WhatsApp (Nomor Seluler)"
+                                    >
+                                      <MessageSquare className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Claim Button */}
                         <button
                           type="button"
-                          onClick={() => setBastpModalTask(t)}
-                          className="w-full mt-3 py-2 text-xs font-medium rounded-lg bg-rose-950/40 border border-rose-800/60 text-rose-300 hover:bg-rose-900/50 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                          onClick={async () => {
+                            await claimTugas(t.id, user.id);
+                            setMobileTicketTab('sedang-dikerjakan');
+                            showToast(`Tiket #${t.id} berhasil Anda ambil! Segera ajukan permohonan material ke gudang.`, 'success');
+                          }}
+                          className="w-full py-3 px-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-blue-900/40 transition active:scale-98 cursor-pointer flex items-center justify-center gap-2"
                         >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>Lihat BASTP</span>
+                          <span>Ambil Pekerjaan</span>
                         </button>
                       </div>
                       );
                     })}
                   </div>
+                )}
+              </div>
+
+              {/* SECTION 3: RIWAYAT PEKERJAAN SELESAI */}
+              <div className={`space-y-4 ${
+                mobileTicketTab === 'riwayat-selesai' ? 'block' : (myDoneTasks.length > 0 ? 'hidden lg:block' : 'hidden')
+              } lg:pt-4 lg:border-t lg:border-slate-200 dark:lg:border-slate-800`}>
+                <div className="hidden md:flex items-center justify-between pb-1">
+                  <h2 className="text-base font-extrabold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    <span>Riwayat Pekerjaan Selesai</span>
+                  </h2>
+                  <span className="text-xs text-emerald-400 font-bold">{myDoneTasks.length} Pekerjaan Tuntas</span>
                 </div>
-              )}
+
+                {myDoneTasks.length === 0 ? (
+                  <div className={`py-10 px-6 text-center rounded-2xl border border-dashed ${
+                    isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-300 shadow-xs'
+                  }`}>
+                    <History className="w-10 h-10 text-slate-500/60 mx-auto mb-2" />
+                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Belum Ada Riwayat Pekerjaan
+                    </div>
+                    <p className={`text-xs mt-1 max-w-sm mx-auto ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Tiket yang telah selesai dikerjakan dan diunggah BASTP-nya akan tercatat di sini.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {myDoneTasks.map(t => {
+                      const cust = parseTaskDetails(t);
+                      return (
+                      <div
+                        key={t.id}
+                        className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          isDark
+                            ? 'bg-slate-900/70 border-slate-800 hover:border-emerald-500/40'
+                            : 'bg-white border-slate-200 shadow-xs hover:border-emerald-500/50'
+                        }`}
+                      >
+                        {/* Sisi Kiri: Thumbnail Foto + Info Pelanggan */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="shrink-0">
+                            <BuktiThumbnail
+                              src={t.foto_bukti}
+                              alt="Bukti Foto"
+                              className="w-12 h-12 rounded-xl object-cover border border-slate-700/60 shrink-0 cursor-pointer hover:opacity-90 transition"
+                              onClick={() => setBastpModalTask(t)}
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-slate-400">#{t.id}</span>
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border tracking-wide ${
+                                (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru') ? 'bg-blue-600/15 text-blue-400 border-blue-500/30' :
+                                (t.jenis_kerja?.includes('Gangguan') || t.jenis_kerja?.includes('Putus')) ? 'bg-rose-600/15 text-rose-400 border-rose-500/30' :
+                                'bg-emerald-600/15 text-emerald-400 border-emerald-500/30'
+                              }`}>
+                                {t.jenis_kerja || 'Perbaikan'}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                <span>Selesai</span>
+                              </span>
+                            </div>
+
+                            <div className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} truncate capitalize`} title={cust.name}>
+                              {cust.name}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 truncate">
+                              <span className="truncate max-w-[200px] sm:max-w-xs" title={cust.address}>📍 {cust.address}</span>
+                              {t.waktu_selesai && (
+                                <>
+                                  <span>•</span>
+                                  <span className="font-mono text-emerald-400/90 shrink-0">{t.waktu_selesai}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sisi Kanan: Tombol BASTP Proporsional */}
+                        <div className="shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => setBastpModalTask(t)}
+                            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-rose-400" />
+                            <span>Lihat BASTP</span>
+                          </button>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
             </div>
           )}
@@ -755,7 +973,7 @@ export default function DashboardTeknisi() {
           {/* TAB 3: CETAK FISIK SURAT PERMOHONAN */}
           {activeMenu === 'cetak-surat' && (
             <div className="animate-in fade-in duration-200">
-              <CetakSuratPermohonan />
+              <CetakSuratPermohonan initialRequestId={selectedCetakReqId} />
             </div>
           )}
 
@@ -770,8 +988,13 @@ export default function DashboardTeknisi() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {myRequests.map(req => {
-                    const task = tugas.find(t => Number(t.id) === Number(req.tugas_id));
+                    const taskIds = Array.isArray(req.tugas_ids) && req.tugas_ids.length > 0
+                      ? req.tugas_ids.map(Number)
+                      : (req.tugas_id ? [Number(req.tugas_id)] : []);
+                    const tasks = tugas.filter(t => taskIds.includes(Number(t.id)));
+                    const task = tasks[0] || tugas.find(t => Number(t.id) === Number(req.tugas_id));
                     const cust = parseTaskDetails(task);
+                    const isBatch = Array.isArray(req.tugas_ids) && req.tugas_ids.length > 1;
                     const details = detailPermohonan.filter(d => Number(d.permohonan_id) === Number(req.id));
                     const isApproved = req.status === 'Approved';
                     const isReleased = req.status === 'Released';
@@ -791,9 +1014,15 @@ export default function DashboardTeknisi() {
                           <div className="min-w-0 flex-1">
                             <span className="font-mono text-xs font-bold text-slate-400">Permohonan #{req.id}</span>
                             <h2 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} mt-1 flex items-center gap-1.5 flex-wrap`}>
-                              <span>Tiket #{req.tugas_id}</span>
+                              <span>
+                                {isBatch
+                                  ? `Batch (${req.tugas_ids.map(id => `#${id}`).join(', ')})`
+                                  : `Tiket #${req.tugas_id || task?.id || '-'}`}
+                              </span>
                               <span className="text-slate-500">•</span>
-                              <span className={`capitalize font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{cust.name}</span>
+                              <span className={`capitalize font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                {isBatch ? `${cust.name} dkk` : cust.name}
+                              </span>
                             </h2>
                             {cust.address && (
                               <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1 min-w-0">
@@ -835,6 +1064,7 @@ export default function DashboardTeknisi() {
                             disabled={!isApproved && !isReleased}
                             onClick={() => {
                               if (isApproved || isReleased) {
+                                setSelectedCetakReqId(req.id);
                                 handleSetActiveMenu('cetak-surat');
                               }
                             }}
@@ -866,32 +1096,44 @@ export default function DashboardTeknisi() {
                   Daftar Pekerjaan Siap Ditutup (BASTP)
                 </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {activeTasks.map(t => {
-                    const isDone = t.status === 'Done';
-                    const cust = parseTaskDetails(t);
-                    return (
-                      <div
-                        key={t.id}
-                        className={`p-5 rounded-3xl border transition-all ${
-                          isDone
-                            ? isDark ? 'bg-slate-900/60 border-emerald-500/40 opacity-80' : 'bg-white border-emerald-500/40 shadow-sm'
-                            : isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-                        } space-y-4`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <span className="font-mono text-xs font-bold text-slate-400">Tiket #{t.id}</span>
-                            <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5 truncate capitalize`} title={cust.name}>
-                              {cust.name}
-                            </h3>
-                            <p className="text-xs text-slate-400 truncate block max-w-full" title={cust.address}>{cust.address}</p>
-                          </div>
-                          {isDone ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                              Selesai (Done)
-                            </span>
-                          ) : (
+                {activeTasks.length === 0 ? (
+                  <div className={`py-10 px-6 text-center rounded-2xl border border-dashed ${
+                    isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-300 shadow-xs'
+                  }`}>
+                    <FileCheck className="w-10 h-10 text-slate-500/60 mx-auto mb-2" />
+                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Belum Ada Pekerjaan Siap Diclosing
+                    </div>
+                    <p className={`text-xs mt-1 max-w-sm mx-auto ${isDark ? 'text-slate-400' : 'text-slate-500'} mb-4`}>
+                      Selesaikan pekerjaan lapangan terlebih dahulu untuk membuat berita acara (BASTP) digital.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleSetActiveMenu('tiket')}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95"
+                    >
+                      <span>Lihat Tiket Pekerjaan</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {activeTasks.map(t => {
+                      const cust = parseTaskDetails(t);
+                      return (
+                        <div
+                          key={t.id}
+                          className={`p-5 rounded-3xl border transition-all ${
+                            isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                          } space-y-4`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="font-mono text-xs font-bold text-slate-400">Tiket #{t.id}</span>
+                              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5 truncate capitalize`} title={cust.name}>
+                                {cust.name}
+                              </h3>
+                              <p className="text-xs text-slate-400 truncate block max-w-full" title={cust.address}>{cust.address}</p>
+                            </div>
                             <span className={`whitespace-nowrap inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs tracking-wide ${
                               (t.jenis_kerja?.includes('Pasang') || t.jenis_kerja === 'Pasang Baru')
                                 ? 'bg-blue-600/20 text-blue-400 border-blue-500/40'
@@ -903,65 +1145,128 @@ export default function DashboardTeknisi() {
                             }`}>
                               {t.jenis_kerja || 'Pasang Baru'}
                             </span>
-                          )}
-                        </div>
-
-                        {t.foto_bukti && (
-                          <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-850">
-                            <BuktiThumbnail
-                              src={t.foto_bukti}
-                              alt="Bukti Selesai"
-                              className="w-16 h-16 object-cover rounded-xl border border-slate-700"
-                            />
-                            <div className="text-xs">
-                              <span className="text-emerald-400 font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Foto Tervalidasi
-                              </span>
-                              <p className="text-slate-400 text-[11px] mt-0.5">Selesai: {t.waktu_selesai}</p>
-                            </div>
                           </div>
-                        )}
 
-                        <div>
-                          {isDone ? (
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <div className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold text-xs text-center border border-emerald-500/30 flex items-center justify-center">
-                                ✓ Pekerjaan Selesai & Terverifikasi
+                          {t.foto_bukti && (
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-850">
+                              <BuktiThumbnail
+                                src={t.foto_bukti}
+                                alt="Bukti Selesai"
+                                className="w-16 h-16 object-cover rounded-xl border border-slate-700"
+                              />
+                              <div className="text-xs">
+                                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Foto Tervalidasi
+                                </span>
+                                <p className="text-slate-400 text-[11px] mt-0.5">Selesai: {t.waktu_selesai}</p>
                               </div>
-                              <button
-                                onClick={() => setBastpModalTask(t)}
-                                className="py-2 px-3.5 rounded-xl bg-burgundy-600 hover:bg-burgundy-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md active:scale-95 whitespace-nowrap"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                                <span>Lihat BASTP</span>
-                              </button>
                             </div>
-                          ) : !t.checkin?.verified ? (
-                            <button
-                              type="button"
-                              onClick={() => handleDoCheckIn(t)}
-                              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                            >
-                              <MapPin className="w-4 h-4" />
-                              <span>Check-In Lokasi (GPS)</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setUploadTugasId(t.id)}
-                              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                            >
-                              <Camera className="w-4 h-4" />
-                              <span>Unggah Foto Bukti & Selesaikan (Closing BASTP)</span>
-                            </button>
                           )}
+
+                          <div>
+                            {!t.checkin?.verified ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDoCheckIn(t)}
+                                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                              >
+                                <MapPin className="w-4 h-4" />
+                                <span>Check-In Lokasi (GPS)</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setUploadTugasId(t.id)}
+                                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                              >
+                                <Camera className="w-4 h-4" />
+                                <span>Unggah Foto Bukti & Selesaikan (Closing BASTP)</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
+              {/* Dokumen BASTP Digital Selesai */}
+              {myDoneTasks.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className={`text-base font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        Dokumen BASTP Digital (Pekerjaan Selesai)
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Berita Acara Serah Terima Pekerjaan yang telah divalidasi dan dapat dicetak/diunduh.
+                      </p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">
+                      {myDoneTasks.length} BASTP Selesai
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {myDoneTasks.map(t => {
+                      const cust = parseTaskDetails(t);
+                      return (
+                        <div
+                          key={t.id}
+                          className={`p-5 rounded-3xl border transition-all ${
+                            isDark ? 'bg-slate-900/60 border-emerald-500/40' : 'bg-white border-emerald-500/40 shadow-sm'
+                          } space-y-4`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="font-mono text-xs font-bold text-slate-400">Tiket #{t.id}</span>
+                              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5 truncate capitalize`} title={cust.name}>
+                                {cust.name}
+                              </h3>
+                              <p className="text-xs text-slate-400 truncate block max-w-full" title={cust.address}>{cust.address}</p>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                              Selesai (Done)
+                            </span>
+                          </div>
+
+                          {t.foto_bukti && (
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-slate-850">
+                              <BuktiThumbnail
+                                src={t.foto_bukti}
+                                alt="Bukti Selesai"
+                                className="w-16 h-16 object-cover rounded-xl border border-slate-700"
+                              />
+                              <div className="text-xs">
+                                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Foto Tervalidasi
+                                </span>
+                                <p className="text-slate-400 text-[11px] mt-0.5">Selesai: {t.waktu_selesai}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold text-xs text-center border border-emerald-500/30 flex items-center justify-center">
+                              ✓ Pekerjaan Selesai & Terverifikasi
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setBastpModalTask(t)}
+                              className="py-2 px-3.5 rounded-xl bg-burgundy-600 hover:bg-burgundy-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md active:scale-95 whitespace-nowrap"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Lihat BASTP</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

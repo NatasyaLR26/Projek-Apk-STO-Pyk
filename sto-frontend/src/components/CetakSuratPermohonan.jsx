@@ -1,32 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Printer, FileText, Clock, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { parseTaskDetails } from '../utils/taskFormatter';
 
-export default function CetakSuratPermohonan() {
+export default function CetakSuratPermohonan({ initialRequestId = null }) {
   const { isDark } = useTheme();
   const { permohonan, detailPermohonan, barang, tugas, users, currentUser } = useApp();
 
-  // Cari daftar permohonan milik teknisi ini atau semua jika pimpinan
-  const techRequests = permohonan.filter(p => {
-    const parentTask = tugas.find(t => t.id === p.tugas_id);
-    if (currentUser?.role === 'teknisi') {
-      return parentTask?.teknisi_id === currentUser?.id;
+  const effectiveUser = currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null);
+  const currentTechId = effectiveUser?.id ? Number(effectiveUser.id) : null;
+  const isTeknisi = effectiveUser?.role === 'teknisi';
+
+  // Cari daftar permohonan milik teknisi ini atau semua jika pimpinan (mendukung tiket tunggal & batch)
+  const techRequests = useMemo(() => {
+    return permohonan.filter(p => {
+      if (!isTeknisi) return true;
+      if (currentTechId && Number(p.teknisi_id) === currentTechId) return true;
+      const taskIds = Array.isArray(p.tugas_ids) && p.tugas_ids.length > 0
+        ? p.tugas_ids.map(Number)
+        : (p.tugas_id ? [Number(p.tugas_id)] : []);
+      const hasMyTask = tugas.some(t => taskIds.includes(Number(t.id)) && Number(t.teknisi_id) === currentTechId);
+      return hasMyTask;
+    });
+  }, [permohonan, tugas, isTeknisi, currentTechId]);
+
+  const [selectedReqId, setSelectedReqId] = useState(() => initialRequestId ?? techRequests[0]?.id ?? null);
+
+  useEffect(() => {
+    if (initialRequestId !== null && initialRequestId !== undefined) {
+      setSelectedReqId(initialRequestId);
     }
-    return true;
-  });
+  }, [initialRequestId]);
 
-  const [selectedReqId, setSelectedReqId] = useState(techRequests[0]?.id || null);
+  const activeRequest = useMemo(() => {
+    if (selectedReqId === null || selectedReqId === undefined || selectedReqId === '') {
+      return techRequests[0] || permohonan[0] || null;
+    }
+    const numId = Number(selectedReqId);
+    // 1. Cocokkan berdasarkan ID Permohonan (fleksibel string / number)
+    const byPerm = permohonan.find(p => Number(p.id) === numId);
+    if (byPerm) return byPerm;
 
-  const activeRequest = permohonan.find(p => p.id === selectedReqId) || techRequests[0];
-  const activeTask = tugas.find(t => t.id === activeRequest?.tugas_id);
-  const activeTech = users.find(u => u.id === activeTask?.teknisi_id) || currentUser;
-  const activePimpinan = users.find(u => u.id === activeTask?.pimpinan_id) || users.find(u => u.role === 'pimpinan');
+    // 2. Cocokkan berdasarkan ID Tugas / Tiket (jika caller meneruskan ticket ID)
+    const byTask = permohonan.find(p =>
+      Number(p.tugas_id) === numId ||
+      (Array.isArray(p.tugas_ids) && p.tugas_ids.map(Number).includes(numId))
+    );
+    if (byTask) return byTask;
+
+    return techRequests[0] || permohonan[0] || null;
+  }, [selectedReqId, permohonan, techRequests]);
+
+  const taskIds = Array.isArray(activeRequest?.tugas_ids) && activeRequest.tugas_ids.length > 0
+    ? activeRequest.tugas_ids.map(Number)
+    : (activeRequest?.tugas_id ? [Number(activeRequest.tugas_id)] : []);
+  const parentTasks = tugas.filter(t => taskIds.includes(Number(t.id)));
+  const activeTask = parentTasks[0] || tugas.find(t => Number(t.id) === Number(activeRequest?.tugas_id));
+  const activeTech = users.find(u => Number(u.id) === Number(activeTask?.teknisi_id || activeRequest?.teknisi_id)) || effectiveUser;
+  const activePimpinan = users.find(u => Number(u.id) === Number(activeTask?.pimpinan_id)) || users.find(u => u.role === 'pimpinan');
+  const isBatch = Array.isArray(activeRequest?.tugas_ids) && activeRequest.tugas_ids.length > 1;
 
   const requestDetails = detailPermohonan
-    .filter(d => d.permohonan_id === activeRequest?.id)
+    .filter(d => Number(d.permohonan_id) === Number(activeRequest?.id))
     .map(d => {
-      const item = barang.find(b => b.id === d.barang_id);
+      const item = barang.find(b => Number(b.id) === Number(d.barang_id));
       return { ...d, item };
     });
 
@@ -51,15 +89,26 @@ export default function CetakSuratPermohonan() {
 
         <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center gap-2.5">
           <select
-            value={activeRequest?.id || ''}
-            onChange={(e) => setSelectedReqId(Number(e.target.value))}
+            value={activeRequest?.id ? String(activeRequest.id) : ''}
+            onChange={(e) => setSelectedReqId(e.target.value)}
             className={`w-full sm:w-auto text-xs px-3.5 py-2.5 rounded-xl border font-semibold ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} focus:outline-none focus:border-rose-500`}
           >
-            {techRequests.map(req => (
-              <option key={req.id} value={req.id}>
-                Permohonan #{req.id} - Tiket #{req.tugas_id} ({req.status})
-              </option>
-            ))}
+            {techRequests.map(req => {
+              const isReqBatch = Array.isArray(req.tugas_ids) && req.tugas_ids.length > 1;
+              const reqTasks = isReqBatch
+                ? tugas.filter(t => req.tugas_ids.map(Number).includes(Number(t.id)))
+                : [tugas.find(t => Number(t.id) === Number(req.tugas_id))].filter(Boolean);
+              const primaryTask = reqTasks[0];
+              const custInfo = parseTaskDetails(primaryTask);
+              const label = isReqBatch
+                ? `Permohonan #${req.id} - Batch ${req.tugas_ids.length} Tiket – ${custInfo.name} dkk (${req.status})`
+                : `Permohonan #${req.id} - Tiket #${req.tugas_id || primaryTask?.id || '-'} – ${custInfo.name} (${req.status})`;
+              return (
+                <option key={req.id} value={String(req.id)}>
+                  {label}
+                </option>
+              );
+            })}
           </select>
 
           <button
@@ -100,9 +149,12 @@ export default function CetakSuratPermohonan() {
             </div>
 
             <div className="text-left sm:text-right font-mono text-xs mt-1 sm:mt-0 border-l-2 sm:border-l-0 pl-3 sm:pl-0 border-rose-500">
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider">Nomor Formulir Resmi:</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider">No. Registrasi Formulir:</div>
               <div className={`font-black text-xs sm:text-sm text-rose-600 dark:text-rose-400 print-text-dark`}>
                 SPB/TA-PYK/{new Date().getFullYear()}/{String(activeRequest.id).padStart(4, '0')}
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 print-text-dark mt-0.5">
+                Ref. Permohonan: <strong>#{activeRequest.id}</strong> &bull; Tiket: <strong>#{activeTask?.id || activeRequest.tugas_id || '-'}</strong>
               </div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400 print-text-dark mt-0.5">
                 Tanggal: <strong>{activeRequest.waktu_request || new Date().toISOString().split('T')[0]}</strong>
@@ -128,45 +180,61 @@ export default function CetakSuratPermohonan() {
           </div>
 
           {/* Metadata Section dengan Border Tebal & Jelas */}
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 rounded-2xl border-2 ${isDark ? 'border-slate-700 bg-slate-950/60 text-slate-300' : 'border-slate-300 bg-slate-50 text-slate-800'} print-table mb-6 text-xs print-text-dark`}>
-            <div className="space-y-2">
-              <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 font-bold">ID Tiket Pekerjaan:</span>
-                <strong className="font-mono text-rose-600 dark:text-rose-400">#{activeTask?.id || activeRequest.tugas_id}</strong>
-              </div>
-              <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 font-bold">Jenis Pekerjaan:</span>
-                <strong>{activeTask?.jenis_kerja || 'Pasang Baru / Perbaikan'}</strong>
-              </div>
-              <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 font-bold">Nama Pelanggan:</span>
-                <strong>{activeTask?.pelanggan_nama || 'Pelanggan Telkom'}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-bold">Alamat Lokasi:</span>
-                <span className="text-right truncate max-w-[200px]">{activeTask?.lokasi || 'Koto Nan IV Payakumbuh'}</span>
-              </div>
-            </div>
+          {(() => {
+            return (
+              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 rounded-2xl border-2 ${isDark ? 'border-slate-700 bg-slate-950/60 text-slate-300' : 'border-slate-300 bg-slate-50 text-slate-800'} print-table mb-6 text-xs print-text-dark`}>
+                <div className="space-y-2">
+                  <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 font-bold">ID Tiket Pekerjaan:</span>
+                    <strong className="font-mono text-rose-600 dark:text-rose-400">
+                      {isBatch
+                        ? `Batch (${activeRequest.tugas_ids.map(id => `#${id}`).join(', ')})`
+                        : `#${activeTask?.id || activeRequest.tugas_id || '-'}${activeTask?.nomor_tiket ? ` (${activeTask.nomor_tiket})` : ''}`}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 font-bold">Jenis Pekerjaan:</span>
+                    <strong>{activeTask?.jenis_kerja || 'Pasang Baru / Perbaikan'} {isBatch ? '(Borongan Multi-Pelanggan)' : ''}</strong>
+                  </div>
+                  <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 font-bold">Nama Pelanggan:</span>
+                    <strong>
+                      {isBatch
+                        ? parentTasks.map(t => parseTaskDetails(t).name).filter(Boolean).join(', ')
+                        : (parseTaskDetails(activeTask).name || activeTask?.pelanggan_nama || 'Pelanggan Telkom')}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-bold">Alamat Lokasi:</span>
+                    <span className="text-right truncate max-w-[200px]" title={isBatch ? parentTasks.map(t => `#${t.id}: ${parseTaskDetails(t).address}`).join(' | ') : (parseTaskDetails(activeTask).address || activeTask?.lokasi)}>
+                      {isBatch
+                        ? parentTasks.map(t => `#${t.id}: ${parseTaskDetails(t).address}`).join(' | ')
+                        : (parseTaskDetails(activeTask).address || activeTask?.lokasi || 'Koto Nan IV Payakumbuh')}
+                    </span>
+                  </div>
+                </div>
 
-            <div className="space-y-2 sm:border-l sm:pl-4 border-slate-200 dark:border-slate-800">
-              <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 font-bold">Teknisi Pemohon:</span>
-                <strong>{activeTech?.nama_lengkap || 'Ahmad Fadli'}</strong>
+                <div className="space-y-2 sm:border-l sm:pl-4 border-slate-200 dark:border-slate-800">
+                  <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 font-bold">Teknisi Pemohon:</span>
+                    <strong>{activeTech?.nama_lengkap || 'Ahmad Fadli'}</strong>
+                  </div>
+                  <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 font-bold">ID / NIK Teknisi:</span>
+                    <span className="font-mono">TA-{activeTech?.id || '02'}9821</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 font-bold">Catatan Kebutuhan:</span>
+                    <span className="italic truncate max-w-[180px]">"{activeRequest.catatan_teknisi || '-'}"</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-bold">Verifikasi Sistem:</span>
+                    <span className="font-mono font-bold text-emerald-500">TERDATA SECARA RESMI</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 font-bold">ID / NIK Teknisi:</span>
-                <span className="font-mono">TA-{activeTech?.id || '02'}9821</span>
-              </div>
-              <div className="flex justify-between border-b pb-1 border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 font-bold">Catatan Kebutuhan:</span>
-                <span className="italic truncate max-w-[180px]">"{activeRequest.catatan_teknisi || '-'}"</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500 font-bold">Verifikasi Sistem:</span>
-                <span className="font-mono font-bold text-emerald-500">TERDATA SECARA RESMI</span>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Items Table dengan Border Jelas & Kontras Standar Formulir Cetak */}
           <div className="overflow-x-auto mb-6">

@@ -143,7 +143,7 @@ const getOdpPortText = (odpId, portOdp, odpList = []) => {
   return formattedOdp;
 };
 
-export default function TabelPelangganAset({ isGudangView = false, hideHeader = false }) {
+export default function TabelPelangganAset({ isGudangView = false }) {
   const { isDark } = useTheme();
   const { pelanggan, currentUser, showToast, odp = [] } = useApp();
 

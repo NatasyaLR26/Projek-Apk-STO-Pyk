@@ -26,11 +26,17 @@ function ApprovalMaterial({ hideHeader = false }) {
   const [error, setError] = useState('');
   const [processingId, setProcessingId] = useState(null);
 
-  // 1. Build enriched pending list reactively with useMemo
+  // 1. Build enriched pending list reactively with useMemo (mendukung tiket tunggal & batch multi-pelanggan)
   const permohonanList = useMemo(() => {
     return permohonan.filter(p => String(p.status || '').toLowerCase() === 'pending').map(p => {
-      const parentTask = tugas.find(t => Number(t.id) === Number(p.tugas_id));
-      const tech = users.find(u => Number(u.id) === Number(parentTask?.teknisi_id));
+      const taskIds = Array.isArray(p.tugas_ids) && p.tugas_ids.length > 0
+        ? p.tugas_ids.map(Number)
+        : (p.tugas_id ? [Number(p.tugas_id)] : []);
+      const parentTasks = tugas.filter(t => taskIds.includes(Number(t.id)));
+      const parentTask = parentTasks[0] || tugas.find(t => Number(t.id) === Number(p.tugas_id));
+      const tech = users.find(u => Number(u.id) === Number(parentTask?.teknisi_id || p.teknisi_id)) || {
+        nama_lengkap: p.teknisi_nama || 'Teknisi Lapangan'
+      };
       const details = detailPermohonan.filter(d => Number(d.permohonan_id) === Number(p.id)).map(d => {
         const item = barang.find(b => Number(b.id) === Number(d.barang_id));
         return {
@@ -43,6 +49,7 @@ function ApprovalMaterial({ hideHeader = false }) {
       return {
         ...p,
         parentTask,
+        parentTasks,
         tech,
         details
       };
@@ -139,9 +146,18 @@ function ApprovalMaterial({ hideHeader = false }) {
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="min-w-0 flex-1">
-                      <span className="text-xs font-black text-amber-500 font-mono">Permohonan #{p.id}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-black text-amber-500 font-mono">Permohonan #{p.id}</span>
+                        {p.parentTasks && p.parentTasks.length > 1 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            Batch {p.parentTasks.length} Tiket
+                          </span>
+                        )}
+                      </div>
                       <h3 className="font-bold text-sm mt-0.5 truncate text-slate-100">
-                        Tiket #{p.tugas_id} — {p.parentTask?.jenis_kerja || 'Pekerjaan STO'}
+                        {p.parentTasks && p.parentTasks.length > 1
+                          ? `Batch: ${p.parentTasks.map(t => `#${t.id}`).join(', ')}`
+                          : `Tiket #${p.tugas_id || p.parentTask?.id || '-'} — ${p.parentTask?.jenis_kerja || 'Pekerjaan STO'}`}
                       </h3>
                       <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         Diajukan oleh: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{p.tech?.nama_lengkap || 'Teknisi Lapangan'}</strong>
@@ -153,24 +169,55 @@ function ApprovalMaterial({ hideHeader = false }) {
                   </div>
 
                   {/* Info Pelanggan & Lokasi Pekerjaan (Terstruktur & Bebas Leaks) */}
-                  <div className={`p-3 rounded-xl border text-xs mb-3 space-y-1.5 ${
+                  <div className={`p-3 rounded-xl border text-xs mb-3 space-y-2 ${
                     isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
                   }`}>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Pelanggan &amp; Lokasi Pekerjaan:
+                      {p.parentTasks && p.parentTasks.length > 1
+                        ? `Pelanggan & Lokasi Pekerjaan (${p.parentTasks.length} Tiket Batch):`
+                        : 'Pelanggan & Lokasi Pekerjaan:'}
                     </div>
-                    <div className="font-semibold text-slate-100 text-xs flex items-center gap-1.5 flex-wrap">
-                      <span>{cust.name}</span>
-                      {cust.telp && (
-                        <span className="text-[11px] text-slate-400 font-mono font-normal">
-                          • {cust.telp}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-slate-300 flex items-start gap-1.5 leading-snug">
-                      <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                      <span className="break-words">{cust.address}</span>
-                    </div>
+
+                    {p.parentTasks && p.parentTasks.length > 1 ? (
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {p.parentTasks.map((t, idx) => {
+                          const taskCust = parseTaskDetails(t);
+                          return (
+                            <div key={t.id} className={idx > 0 ? "pt-2 border-t border-slate-200 dark:border-slate-800/80" : ""}>
+                              <div className="font-semibold text-slate-100 text-xs flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono text-amber-500 font-bold text-[11px]">#{t.id}</span>
+                                <span>{taskCust.name}</span>
+                                {taskCust.telp && (
+                                  <span className="text-[11px] text-slate-400 font-mono font-normal">
+                                    • {taskCust.telp}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-300 flex items-start gap-1.5 leading-snug mt-0.5">
+                                <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                                <span className="break-words">{taskCust.address}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="font-semibold text-slate-100 text-xs flex items-center gap-1.5 flex-wrap">
+                          <span>{cust.name}</span>
+                          {cust.telp && (
+                            <span className="text-[11px] text-slate-400 font-mono font-normal">
+                              • {cust.telp}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-300 flex items-start gap-1.5 leading-snug">
+                          <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                          <span className="break-words">{cust.address}</span>
+                        </div>
+                      </>
+                    )}
+
                     {p.catatan_teknisi && (
                       <div className="text-[11px] text-slate-400 italic pt-1.5 border-t border-slate-200 dark:border-slate-800/80 break-words">
                         "{p.catatan_teknisi}"

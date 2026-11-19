@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MapPin,
   Search,
@@ -10,7 +10,7 @@ import WebGISMap from './WebGISMap';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 
-export default function WebGISTracking({ initialSelectedTaskId = null }) {
+export default function WebGISTracking({ initialSelectedTaskId = null, onEditOdp = null }) {
   const { isDark } = useTheme();
   const {
     odp = [],
@@ -19,8 +19,28 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
 
   const [selectedOdpId, setSelectedOdpId] = useState(null);
   const [selectedTugasId, setSelectedTugasId] = useState(initialSelectedTaskId);
+  const [odpToEdit, setOdpToEdit] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Sinkronisasi prop initialSelectedTaskId saat berpindah tiket dari tab pimpinan
+  useEffect(() => {
+    if (initialSelectedTaskId !== undefined && initialSelectedTaskId !== null) {
+      setSelectedTugasId(initialSelectedTaskId);
+    }
+  }, [initialSelectedTaskId]);
+
+  // Handler Edit ODP standar React tanpa bergantung pada objek global window
+  const handleEditOdp = (pointOrId) => {
+    let target = pointOrId;
+    if (typeof pointOrId === 'number' || typeof pointOrId === 'string') {
+      target = odp.find(o => Number(o.id) === Number(pointOrId)) || null;
+    }
+    setOdpToEdit(target);
+    if (typeof onEditOdp === 'function') {
+      onEditOdp(target);
+    }
+  };
 
   const handleDeleteOdp = (id) => {
     if (window.confirm('Yakin ingin menghapus titik ODP ini dari WebGIS?')) {
@@ -98,6 +118,9 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
           onSelectOdp={setSelectedOdpId}
           selectedTugasId={selectedTugasId}
           onSelectTugas={setSelectedTugasId}
+          odpToEdit={odpToEdit}
+          onClearEditOdp={() => setOdpToEdit(null)}
+          onEditOdp={handleEditOdp}
         />
       </div>
 
@@ -241,9 +264,7 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (typeof window.__handleWebGisEditOdp === 'function') {
-                          window.__handleWebGisEditOdp(point.id);
-                        }
+                        handleEditOdp(point);
                       }}
                       className="min-h-[40px] px-3.5 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition"
                     >

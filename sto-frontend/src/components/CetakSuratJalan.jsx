@@ -1,25 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { Printer, FileCheck, Clock } from 'lucide-react';
 import { parseTaskDetails, formatDateId } from '../utils/taskFormatter';
 
-export default function CetakSuratJalan() {
+export default function CetakSuratJalan({ initialRequestId = null }) {
   const { isDark } = useTheme();
   const { permohonan, detailPermohonan, barang, tugas, users } = useApp();
 
-  // Released requests
-  const releasedRequests = permohonan.filter(p => p.status === 'Released');
-  const [selectedReqId, setSelectedReqId] = useState(releasedRequests[0]?.id || null);
+  // Permohonan yang valid untuk dicetak: Released (sudah keluar) atau Approved (siap disiapkan/dirilis)
+  const validRequests = useMemo(() => {
+    return permohonan.filter(p => p.status === 'Released' || p.status === 'Approved');
+  }, [permohonan]);
 
-  const activeRequest = permohonan.find(p => p.id === selectedReqId) || releasedRequests[0];
-  const activeTask = tugas.find(t => t.id === activeRequest?.tugas_id);
-  const activeTech = users.find(u => u.id === activeTask?.teknisi_id);
+  const [selectedReqId, setSelectedReqId] = useState(() => initialRequestId ?? validRequests[0]?.id ?? null);
+
+  useEffect(() => {
+    if (initialRequestId !== null && initialRequestId !== undefined) {
+      setSelectedReqId(initialRequestId);
+    }
+  }, [initialRequestId]);
+
+  const activeRequest = useMemo(() => {
+    if (selectedReqId === null || selectedReqId === undefined || selectedReqId === '') {
+      return validRequests[0] || null;
+    }
+    const numId = Number(selectedReqId);
+    // 1. Cocokkan berdasarkan ID Permohonan
+    const byPerm = permohonan.find(p => Number(p.id) === numId);
+    if (byPerm) return byPerm;
+
+    // 2. Cocokkan berdasarkan ID Tugas / Tiket (jika caller meneruskan ticket ID)
+    const byTask = permohonan.find(p =>
+      Number(p.tugas_id) === numId ||
+      (Array.isArray(p.tugas_ids) && p.tugas_ids.map(Number).includes(numId))
+    );
+    if (byTask) return byTask;
+
+    return validRequests[0] || null;
+  }, [selectedReqId, permohonan, validRequests]);
+
+  const taskIds = Array.isArray(activeRequest?.tugas_ids) && activeRequest.tugas_ids.length > 0
+    ? activeRequest.tugas_ids.map(Number)
+    : (activeRequest?.tugas_id ? [Number(activeRequest.tugas_id)] : []);
+  const parentTasks = tugas.filter(t => taskIds.includes(Number(t.id)));
+  const activeTask = parentTasks[0] || tugas.find(t => Number(t.id) === Number(activeRequest?.tugas_id));
+  const activeTech = users.find(u => Number(u.id) === Number(activeTask?.teknisi_id || activeRequest?.teknisi_id)) || {
+    nama_lengkap: activeRequest?.teknisi_nama || 'Teknisi Lapangan',
+    id: activeRequest?.teknisi_id || 2
+  };
+  const isBatch = Array.isArray(activeRequest?.tugas_ids) && activeRequest.tugas_ids.length > 1;
 
   const requestDetails = detailPermohonan
-    .filter(d => d.permohonan_id === activeRequest?.id)
+    .filter(d => Number(d.permohonan_id) === Number(activeRequest?.id))
     .map(d => {
-      const item = barang.find(b => b.id === d.barang_id);
+      const item = barang.find(b => Number(b.id) === Number(d.barang_id));
       return { ...d, item };
     });
 
@@ -42,17 +77,24 @@ export default function CetakSuratJalan() {
 
         <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center gap-2.5">
           <select
-            value={activeRequest?.id || ''}
-            onChange={(e) => setSelectedReqId(Number(e.target.value))}
+            value={activeRequest?.id ? String(activeRequest.id) : ''}
+            onChange={(e) => setSelectedReqId(e.target.value)}
             className={`w-full sm:w-auto text-xs px-3 py-2.5 rounded-xl border font-semibold ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} focus:outline-none`}
           >
-            {releasedRequests.map(req => {
-              const reqTask = tugas.find(t => Number(t.id) === Number(req.tugas_id));
-              const custInfo = parseTaskDetails(reqTask);
+            {validRequests.map(req => {
+              const isReqBatch = Array.isArray(req.tugas_ids) && req.tugas_ids.length > 1;
+              const reqTasks = isReqBatch
+                ? tugas.filter(t => req.tugas_ids.map(Number).includes(Number(t.id)))
+                : [tugas.find(t => Number(t.id) === Number(req.tugas_id))].filter(Boolean);
+              const primaryTask = reqTasks[0];
+              const custInfo = parseTaskDetails(primaryTask);
               const formattedDate = formatDateId(req.waktu_rilis || req.waktu_request);
+              const statusLabel = req.status === 'Approved' ? 'Siap Rilis' : 'Diserahkan';
               return (
-                <option key={req.id} value={req.id}>
-                  SJ #{req.id} • Tiket #{req.tugas_id} – {custInfo.name} ({formattedDate})
+                <option key={req.id} value={String(req.id)}>
+                  {isReqBatch
+                    ? `SJ #${req.id} • Batch ${req.tugas_ids.length} Tiket – ${custInfo.name} dkk (${formattedDate}) [${statusLabel}]`
+                    : `SJ #${req.id} • Tiket #${req.tugas_id || primaryTask?.id || '-'} – ${custInfo.name} (${formattedDate}) [${statusLabel}]`}
                 </option>
               );
             })}
@@ -109,17 +151,34 @@ export default function CetakSuratJalan() {
 
           {/* Details */}
           {(() => {
-            const cust = parseTaskDetails(activeTask);
             return (
               <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border ${isDark ? 'border-slate-800 bg-slate-950/40 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-800'} print-table mb-6 text-xs print-text-dark`}>
                 <div className="space-y-1.5">
-                  <div><strong className="text-slate-400">Nomor Tiket:</strong> #{activeTask?.id || activeRequest.tugas_id}</div>
-                  <div><strong className="text-slate-400">Jenis Pekerjaan:</strong> {activeTask?.jenis_kerja || 'Pemasangan Baru (PSB)'}</div>
                   <div>
-                    <strong className="text-slate-400">Nama Pelanggan:</strong> {cust.name} {cust.telp ? `(${cust.telp})` : ''}
+                    <strong className="text-slate-400">Nomor Tiket:</strong>{' '}
+                    {isBatch ? `Batch (${activeRequest.tugas_ids.map(id => `#${id}`).join(', ')})` : `#${activeTask?.id || activeRequest.tugas_id}`}
                   </div>
                   <div>
-                    <strong className="text-slate-400">Alamat Instalasi:</strong> {cust.address}
+                    <strong className="text-slate-400">Jenis Pekerjaan:</strong>{' '}
+                    {activeTask?.jenis_kerja || 'Pemasangan Baru (PSB)'} {isBatch ? '(Borongan Multi-Pelanggan)' : ''}
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Status Dokumen:</strong>{' '}
+                    <span className={activeRequest.status === 'Approved' ? 'text-amber-500 font-bold' : 'text-emerald-500 font-bold'}>
+                      {activeRequest.status === 'Approved' ? 'Disetujui Pimpinan (Persiapan Rilis Gudang)' : 'Telah Diserahkan (Released)'}
+                    </span>
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Nama Pelanggan:</strong>{' '}
+                    {isBatch
+                      ? parentTasks.map(t => parseTaskDetails(t).name).filter(Boolean).join(', ')
+                      : `${parseTaskDetails(activeTask).name} ${parseTaskDetails(activeTask).telp ? `(${parseTaskDetails(activeTask).telp})` : ''}`}
+                  </div>
+                  <div>
+                    <strong className="text-slate-400">Alamat Instalasi:</strong>{' '}
+                    {isBatch
+                      ? parentTasks.map(t => `#${t.id}: ${parseTaskDetails(t).address}`).join(' | ')
+                      : parseTaskDetails(activeTask).address}
                   </div>
                 </div>
                 <div className="space-y-1.5 text-left sm:text-right">
@@ -150,9 +209,22 @@ export default function CetakSuratJalan() {
                   const isOntOrModem = itemName.includes('ont') || itemName.includes('modem') || itemKat.includes('ont');
                   const isStb = itemName.includes('stb') || itemName.includes('set top box');
 
-                  const ontSn = activeTask?.assigned_sn_ont || activeTask?.sn_ont || activeTask?.bastp?.sn_ont ||
-                    (activeRequest?.sn_allocations && (typeof activeRequest.sn_allocations[activeTask?.id] === 'object' ? activeRequest.sn_allocations[activeTask?.id]?.sn : activeRequest.sn_allocations[activeTask?.id])) ||
-                    'ZTEGC8B90112';
+                  let ontSn = null;
+                  if (isOntOrModem) {
+                    if (isBatch && parentTasks.length > 0) {
+                      const snList = parentTasks.map(t => {
+                        const s = (activeRequest?.sn_allocations && (typeof activeRequest.sn_allocations[t.id] === 'object' ? activeRequest.sn_allocations[t.id]?.sn : activeRequest.sn_allocations[t.id])) ||
+                          t.assigned_sn_ont || t.sn_ont || t.bastp?.sn_ont;
+                        return s ? `#${t.id}: ${s}` : null;
+                      }).filter(Boolean);
+                      ontSn = snList.length > 0 ? snList.join(', ') : (activeRequest?.status === 'Approved' ? 'Alokasi saat serah terima fisik di gudang' : 'Belum tercatat');
+                    } else {
+                      ontSn = activeTask?.assigned_sn_ont || activeTask?.sn_ont || activeTask?.bastp?.sn_ont ||
+                        (activeRequest?.sn_allocations && (typeof activeRequest.sn_allocations[activeTask?.id] === 'object' ? activeRequest.sn_allocations[activeTask?.id]?.sn : activeRequest.sn_allocations[activeTask?.id])) ||
+                        activeRequest?.sn_ont ||
+                        (activeRequest?.status === 'Approved' ? 'Alokasi saat serah terima fisik di gudang' : 'Belum tercatat');
+                    }
+                  }
 
                   return (
                     <tr key={idx} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>

@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import DigitalSignaturePad from '../components/DigitalSignaturePad';
 import CetakSuratPermintaan from '../components/CetakSuratPermintaan';
 import ModalBASTP from '../components/ModalBASTP';
+import { compressImage } from '../utils/imageCompressor';
 import {
   MapPin,
   Calendar,
@@ -28,7 +29,8 @@ import {
   Flame,
   HelpCircle,
   Plus,
-  Trash2
+  Trash2,
+  Camera
 } from 'lucide-react';
 
 export default function DetailTiketTelegram() {
@@ -138,6 +140,29 @@ export default function DetailTiketTelegram() {
   const [customerSignature, setCustomerSignature] = useState(null);
   const [fotoOnt, setFotoOnt] = useState(null);
   const [isSubmittingClose, setIsSubmittingClose] = useState(false);
+
+  // Handler Upload / Kamera Foto Bukti Fisik ONT
+  const handleFotoOntChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('File harus berupa foto gambar (JPG/PNG)!', 'warning');
+      return;
+    }
+
+    try {
+      const result = await compressImage(file, 1280, 0.8);
+      setFotoOnt(result.dataUrl);
+      showToast('📸 Foto bukti ONT berhasil diambil & tersimpan!', 'success');
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFotoOnt(event.target.result);
+        showToast('📸 Foto bukti ONT berhasil diunggah!', 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Handler Fase 2: Ambil Tiket
   const handleClaim = () => {
@@ -721,6 +746,58 @@ export default function DetailTiketTelegram() {
                   onChange={(e) => setSnOnt(e.target.value)}
                   className={`w-full p-2.5 rounded-xl border ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'} font-mono uppercase font-bold focus:outline-none focus:border-rose-500`}
                 />
+              </div>
+
+              {/* Foto Bukti Fisik ONT */}
+              <div>
+                <label className="block font-bold mb-1 text-slate-300">
+                  Foto Fisik & Barcode SN Perangkat ONT
+                </label>
+                <div className="flex items-center gap-3">
+                  {fotoOnt ? (
+                    <div className="relative group">
+                      <img
+                        src={fotoOnt}
+                        alt="Foto Bukti ONT"
+                        className="w-16 h-16 object-cover rounded-xl border border-emerald-500 shadow-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFotoOnt(null)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs shadow-md hover:bg-rose-700 cursor-pointer"
+                        title="Hapus Foto"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-slate-700 hover:border-rose-500/60 bg-slate-950/60 text-slate-300 hover:text-white cursor-pointer transition">
+                      <Camera className="w-4 h-4 text-rose-400" />
+                      <span className="text-xs font-semibold">Ambil / Unggah Foto ONT</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleFotoOntChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                  {fotoOnt && (
+                    <label className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition flex items-center gap-1.5">
+                      <Camera className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Ganti Foto</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleFotoOntChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Foto stiker SN barcode dan fisik perangkat modem ONT yang terpasang di rumah pelanggan</p>
               </div>
 
               {/* Tanda Tangan Digital Pelanggan */}

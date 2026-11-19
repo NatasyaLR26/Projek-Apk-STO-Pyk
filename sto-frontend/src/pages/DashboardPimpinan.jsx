@@ -550,7 +550,6 @@ function DashboardPimpinan() {
               <AnalyticsChartsPimpinan
                 tugas={tugas}
                 barang={barang}
-                permohonan={permohonan}
                 onNavigateGudang={() => handleSetActiveMenu('laporan-gudang')}
               />
 
@@ -947,7 +946,7 @@ function DashboardPimpinan() {
           {/* TAB 7: DATA PELANGGAN & AUDIT PENARIKAN ASET STO */}
           {activeMenu === 'tabel-pelanggan' && (
             <div className="animate-in fade-in duration-200">
-              <TabelPelangganAset hideHeader={true} />
+              <TabelPelangganAset />
             </div>
           )}
 

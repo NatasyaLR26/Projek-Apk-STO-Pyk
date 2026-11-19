@@ -124,6 +124,14 @@ export default function GudangDashboard() {
 
   // Modals & Subtabs
   const [bastpModalTask, setBastpModalTask] = useState(null);
+  const [selectedSuratJalanReqId, setSelectedSuratJalanReqId] = useState(null);
+
+  const handleNavigateToSuratJalan = (req) => {
+    if (req?.id) {
+      setSelectedSuratJalanReqId(req.id);
+    }
+    handleSetActiveMenu('cetak-surat-jalan');
+  };
 
   useEffect(() => {
     if (!user || user.role !== 'gudang') {
@@ -823,8 +831,7 @@ export default function GudangDashboard() {
           {activeMenu === 'output-barang' && (
             <div className="space-y-8 animate-in fade-in duration-200">
               <TabelPermohonanGudang
-                onNavigateToSuratJalan={() => handleSetActiveMenu('cetak-surat-jalan')}
-                onViewBastp={setBastpModalTask}
+                onNavigateToSuratJalan={handleNavigateToSuratJalan}
               />
               <TabelRiwayatMutasi
                 onViewBastp={setBastpModalTask}
@@ -1138,7 +1145,7 @@ export default function GudangDashboard() {
           {/* TAB: CETAK SURAT JALAN & BASTP */}
           {activeMenu === 'cetak-surat-jalan' && (
             <div className="animate-in fade-in duration-200">
-              <CetakSuratJalan />
+              <CetakSuratJalan initialRequestId={selectedSuratJalanReqId} />
             </div>
           )}
 
