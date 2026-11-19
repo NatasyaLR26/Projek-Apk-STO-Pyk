@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  PlusCircle,
   CheckCircle2,
   Send,
   MapPin,
@@ -100,25 +99,7 @@ function FormTugas({ onCreated }) {
   };
 
   return (
-    <div className="max-w-3xl animate-in fade-in duration-300 space-y-6">
-      
-      {/* Header */}
-      <div className="pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="p-2 rounded-2xl bg-rose-600/20 text-rose-500 border border-rose-500/30">
-            <PlusCircle className="w-5 h-5" />
-          </span>
-          <div>
-            <h1 className="text-xl font-extrabold flex items-center gap-2">
-              <span>Pos Kerjaan Lapangan & Siar Tiket</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 font-mono border border-emerald-500/30">
-                Realtime WebSocket
-              </span>
-            </h1>
-          </div>
-        </div>
-      </div>
-
+    <div className="max-w-3xl animate-in fade-in duration-300 space-y-4">
       {/* Success Banner */}
       {pesan && (
         <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-3">
@@ -166,9 +147,8 @@ function FormTugas({ onCreated }) {
 
           {/* Acuan Titik ODP */}
           <div>
-            <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'} flex items-center justify-between`}>
-              <span>Acuan Titik ODP Jaringan *</span>
-              <span className="text-[10px] text-emerald-400 font-mono font-bold">Sinkron Database</span>
+            <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              Acuan Titik ODP Jaringan *
             </label>
             <select
               value={selectedOdpId}
@@ -191,9 +171,8 @@ function FormTugas({ onCreated }) {
 
         {/* Teknisi Ditugaskan (Pilihan Terbuka / Khusus) */}
         <div>
-          <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'} flex items-center justify-between`}>
-            <span>Teknisi Lapangan yang Ditugaskan *</span>
-            <span className="text-[10px] text-blue-400 font-mono">Bisa Dipilih Khusus / Terbuka</span>
+          <label className={`block font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            Teknisi Lapangan yang Ditugaskan *
           </label>
           <select
             value={selectedTeknisiId}

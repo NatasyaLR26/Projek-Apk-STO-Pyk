@@ -68,7 +68,7 @@ export default function ModalBASTP({ task, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] overflow-y-auto animate-in fade-in duration-200">
       <div className={`rounded-3xl w-full max-w-4xl border-2 shadow-2xl transition-all max-h-[94vh] flex flex-col ${
         isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
       }`}>

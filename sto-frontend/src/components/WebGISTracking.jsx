@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   MapPin,
-  Plus,
   Search,
   Radio,
   Edit2,
-  Trash2,
-  X
+  Trash2
 } from 'lucide-react';
 import WebGISMap from './WebGISMap';
 import { useTheme } from '../context/ThemeContext';
@@ -16,90 +14,13 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
   const { isDark } = useTheme();
   const {
     odp = [],
-    addOdp,
-    updateOdp,
-    deleteOdp,
-    showToast
+    deleteOdp
   } = useApp();
 
   const [selectedOdpId, setSelectedOdpId] = useState(null);
   const [selectedTugasId, setSelectedTugasId] = useState(initialSelectedTaskId);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  // Modal Tambah / Edit ODP
-  const [showOdpModal, setShowOdpModal] = useState(false);
-  const [editingOdp, setEditingOdp] = useState(null);
-  const [odpForm, setOdpForm] = useState({
-    kode_odp: '',
-    nama_lokasi: '',
-    latitude: -0.2285,
-    longitude: 100.6335,
-    kapasitas_port: 8,
-    port_terpakai: 0,
-    redaman_dbm: -18.5,
-    status: 'Tersedia',
-    keterangan: ''
-  });
-
-  const handleOpenAdd = () => {
-    setEditingOdp(null);
-    setOdpForm({
-      kode_odp: `ODP-PYK-FA/${String(odp.length + 1).padStart(3, '0')}`,
-      nama_lokasi: '',
-      latitude: -0.2285,
-      longitude: 100.6335,
-      kapasitas_port: 8,
-      port_terpakai: 0,
-      redaman_dbm: -18.5,
-      status: 'Tersedia',
-      keterangan: ''
-    });
-    setShowOdpModal(true);
-  };
-
-  const handleOpenEdit = (item) => {
-    setEditingOdp(item);
-    setOdpForm({
-      kode_odp: item.kode_odp,
-      nama_lokasi: item.nama_lokasi,
-      latitude: item.latitude,
-      longitude: item.longitude,
-      kapasitas_port: item.kapasitas_port,
-      port_terpakai: item.port_terpakai,
-      redaman_dbm: item.redaman_dbm,
-      status: item.status,
-      keterangan: item.keterangan || ''
-    });
-    setShowOdpModal(true);
-  };
-
-  const handleSaveOdp = async (e) => {
-    e.preventDefault();
-    if (!odpForm.kode_odp || !odpForm.nama_lokasi) {
-      showToast('Kode ODP dan nama lokasi wajib diisi!', 'error');
-      return;
-    }
-
-    const lat = parseFloat(odpForm.latitude);
-    const lng = parseFloat(odpForm.longitude);
-    const safeLat = (!isNaN(lat) && lat >= -90 && lat <= 90 && (lat !== 0 || lng !== 0)) ? lat : -0.2285;
-    const safeLng = (!isNaN(lng) && lng >= -180 && lng <= 180 && (lat !== 0 || lng !== 0)) ? lng : 100.6335;
-
-    const payload = {
-      ...odpForm,
-      latitude: safeLat,
-      longitude: safeLng
-    };
-
-    if (editingOdp) {
-      await updateOdp(editingOdp.id, payload);
-    } else {
-      await addOdp(payload);
-    }
-
-    setShowOdpModal(false);
-  };
 
   const handleDeleteOdp = (id) => {
     if (window.confirm('Yakin ingin menghapus titik ODP ini dari WebGIS?')) {
@@ -115,13 +36,6 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
     const matchStatus = statusFilter === 'all' || item.status === statusFilter;
     return matchSearch && matchStatus;
   });
-
-  // Event listener untuk tombol Tambah ODP dari Header Utama
-  useEffect(() => {
-    const handleOpenAddEvent = () => handleOpenAdd();
-    window.addEventListener('sto:open-add-odp', handleOpenAddEvent);
-    return () => window.removeEventListener('sto:open-add-odp', handleOpenAddEvent);
-  }, [odp.length]);
 
   // Statistik Geospasial ODP & Okupansi Port
   const totalOdp = odp.length;
@@ -158,11 +72,11 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
           <div className="text-[10px] text-slate-400 mt-0.5">Siap Pasang Baru</div>
         </div>
 
-        {/* Card 3: Port Penuh */}
+        {/* Card 3: ODP Penuh */}
         <div className={`p-3.5 rounded-2xl border transition-all ${
           isDark ? 'bg-slate-950/70 border-rose-950/40 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">PORT PENUH</div>
+          <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">ODP PENUH</div>
           <div className="text-xl sm:text-2xl font-black mt-0.5 text-rose-400 font-mono">{penuhCount} Titik</div>
           <div className="text-[10px] text-slate-400 mt-0.5">Okupansi 100%</div>
         </div>
@@ -184,7 +98,6 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
           onSelectOdp={setSelectedOdpId}
           selectedTugasId={selectedTugasId}
           onSelectTugas={setSelectedTugasId}
-          onOpenAddOdp={handleOpenAdd}
         />
       </div>
 
@@ -328,7 +241,9 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenEdit(point);
+                        if (typeof window.__handleWebGisEditOdp === 'function') {
+                          window.__handleWebGisEditOdp(point.id);
+                        }
                       }}
                       className="min-h-[40px] px-3.5 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition"
                     >
@@ -352,179 +267,6 @@ export default function WebGISTracking({ initialSelectedTaskId = null }) {
           })}
         </div>
       </div>
-
-      {/* Modal Tambah / Edit ODP */}
-      {showOdpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-in fade-in">
-          <div className={`w-full max-w-lg rounded-3xl border p-6 shadow-2xl ${
-            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-blue-600/20 text-blue-500">
-                  <MapPin className="w-5 h-5" />
-                </span>
-                <h3 className="text-base font-bold">
-                  {editingOdp ? 'Edit Titik ODP' : 'Pendaftaran Titik ODP Baru'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowOdpModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveOdp} className="space-y-4 mt-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-400">Kode ODP *</label>
-                  <input
-                    type="text"
-                    required
-                    value={odpForm.kode_odp}
-                    onChange={(e) => setOdpForm({ ...odpForm, kode_odp: e.target.value })}
-                    placeholder="Contoh: ODP-PYK-FA/001"
-                    className={`w-full p-2.5 rounded-xl border ${
-                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                    } focus:outline-none focus:border-blue-500`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1 text-slate-400">Status ODP</label>
-                  <select
-                    value={odpForm.status}
-                    onChange={(e) => setOdpForm({ ...odpForm, status: e.target.value })}
-                    className={`w-full p-2.5 rounded-xl border ${
-                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                    } focus:outline-none focus:border-blue-500`}
-                  >
-                    <option value="Tersedia">Tersedia</option>
-                    <option value="Penuh">Penuh</option>
-                    <option value="Maintenance">Maintenance</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1 text-slate-400">Nama Lokasi / Tiang Distribusi *</label>
-                <input
-                  type="text"
-                  required
-                  value={odpForm.nama_lokasi}
-                  onChange={(e) => setOdpForm({ ...odpForm, nama_lokasi: e.target.value })}
-                  placeholder="Contoh: Jl. Soekarno Hatta No. 14, Koto Nan IV"
-                  className={`w-full p-2.5 rounded-xl border ${
-                    isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  } focus:outline-none focus:border-blue-500`}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-400">Latitude (Koordinat)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    value={odpForm.latitude}
-                    onChange={(e) => setOdpForm({ ...odpForm, latitude: parseFloat(e.target.value) })}
-                    className={`w-full p-2.5 rounded-xl border ${
-                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                    } focus:outline-none focus:border-blue-500`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1 text-slate-400">Longitude (Koordinat)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    value={odpForm.longitude}
-                    onChange={(e) => setOdpForm({ ...odpForm, longitude: parseFloat(e.target.value) })}
-                    className={`w-full p-2.5 rounded-xl border ${
-                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                    } focus:outline-none focus:border-blue-500`}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-400">Kapasitas Port</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={odpForm.kapasitas_port}
-                    onChange={(e) => setOdpForm({ ...odpForm, kapasitas_port: parseInt(e.target.value, 10) })}
-                    className={`w-full p-2.5 rounded-xl border ${
-                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                    } focus:outline-none focus:border-blue-500`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1 text-slate-400">Port Terpakai</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={odpForm.port_terpakai}
-                    onChange={(e) => setOdpForm({ ...odpForm, port_terpakai: parseInt(e.target.value, 10) })}
-                    className={`w-full p-2.5 rounded-xl border ${
-                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                    } focus:outline-none focus:border-blue-500`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1 text-slate-400">Redaman (dBm)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={odpForm.redaman_dbm}
-                    onChange={(e) => setOdpForm({ ...odpForm, redaman_dbm: parseFloat(e.target.value) })}
-                    className={`w-full p-2.5 rounded-xl border ${
-                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                    } focus:outline-none focus:border-blue-500`}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1 text-slate-400">Catatan Jalur Feeder / Keterangan</label>
-                <input
-                  type="text"
-                  value={odpForm.keterangan}
-                  onChange={(e) => setOdpForm({ ...odpForm, keterangan: e.target.value })}
-                  placeholder="Contoh: Jalur Feeder 02 dari Sentral STO"
-                  className={`w-full p-2.5 rounded-xl border ${
-                    isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  } focus:outline-none focus:border-blue-500`}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowOdpModal(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                >
-                  {editingOdp ? 'Simpan Perubahan' : 'Tambahkan ODP'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

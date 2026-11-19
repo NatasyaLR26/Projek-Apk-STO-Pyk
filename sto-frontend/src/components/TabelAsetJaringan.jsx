@@ -197,7 +197,7 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-lg shadow-emerald-950 transition cursor-pointer active:scale-95 whitespace-nowrap"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>+ Tambah ODP</span>
+              <span>Tambah ODP</span>
             </button>
           </div>
         </div>

@@ -273,7 +273,7 @@ export default function KelolaPegawai({
 
       {/* Modal Tambah Pegawai Baru */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto animate-in fade-in">
           <div className={`w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl border ${
             isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           } animate-in zoom-in-95 duration-200`}>
