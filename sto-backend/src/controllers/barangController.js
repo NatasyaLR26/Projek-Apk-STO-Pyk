@@ -18,7 +18,7 @@ exports.getAllBarang = async (req, res) => {
   return successResponse(res, 200, 'Data barang berhasil diambil', barangList, { barang: barangList });
 };
 
-// 2. Tambah master barang baru ke gudang (CRUD Create)
+// 2. Tambah master barang baru ke gudang (CRUD Create dengan Akumulasi Stok jika Nama Barang Sama)
 exports.createBarang = async (req, res) => {
   const { nama_barang, stok, satuan } = req.body;
 
@@ -31,8 +31,41 @@ exports.createBarang = async (req, res) => {
     return errorResponse(res, 400, 'Stok harus berupa angka bilangan bulat non-negatif');
   }
 
+  const cleanName = String(nama_barang).trim();
+
+  // 1. Cek apakah barang dengan nama yang sama persis sudah ada di database (Case-Insensitive)
+  const { data: existingList } = await supabase
+    .from('barang')
+    .select('*')
+    .ilike('nama_barang', cleanName);
+
+  if (existingList && existingList.length > 0) {
+    const existing = existingList[0];
+    const newStok = (Number(existing.stok) || 0) + parsedStok;
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('barang')
+      .update({ stok: newStok, satuan: String(satuan).trim() || existing.satuan })
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if (updateErr) {
+      return errorResponse(res, 500, 'Gagal memperbarui stok barang yang sudah ada', updateErr.message);
+    }
+
+    try {
+      await telegramService.kirimKeGrup(`📦 <b>PENAMBAHAN STOK GUDANG</b>\nBarang: ${telegramService.esc(updated.nama_barang)}\nTambahan: +${parsedStok} ${telegramService.esc(updated.satuan)}\nTotal Stok: ${updated.stok} ${telegramService.esc(updated.satuan)}\nPetugas: Petugas Gudang`);
+    } catch (tgErr) {
+      console.warn('[Telegram Stock Update Notice]', tgErr.message);
+    }
+
+    return successResponse(res, 200, `Stok barang '${updated.nama_barang}' berhasil ditambah (+${parsedStok})`, updated, { barang: updated });
+  }
+
+  // 2. Jika barang benar-benar baru, buat baris baru di Supabase
   const insertPayload = {
-    nama_barang: String(nama_barang).trim(),
+    nama_barang: cleanName,
     stok: parsedStok,
     satuan: String(satuan).trim()
   };

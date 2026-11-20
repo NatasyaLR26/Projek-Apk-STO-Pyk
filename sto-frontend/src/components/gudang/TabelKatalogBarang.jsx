@@ -94,7 +94,21 @@ export default function TabelKatalogBarang({ onNavigateToInputBarang }) {
 
   const filteredBarang = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return barang
+
+    // Deduplikasi jika ada data double dengan nama barang yang sama di database
+    const uniqueMap = new Map();
+    (barang || []).forEach(b => {
+      const cleanName = String(b.nama_barang || '').trim();
+      const key = cleanName.toLowerCase();
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, { ...b, nama_barang: cleanName, stok: Number(b.stok) || 0 });
+      } else {
+        const existing = uniqueMap.get(key);
+        existing.stok += (Number(b.stok) || 0);
+      }
+    });
+
+    return Array.from(uniqueMap.values())
       .map(b => ({
         ...b,
         kategori: resolveKategori(b),

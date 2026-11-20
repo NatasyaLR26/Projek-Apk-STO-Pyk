@@ -234,6 +234,14 @@ export default function InputBarangGudang() {
                 </option>
               </select>
 
+              {/* Info akumulasi otomatis jika memilih material yang sudah ada */}
+              {!isRegisterNew && (
+                <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-semibold mt-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <PackageCheck className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                  <span>Item sudah ada di katalog master — jumlah masuk otomatis diakumulasikan ke stok yang ada tanpa membuat baris ganda.</span>
+                </div>
+              )}
+
               {/* Form Input Baru jika memilih registrasi material baru */}
               {isRegisterNew && (
                 <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5 animate-in fade-in">

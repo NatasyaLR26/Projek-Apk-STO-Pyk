@@ -98,6 +98,30 @@ CREATE TABLE IF NOT EXISTS odp (
 );
 
 
+-- 7. TABEL PELANGGAN (MASTER DATA PELANGGAN PSB, AUDIT ASET ONT, & DEBT COLLECTOR DISMANTLE)
+CREATE TABLE IF NOT EXISTS pelanggan (
+    id BIGSERIAL PRIMARY KEY,
+    id_pelanggan VARCHAR(30) UNIQUE NOT NULL,
+    nama VARCHAR(150) NOT NULL,
+    no_telp VARCHAR(50),
+    alamat TEXT NOT NULL,
+    patokan TEXT,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    odp_id VARCHAR(50),
+    port_odp VARCHAR(10),
+    paket VARCHAR(100),
+    sn_ont VARCHAR(50),
+    model_ont VARCHAR(100),
+    sn_stb VARCHAR(50),
+    tanggal_pasang TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    status_langganan VARCHAR(100) DEFAULT 'Lancar',
+    total_tunggakan VARCHAR(100) DEFAULT 'Rp 0 (Lunas)',
+    foto_rumah TEXT,
+    catatan_kolektor TEXT
+);
+
+
 -- =========================================================================
 -- DATA AWAL (SEED DATA REAL STO PAYAKUMBUH)
 -- =========================================================================

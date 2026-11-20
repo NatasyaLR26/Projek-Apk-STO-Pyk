@@ -325,17 +325,30 @@ export function AppProvider({ children }) {
       }
 
       if (Array.isArray(resBarang.data)) {
+        // Otomatis gabungkan/deduplikasi jika ada data historis yang double di database gudang
+        const deduplicatedMap = new Map();
+        resBarang.data.forEach(item => {
+          const key = String(item.nama_barang || '').trim().toLowerCase();
+          if (!deduplicatedMap.has(key)) {
+            deduplicatedMap.set(key, { ...item, stok: Number(item.stok) || 0 });
+          } else {
+            const existing = deduplicatedMap.get(key);
+            existing.stok += (Number(item.stok) || 0);
+          }
+        });
+        const cleanBarang = Array.from(deduplicatedMap.values());
+
         setBarang((prev) => {
-          if (prev && prev.length === resBarang.data.length) {
+          if (prev && prev.length === cleanBarang.length) {
             const isSame = prev.every((oldB, i) => {
-              const newB = resBarang.data[i];
+              const newB = cleanBarang[i];
               return Number(oldB.id) === Number(newB.id) && Number(oldB.stok) === Number(newB.stok);
             });
             if (isSame) return prev;
           }
-          return resBarang.data;
+          return cleanBarang;
         });
-        if (resBarang.data.length === 0) {
+        if (cleanBarang.length === 0) {
           try {
             localStorage.setItem('sto_barang', '[]');
           } catch {}
@@ -471,6 +484,84 @@ export function AppProvider({ children }) {
         }
       } catch {
         // Tetap gunakan state lokal odp
+      }
+
+      // 8. Sinkronisasi Data Pelanggan (Supabase Cloud + Sintesis Realtime dari Tugas Selesai PSB & Target Audit)
+      try {
+        let dbPelanggan = [];
+        try {
+          const { data: resPelanggan } = await supabase.from('pelanggan').select('*');
+          if (Array.isArray(resPelanggan) && resPelanggan.length > 0) {
+            dbPelanggan = resPelanggan;
+          }
+        } catch {}
+
+        setPelanggan(prev => {
+          const custMap = new Map();
+
+          // a. Masukkan seed data awal (target penarikan aset / debt collector seperti Ibu Siti Aminah dll)
+          initialPelanggan.forEach(p => {
+            custMap.set(String(p.nama || '').trim().toLowerCase(), { ...p });
+          });
+
+          // b. Masukkan data pelanggan dari database Supabase jika ada
+          dbPelanggan.forEach(p => {
+            custMap.set(String(p.nama || '').trim().toLowerCase(), { ...p });
+          });
+
+          // c. Sintesis pelanggan secara real-time dari seluruh tugas di database Supabase
+          if (Array.isArray(resTugas.data)) {
+            resTugas.data.forEach(t => {
+              const cust = parseTaskDetails(t);
+              if (cust.name && cust.name !== 'Pelanggan STO' && cust.name !== 'Pelanggan Telkom') {
+                const key = cust.name.trim().toLowerCase();
+                const isDone = String(t.status || '').toLowerCase() === 'done';
+                const existing = custMap.get(key);
+
+                if (!existing) {
+                  custMap.set(key, {
+                    id: t.id,
+                    id_pelanggan: `112233${String(t.id).padStart(6, '0')}`,
+                    nama: cust.name,
+                    no_telp: cust.telp || '0812-3456-7890',
+                    alamat: cust.address || t.lokasi || 'Payakumbuh',
+                    patokan: cust.note || 'Instalasi pelanggan Telkom Akses',
+                    latitude: t.target_lat || -0.22858,
+                    longitude: t.target_lng || 100.62448,
+                    odp_id: t.odp_id || 'ODP-PYK-FA/001',
+                    port_odp: t.port_odp || '01',
+                    paket: String(t.jenis_kerja || '').includes('Pasang') ? 'IndiHome Fiber 50 Mbps' : 'IndiHome 30 Mbps',
+                    sn_ont: t.sn_ont || (isDone ? `ZTEGC8B90${String(t.id).padStart(3, '0')}` : '-'),
+                    model_ont: 'Modem ONT ZTE F670L Dual Band',
+                    sn_stb: '-',
+                    tanggal_pasang: t.waktu_selesai || t.waktu_buat || '2026-11-20',
+                    status_langganan: isDone ? 'Lancar' : 'Calon Pelanggan (Menunggu Pemasangan)',
+                    total_tunggakan: 'Rp 0 (Lunas)',
+                    foto_rumah: t.foto_bukti || 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80',
+                    catatan_kolektor: isDone ? 'Instalasi selesai & aktif normal.' : 'Dalam proses penugasan teknisi.'
+                  });
+                } else if (isDone && existing.status_langganan?.includes('Calon')) {
+                  existing.status_langganan = 'Lancar';
+                  if (t.sn_ont) existing.sn_ont = t.sn_ont;
+                  if (t.foto_bukti) existing.foto_rumah = t.foto_bukti;
+                  if (t.waktu_selesai) existing.tanggal_pasang = t.waktu_selesai;
+                }
+              }
+            });
+          }
+
+          // d. Pertahankan state local storage jika ada
+          (prev || []).forEach(p => {
+            const key = String(p.nama || '').trim().toLowerCase();
+            if (key && !custMap.has(key)) {
+              custMap.set(key, p);
+            }
+          });
+
+          return Array.from(custMap.values());
+        });
+      } catch (custSyncErr) {
+        console.warn('[Sync Pelanggan Notice]:', custSyncErr);
       }
 
       const timestamp = new Date().toISOString();
@@ -1523,6 +1614,29 @@ export function AppProvider({ children }) {
           ];
         }
       });
+
+      // Simpan data pelanggan PSB ke tabel 'pelanggan' Supabase (Keperluan Audit & Debt Collector STO)
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from('pelanggan').upsert([{
+            id_pelanggan: `112233${String(parsedTugasId).padStart(6, '0')}`,
+            nama: pelangganNama,
+            no_telp: pelangganTelp || '0812-3456-7890',
+            alamat: lokasiAlamat || 'Payakumbuh',
+            sn_ont: snOnt,
+            model_ont: 'Modem ONT ZTE F670L Dual Band',
+            odp_id: odpId,
+            port_odp: portOdp,
+            status_langganan: 'Lancar',
+            tanggal_pasang: formattedDate,
+            total_tunggakan: 'Rp 0 (Lunas)',
+            foto_rumah: proof,
+            catatan_kolektor: 'Instalasi PSB selesai & aktif normal.'
+          }], { onConflict: 'id_pelanggan' });
+        } catch (pelDbErr) {
+          console.info('[Supabase Pelanggan Sync Notice]:', pelDbErr.message);
+        }
+      }
     }
 
     // Update status serial number ONT di penyimpanan lokal agar statusnya otomatis Terpasang
@@ -1540,54 +1654,6 @@ export function AppProvider({ children }) {
     showToast(`Tiket #${parsedTugasId} berhasil diselesaikan! Status ONT ${snOnt} di gudang otomatis menjadi TERPASANG.`, "success");
     return bastpData;
   }, [tugas, barang, currentUser, broadcastLiveSignal, showToast]);
-
-  // CRUD Gudang (Barang)
-  const addBarang = useCallback(async (item) => {
-    const newId = barang.length > 0 ? Math.max(...barang.map(b => Number(b.id) || 0)) + 1 : 1;
-    const newItem = {
-      id: newId,
-      nama_barang: item.nama_barang,
-      stok: parseInt(item.stok, 10) || 0,
-      satuan: item.satuan || "pcs"
-    };
-
-    setBarang(prev => [newItem, ...prev]);
-
-    // 1. Jalur Utama: Sync ke Express Backend API (Express meng-insert ke Supabase & siar ke Telegram)
-    let backendHandled = false;
-    try {
-      const res = await api.post('/barang', newItem);
-      if (res.data?.success) {
-        backendHandled = true;
-        const realId = res.data?.data?.id || res.data?.data?.barang?.id;
-        if (realId) {
-          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: realId } : b));
-        }
-      }
-    } catch (apiErr) {
-      console.warn('[addBarang] Backend API notice:', apiErr.message);
-    }
-
-    // 2. Direct Supabase Fallback (hanya jika Backend API offline untuk mencegah dual-write)
-    if (!backendHandled && isSupabaseConfigured()) {
-      try {
-        const { data } = await supabase.from('barang').insert([{
-          nama_barang: newItem.nama_barang,
-          stok: newItem.stok,
-          satuan: newItem.satuan
-        }]).select();
-
-        if (data && data.length > 0) {
-          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: data[0].id } : b));
-        }
-      } catch (err) {
-        console.warn('Supabase insert barang error:', err);
-      }
-    }
-
-    showToast(`Barang '${item.nama_barang}' berhasil ditambahkan ke inventaris!`, "success");
-    return newItem;
-  }, [barang, showToast]);
 
   const updateBarang = useCallback(async (id, updatedFields) => {
     const parsedId = parseInt(id, 10);
@@ -1662,6 +1728,73 @@ export function AppProvider({ children }) {
 
     showToast(`Stok ${targetItem?.nama_barang || 'barang'} bertambah +${parsedJumlah} ${targetItem?.satuan || 'pcs'}!`, "success");
   }, [showToast]);
+
+  // CRUD Gudang (Barang dengan Pencegahan Duplikasi Item)
+  const addBarang = useCallback(async (item) => {
+    const cleanName = String(item.nama_barang || '').trim();
+    if (!cleanName) return null;
+    const incomingStok = parseInt(item.stok, 10) || 0;
+
+    // 1. Cek apakah barang dengan nama yang sama persis sudah ada di gudang (Case-Insensitive)
+    const existing = barang.find(b => String(b.nama_barang || '').trim().toLowerCase() === cleanName.toLowerCase());
+    if (existing) {
+      // AKUMULASI STOK KE BARANG YANG SUDAH ADA (Cegah Duplikasi Baris di Gudang)
+      const newStok = (Number(existing.stok) || 0) + incomingStok;
+      await updateBarang(existing.id, {
+        stok: newStok,
+        satuan: item.satuan || existing.satuan
+      });
+      showToast(`Stok '${existing.nama_barang}' berhasil ditambah +${incomingStok} ${existing.satuan} (Total sekarang: ${newStok})!`, "success");
+      return { ...existing, stok: newStok };
+    }
+
+    // 2. Jika barang benar-benar baru di katalog master
+    const newId = barang.length > 0 ? Math.max(...barang.map(b => Number(b.id) || 0)) + 1 : 1;
+    const newItem = {
+      id: newId,
+      nama_barang: cleanName,
+      stok: incomingStok,
+      satuan: item.satuan || "pcs",
+      kategori: item.kategori || "Aksesoris"
+    };
+
+    setBarang(prev => [newItem, ...prev]);
+
+    // Jalur Utama: Sync ke Express Backend API (Express meng-insert ke Supabase & siar ke Telegram)
+    let backendHandled = false;
+    try {
+      const res = await api.post('/barang', newItem);
+      if (res.data?.success) {
+        backendHandled = true;
+        const realId = res.data?.data?.id || res.data?.data?.barang?.id;
+        if (realId) {
+          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: realId } : b));
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[addBarang] Backend API notice:', apiErr.message);
+    }
+
+    // Fallback Supabase jika backend offline
+    if (!backendHandled && isSupabaseConfigured()) {
+      try {
+        const { data } = await supabase.from('barang').insert([{
+          nama_barang: newItem.nama_barang,
+          stok: newItem.stok,
+          satuan: newItem.satuan
+        }]).select();
+
+        if (data && data.length > 0) {
+          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: data[0].id } : b));
+        }
+      } catch (err) {
+        console.warn('Supabase insert barang error:', err);
+      }
+    }
+
+    showToast(`Barang '${cleanName}' berhasil ditambahkan ke inventaris!`, "success");
+    return newItem;
+  }, [barang, updateBarang, showToast]);
 
   const deleteBarang = useCallback(async (id) => {
     const parsedId = parseInt(id, 10);
