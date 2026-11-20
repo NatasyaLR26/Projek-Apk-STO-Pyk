@@ -389,8 +389,8 @@ export const initialDetailPermohonan = [
 // Kantor Pusat STO Telkom Akses Payakumbuh - Koto Nan IV (Anchor Point)
 export const STO_COORDINATES = {
   name: "STO Telkom Payakumbuh (Koto Nan IV)",
-  lat: -0.2285,
-  lng: 100.6335,
+  lat: -0.2285823162870437,
+  lng: 100.62448241265695,
   alamat: "Jl. Soekarno Hatta No. 12, Koto Nan IV, Payakumbuh Barat, Kota Payakumbuh, Sumatera Barat 26224"
 };
 
@@ -400,8 +400,8 @@ export const initialOdp = [
     id: 1,
     kode_odp: "ODP-PYK-FA/001",
     nama_lokasi: "Jl. Soekarno Hatta No. 14, Koto Nan IV (Depan STO)",
-    latitude: -0.2285,
-    longitude: 100.6335,
+    latitude: -0.228582,
+    longitude: 100.624482,
     kapasitas_port: 8,
     port_terpakai: 6,
     redaman_dbm: -17.80,

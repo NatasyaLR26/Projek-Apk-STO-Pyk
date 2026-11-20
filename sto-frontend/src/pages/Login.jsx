@@ -52,54 +52,60 @@ export default function Login({ onTriggerSplash }) {
 
     try {
       let loggedInUser = null;
+      const cleanEmail = (email || '').toLowerCase().trim();
+      const cleanPassword = (password || '').trim();
 
-      // 1. Jalur Utama: Autentikasi via Backend API Express (Verifikasi Hash Bcrypt di Server, Bebas Leak Anon Key)
-      try {
-        const response = await api.post('/auth/login', {
-          email: email.toLowerCase().trim(),
-          password: password.trim()
-        });
+      // 1. Verifikasi Cepat di Memori / Cache Lokal (Seketika < 5ms tanpa delay jaringan)
+      const localFound = users.find(
+        (u) => u.email?.toLowerCase().trim() === cleanEmail
+      );
 
-        if (response.data?.success && (response.data?.data?.user || response.data?.user)) {
-          loggedInUser = response.data?.data?.user || response.data?.user;
-        }
-      } catch (backendErr) {
-        if (backendErr.response) {
-          const status = backendErr.response.status;
-          const msg = backendErr.response.data?.message;
-          if (status === 401) {
-            setError(msg || 'Kata sandi yang Anda masukkan salah!');
-            setLoading(false);
-            return;
-          }
-          if (status === 404) {
-            setError(msg || 'Email tidak ditemukan di sistem STO.');
-            setLoading(false);
-            return;
-          }
-          if (status === 400) {
-            setError(msg || 'Email dan kata sandi wajib diisi.');
-            setLoading(false);
-            return;
-          }
-        }
-        console.warn('[Login] Backend auth unreachable, mencoba mode offline:', backendErr.message);
+      if (localFound && String(localFound.password).trim() === cleanPassword) {
+        loggedInUser = localFound;
       }
 
-      // 2. Fallback offline: Verifikasi data lokal jika backend server tidak terjangkau (Offline mode)
+      // 2. Jika belum cocok langsung (misal kata sandi ter-hash di backend), coba API dengan timeout gesit (800ms)
       if (!loggedInUser) {
-        const localFound = users.find(
-          (u) => u.email?.toLowerCase().trim() === email.toLowerCase().trim()
-        );
+        try {
+          const response = await api.post('/auth/login', {
+            email: cleanEmail,
+            password: cleanPassword
+          }, { timeout: 800 });
 
-        if (localFound) {
-          if (String(localFound.password).trim() === String(password).trim()) {
-            loggedInUser = localFound;
-          } else {
-            setError('Kata sandi yang Anda masukkan salah!');
-            setLoading(false);
-            return;
+          if (response.data?.success && (response.data?.data?.user || response.data?.user)) {
+            loggedInUser = response.data?.data?.user || response.data?.user;
           }
+        } catch (backendErr) {
+          if (backendErr.response) {
+            const status = backendErr.response.status;
+            const msg = backendErr.response.data?.message;
+            if (status === 401) {
+              setError(msg || 'Kata sandi yang Anda masukkan salah!');
+              setLoading(false);
+              return;
+            }
+            if (status === 404) {
+              setError(msg || 'Email tidak ditemukan di sistem STO.');
+              setLoading(false);
+              return;
+            }
+            if (status === 400) {
+              setError(msg || 'Email dan kata sandi wajib diisi.');
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      }
+
+      // 3. Fallback evaluasi password lokal jika user ada
+      if (!loggedInUser && localFound) {
+        if (String(localFound.password).trim() === cleanPassword) {
+          loggedInUser = localFound;
+        } else {
+          setError('Kata sandi yang Anda masukkan salah!');
+          setLoading(false);
+          return;
         }
       }
 

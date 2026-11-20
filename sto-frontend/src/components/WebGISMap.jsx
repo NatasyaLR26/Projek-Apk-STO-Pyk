@@ -144,15 +144,24 @@ export function getTaskTypeConfig(jenisKerja = '') {
   };
 }
 
-// Layer Peta Resmi (Google Satellite Hybrid, Carto Voyager, Carto Dark, Esri Topo)
+// Layer Peta Resmi (Google Satellite Hybrid, Esri Satellite + Street Label, Carto Voyager, Carto Dark, Esri Topo)
 const MAP_LAYERS = {
   satellite: {
     id: 'satellite',
     name: 'Satelit Hybrid',
-    desc: 'Citra Satelit & Label Jalan (Google Maps)',
+    desc: 'Citra Satelit & Street Label Jalan (Google Hybrid)',
     url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
     attribution: '&copy; Google Maps Satelit & Label',
     maxZoom: 20
+  },
+  satellite_street_label: {
+    id: 'satellite_street_label',
+    name: 'Satelit + Street Label HD',
+    desc: 'Citra Satelit Esri + Street Label Jalan Transparan',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    labelUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri & OpenStreetMap',
+    maxZoom: 19
   },
   street: {
     id: 'street',
@@ -160,6 +169,14 @@ const MAP_LAYERS = {
     desc: 'Peta Jalan & Bangunan Jelas (Carto Voyager)',
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     attribution: '&copy; CARTO &copy; OpenStreetMap',
+    maxZoom: 19
+  },
+  osm: {
+    id: 'osm',
+    name: 'OpenStreetMap',
+    desc: 'Peta Jalan Lengkap (OSM)',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors',
     maxZoom: 19
   },
   dark: {
@@ -228,6 +245,7 @@ export default function WebGISMap({
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const currentTileLayerRef = useRef(null);
+  const currentLabelLayerRef = useRef(null);
   const layerGroupRef = useRef(null);
   const clusterGroupRef = useRef(null);
   const odpMarkersRef = useRef({});
@@ -249,7 +267,14 @@ export default function WebGISMap({
     showToast
   } = useApp();
 
-  const isPimpinan = currentUser?.role === 'pimpinan';
+  const isPimpinan = currentUser?.role === 'pimpinan' || (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user'));
+      return u?.role === 'pimpinan';
+    } catch {
+      return false;
+    }
+  })();
 
   // Armada Teknisi Lapangan (Live GPS)
   const fieldTechs = useMemo(() => {
@@ -385,6 +410,11 @@ export default function WebGISMap({
 
     if (currentTileLayerRef.current) {
       map.removeLayer(currentTileLayerRef.current);
+      currentTileLayerRef.current = null;
+    }
+    if (currentLabelLayerRef.current) {
+      map.removeLayer(currentLabelLayerRef.current);
+      currentLabelLayerRef.current = null;
     }
 
     const tileLayer = L.tileLayer(config.url, {
@@ -398,6 +428,19 @@ export default function WebGISMap({
     }).addTo(map);
 
     currentTileLayerRef.current = tileLayer;
+
+    // Tambahkan lapisan Street Label transparan jika layer memilikinya
+    if (config.labelUrl) {
+      const labelLayer = L.tileLayer(config.labelUrl, {
+        maxZoom: config.maxZoom || 19,
+        subdomains: 'abcd',
+        keepBuffer: 8,
+        updateWhenIdle: true,
+        crossOrigin: true,
+        zIndex: 650
+      }).addTo(map);
+      currentLabelLayerRef.current = labelLayer;
+    }
   }, []);
 
   // Inisialisasi Peta Leaflet (Aman dari "Map container is already initialized" & Memory Leak)
@@ -418,8 +461,8 @@ export default function WebGISMap({
 
     const initialLayer = localStorage.getItem('sto_selected_map_layer') || 'satellite';
 
-    const safeCenterLat = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lat : -0.2285;
-    const safeCenterLng = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lng : 100.6335;
+    const safeCenterLat = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lat : -0.228582;
+    const safeCenterLng = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lng : 100.624482;
 
     const map = L.map(mapRef.current, {
       center: [safeCenterLat, safeCenterLng],
@@ -457,6 +500,14 @@ export default function WebGISMap({
       if (tempMarkerRef.current && mapInstanceRef.current) {
         mapInstanceRef.current.removeLayer(tempMarkerRef.current);
         tempMarkerRef.current = null;
+      }
+      if (currentLabelLayerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(currentLabelLayerRef.current);
+        currentLabelLayerRef.current = null;
+      }
+      if (currentTileLayerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(currentTileLayerRef.current);
+        currentTileLayerRef.current = null;
       }
       if (layerGroupRef.current) {
         layerGroupRef.current.clearLayers();
@@ -527,10 +578,10 @@ export default function WebGISMap({
 
   // Helper buka modal manual tanpa klik peta (Selalu format 6 digit desimal bertitik)
   const handleOpenManualModal = useCallback(() => {
-    const rawLat = STO_COORDINATES?.lat || -0.2285;
-    const rawLng = STO_COORDINATES?.lng || 100.6335;
-    const safeLat = parseGpsCoord(rawLat, -0.228500).toFixed(6);
-    const safeLng = parseGpsCoord(rawLng, 100.633500).toFixed(6);
+    const rawLat = STO_COORDINATES?.lat || -0.228582;
+    const rawLng = STO_COORDINATES?.lng || 100.624482;
+    const safeLat = parseGpsCoord(rawLat, -0.228582).toFixed(6);
+    const safeLng = parseGpsCoord(rawLng, 100.624482).toFixed(6);
 
     if (tempMarkerRef.current && mapInstanceRef.current) {
       mapInstanceRef.current.removeLayer(tempMarkerRef.current);
@@ -680,8 +731,8 @@ export default function WebGISMap({
 
     setIsSubmittingOdp(true);
     try {
-      const safeLat = parseGpsCoord(pinpointCoords.lat, STO_COORDINATES?.lat || -0.228500);
-      const safeLng = parseGpsCoord(pinpointCoords.lng, STO_COORDINATES?.lng || 100.633500);
+      const safeLat = parseGpsCoord(pinpointCoords.lat, STO_COORDINATES?.lat || -0.228582);
+      const safeLng = parseGpsCoord(pinpointCoords.lng, STO_COORDINATES?.lng || 100.624482);
 
       const rawDbm = parseFloat(String(pinpointForm.redaman_dbm).replace(',', '.')) || -18.5;
       const safeDbm = rawDbm > 0 ? -rawDbm : rawDbm;
@@ -785,8 +836,8 @@ export default function WebGISMap({
     }
 
     // 1. PENANDA KANTOR PUSAT STO TELKOM PAYAKUMBUH (Diferensiasi Merah-Putih & Icon Gedung/Tower)
-    const stoLat = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lat : -0.2285;
-    const stoLng = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lng : 100.6335;
+    const stoLat = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lat : -0.228582;
+    const stoLng = isValidCoord(STO_COORDINATES?.lat, STO_COORDINATES?.lng) ? STO_COORDINATES.lng : 100.624482;
 
     const stoIcon = L.divIcon({
       className: 'custom-sto-icon',
@@ -1364,7 +1415,7 @@ export default function WebGISMap({
         <span>Tiket & Teknisi</span>
       </button>
 
-      {/* 6. Toggle Drawer ODP Wilayah (Lucide FolderTree Icon) */}
+      {/* 6. Toggle Drawer ODP Wilayah (Grouping ODP) */}
       <button
         type="button"
         onClick={() => setShowGroupDrawer(prev => !prev)}
@@ -1373,38 +1424,52 @@ export default function WebGISMap({
             ? 'bg-slate-800 border-amber-500 text-amber-400 ring-1 ring-amber-500/40 shadow-amber-950/40'
             : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
         }`}
-        title="Buka / Tutup Panel Daftar ODP per Wilayah"
+        title="Buka / Tutup Panel Pengelompokan ODP per Wilayah"
       >
         <FolderTree className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-        <span>Wilayah</span>
+        <span>Grouping ODP ({odp.length})</span>
       </button>
 
-      {/* 7. Tombol Pinpoint Peta Langsung (Lucide Crosshair Icon) */}
-      <button
-        type="button"
-        onClick={() => {
-          const nextMode = !isPinpointMode;
-          setIsPinpointMode(nextMode);
-          if (nextMode) {
-            showToast('🎯 Mode Pinpoint Aktif: Klik lokasi pada peta untuk meletakkan titik ODP', 'info');
-          } else {
-            if (tempMarkerRef.current && mapInstanceRef.current) {
-              mapInstanceRef.current.removeLayer(tempMarkerRef.current);
-              tempMarkerRef.current = null;
-            }
-            showToast('Mode Pinpoint dibatalkan', 'info');
-          }
-        }}
-        className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
-          isPinpointMode
-            ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-white ring-2 ring-amber-300 animate-in fade-in'
-            : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
-        }`}
-        title={isPinpointMode ? 'Batalkan Mode Pinpoint (atau tekan tombol Esc)' : 'Tambah ODP: Klik lokasi di peta untuk meletakkan titik ODP baru'}
-      >
-        <Crosshair className={`w-3.5 h-3.5 shrink-0 ${isPinpointMode ? 'text-slate-950' : 'text-emerald-400'}`} />
-        <span>{isPinpointMode ? 'Batal' : 'Tambah ODP'}</span>
-      </button>
+      {/* 7. Tombol Tambah ODP & Form Manual (Pimpinan) */}
+      {isPimpinan && (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              const nextMode = !isPinpointMode;
+              setIsPinpointMode(nextMode);
+              if (nextMode) {
+                showToast('🎯 Mode Pinpoint Aktif: Klik lokasi mana saja di peta untuk meletakkan titik ODP!', 'info');
+              } else {
+                if (tempMarkerRef.current && mapInstanceRef.current) {
+                  mapInstanceRef.current.removeLayer(tempMarkerRef.current);
+                  tempMarkerRef.current = null;
+                }
+                showToast('Mode Pinpoint dibatalkan', 'info');
+              }
+            }}
+            className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
+              isPinpointMode
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-white ring-2 ring-amber-300 animate-pulse'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400'
+            }`}
+            title={isPinpointMode ? 'Batalkan Mode Pinpoint (atau tekan tombol Esc)' : 'Tambah ODP: Klik lokasi di peta untuk meletakkan titik ODP baru'}
+          >
+            <MapPin className={`w-3.5 h-3.5 shrink-0 ${isPinpointMode ? 'text-slate-950' : 'text-white'}`} />
+            <span>{isPinpointMode ? '❌ Batal' : '+ Tambah ODP (Klik Peta)'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenManualModal}
+            className="h-8 flex items-center gap-1.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-bold shadow-lg border border-slate-700 cursor-pointer whitespace-nowrap"
+            title="Input ODP melalui form manual"
+          >
+            <Plus className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <span>Input Form Manual</span>
+          </button>
+        </div>
+      )}
     </>
   );
 
@@ -1426,6 +1491,29 @@ export default function WebGISMap({
       }`}>
         {/* Map Container */}
         <div ref={mapRef} className="w-full h-full z-10" />
+
+        {/* Floating Indicator Banner Saat Mode Pinpoint Aktif */}
+        {isPinpointMode && (
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[400] bg-amber-500 text-slate-950 px-4 py-2 rounded-2xl shadow-2xl border-2 border-white flex items-center gap-2.5 animate-bounce">
+            <Crosshair className="w-4 h-4 text-slate-950 animate-spin" />
+            <span className="text-xs font-extrabold tracking-wide whitespace-nowrap">
+              🎯 Mode Pinpoint Aktif: Klik lokasi mana saja di peta untuk meletakkan titik ODP!
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsPinpointMode(false);
+                if (tempMarkerRef.current && mapInstanceRef.current) {
+                  mapInstanceRef.current.removeLayer(tempMarkerRef.current);
+                  tempMarkerRef.current = null;
+                }
+              }}
+              className="px-2 py-0.5 rounded-lg bg-slate-950 text-white font-bold text-[10px] hover:bg-slate-800 cursor-pointer ml-1"
+            >
+              Batal (Esc)
+            </button>
+          </div>
+        )}
 
         {/* Desktop Top Floating Control Bar (hanya di layar md ke atas, 1 baris horizontal rapi tanpa wrap) */}
         <div className="hidden md:flex absolute top-3 left-3 z-30 items-center gap-2 max-w-[calc(100%-80px)] overflow-x-auto no-scrollbar whitespace-nowrap">
