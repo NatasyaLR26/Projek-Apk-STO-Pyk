@@ -488,7 +488,7 @@ export default function WebGISMap({
 
     applyTileLayer(map, initialLayer);
 
-    L.control.zoom({ position: 'topright' }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     const layerGroup = L.layerGroup().addTo(map);
     layerGroupRef.current = layerGroup;
@@ -1568,13 +1568,13 @@ export default function WebGISMap({
           </div>
         )}
 
-        {/* Desktop Top Floating Control Bar (Tersusun rapi dalam 3 grup kontrol terpadu) */}
-        <div className="hidden md:flex absolute top-3 left-3 z-30 items-center">
+        {/* Desktop Top Floating Control Bar (Bebas tabrakan dengan zoom, rapi & scrollable horizontal jika resolusi sempit) */}
+        <div className="hidden md:flex absolute top-3 left-3 right-14 z-30 items-center overflow-x-auto no-scrollbar pointer-events-auto">
           {renderToolbarControls()}
         </div>
 
-        {/* Kontrol Kanan Atas: Tombol Fullscreen Icon-Only (Grup Vertikal dengan Zoom Leaflet) */}
-        <div className="absolute top-[82px] right-2.5 z-30">
+        {/* Kontrol Kanan Atas: Tombol Fullscreen Icon-Only di Pojok Kanan Atas Bebas Tabrakan */}
+        <div className="absolute top-3 right-3 z-30">
           <button
             type="button"
             onClick={toggleFullscreen}

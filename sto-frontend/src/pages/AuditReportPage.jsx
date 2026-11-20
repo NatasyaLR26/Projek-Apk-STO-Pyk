@@ -300,14 +300,14 @@ export default function AuditReportPage() {
             <table className={`w-full text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'} print-table`}>
               <thead className={`${isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200'} uppercase text-[10px] tracking-wider border-b`}>
                 <tr>
-                  <th className="px-3 py-3 text-center">No Tiket</th>
-                  <th className="px-3 py-3">Waktu Penugasan</th>
-                  <th className="px-3 py-3">Jenis Pekerjaan</th>
-                  <th className="px-3 py-3">Pelanggan & Lokasi</th>
-                  <th className="px-3 py-3">Teknisi</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">No Tiket</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Waktu Penugasan</th>
+                  <th className="px-3 py-3 whitespace-nowrap min-w-[130px]">Jenis Pekerjaan</th>
+                  <th className="px-3 py-3 min-w-[200px]">Pelanggan & Lokasi</th>
+                  <th className="px-3 py-3 whitespace-nowrap">Teknisi</th>
                   <th className="px-3 py-3">Material Terpakai</th>
-                  <th className="px-3 py-3 text-center">Foto Bukti</th>
-                  <th className="px-3 py-3 text-center">Status</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">Foto Bukti</th>
+                  <th className="px-3 py-3 text-center whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
@@ -323,9 +323,10 @@ export default function AuditReportPage() {
                       )}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">
-                      <span className={`whitespace-nowrap inline-flex items-center px-3 py-1 rounded-xl text-[11px] font-bold border shadow-xs tracking-wide ${
+                      <span className={`whitespace-nowrap inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-bold border shadow-xs tracking-wide shrink-0 ${
                         task.jenis_kerja?.toLowerCase().includes('pasang') ? 'bg-blue-600/20 text-blue-400 border-blue-500/40' :
                         (task.jenis_kerja?.toLowerCase().includes('gangguan') || task.jenis_kerja?.toLowerCase().includes('putus')) ? 'bg-rose-600/20 text-rose-400 border-rose-500/40' :
+                        task.jenis_kerja?.toLowerCase().includes('maintenance') ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40' :
                         task.jenis_kerja?.toLowerCase().includes('modem') ? 'bg-amber-600/20 text-amber-400 border-amber-500/40' :
                         'bg-purple-600/20 text-purple-400 border-purple-500/40'
                       }`}>

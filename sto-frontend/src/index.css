@@ -144,10 +144,23 @@ html.light ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-/* Hindari visual glitch / wrapping rusak pada badge inline */
-span[class*="rounded-"] {
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+/* Pastikan badge status/tugas stabil dan tidak pernah wrap/tumpang tindih */
+.badge-no-wrap,
+span.badge-task,
+td span[class*="rounded-"] {
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+/* Utilitas utility scrollbar tersembunyi */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Leaflet Map Controls & Smooth Transition */

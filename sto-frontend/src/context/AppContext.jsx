@@ -37,6 +37,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
 import api from '../api/axiosInstance';
 import { playNotificationChime } from '../utils/soundHelper';
+import { parseTaskDetails } from '../utils/taskFormatter';
 import {
   initialUsers,
   initialBarang,
@@ -486,13 +487,13 @@ export function AppProvider({ children }) {
         // Tetap gunakan state lokal odp
       }
 
-      // 8. Sinkronisasi Data Pelanggan (Supabase Cloud + Sintesis Realtime dari Tugas Selesai PSB & Target Audit)
+      // 8. Sinkronisasi Data Pelanggan (Sintesis Realtime dari Tugas Selesai PSB, Audit Asset, & Cache Lokal)
       try {
         let dbPelanggan = [];
         try {
-          const { data: resPelanggan } = await supabase.from('pelanggan').select('*');
-          if (Array.isArray(resPelanggan) && resPelanggan.length > 0) {
-            dbPelanggan = resPelanggan;
+          const localStoredCust = JSON.parse(localStorage.getItem('sto_data_pelanggan') || '[]');
+          if (Array.isArray(localStoredCust) && localStoredCust.length > 0) {
+            dbPelanggan = localStoredCust;
           }
         } catch {}
 

@@ -58,10 +58,13 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp, hideHeader
     if (jk.includes('gangguan') || jk.includes('putus') || jk.includes('los') || jk.includes('repair') || jk.includes('kabel')) {
       return 'bg-rose-950/60 text-rose-400 border-rose-500/30';
     }
-    if (jk.includes('odp') || jk.includes('maintenance') || jk.includes('feeder')) {
+    if (jk.includes('maintenance')) {
+      return 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30';
+    }
+    if (jk.includes('odp') || jk.includes('feeder')) {
       return 'bg-purple-950/60 text-purple-400 border-purple-500/30';
     }
-    return 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30';
+    return 'bg-slate-800 text-slate-300 border-slate-700';
   };
 
   const getStatusBadge = (status = '') => {
@@ -211,7 +214,7 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp, hideHeader
             <thead className="bg-slate-950/90 text-slate-400 border-b border-rose-950/40 uppercase text-[10px] tracking-wider">
               <tr>
                 <th className="px-3.5 py-3 whitespace-nowrap w-[68px]">ID Tiket</th>
-                <th className="px-3 py-3 whitespace-nowrap w-[115px]">Jenis Pekerjaan</th>
+                <th className="px-3 py-3 whitespace-nowrap min-w-[140px]">Jenis Pekerjaan</th>
                 <th className="px-3.5 py-3 min-w-[180px]">Pelanggan &amp; Lokasi</th>
                 <th className="px-3 py-3 whitespace-nowrap w-[130px]">Teknisi Bertugas</th>
                 <th className="px-3 py-3 text-center whitespace-nowrap w-[100px]">Status</th>
@@ -241,7 +244,7 @@ export default function KelolaTugas({ onOpenCreateModal, onOpenBastp, hideHeader
 
                       {/* Kolom Jenis Pekerjaan */}
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap border tracking-wide ${getTaskTypeBadge(task.jenis_kerja)}`}>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap border tracking-wide shrink-0 ${getTaskTypeBadge(task.jenis_kerja)}`}>
                           {task.jenis_kerja || 'Penugasan'}
                         </span>
                       </td>

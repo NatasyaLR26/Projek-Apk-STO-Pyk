@@ -297,6 +297,55 @@ export default function DashboardTeknisi() {
           {activeMenu === 'tiket' && (
             <div className="space-y-6 animate-in fade-in duration-200">
 
+              {/* Saldo Sisa Material di Mobil Teknisi (Mobile Stock Bebas Clipping) */}
+              {saldoTeknisi && (
+                <div className={`p-4 rounded-3xl border transition-all ${
+                  isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                } flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm`}>
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center justify-center shrink-0">
+                      <Package className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-amber-400 flex items-center gap-2 flex-wrap">
+                        <span>Mobile Stock di Mobil Anda (Sisa Material Sebelumnya)</span>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 font-mono">Tercatat</span>
+                      </div>
+                      <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5 leading-relaxed`}>
+                        Gunakan sisa material di kendaraan sebelum meminta material baru ke gudang STO. Kehilangan material menjadi tanggung jawab teknisi.
+                      </p>
+                    </div>
+                  </div>
+                  {/* Item Material Horizontal Grid 4 Kolom Proporsional Tanpa Terpotong */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs shrink-0 w-full lg:w-auto">
+                    <div className={`px-3 py-2 rounded-xl text-center border ${
+                      isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className="text-[9px] text-slate-400 block whitespace-nowrap">Sisa Dropcore</span>
+                      <strong className="text-emerald-400 font-black whitespace-nowrap">{saldoTeknisi.kabel_m || 0} m</strong>
+                    </div>
+                    <div className={`px-3 py-2 rounded-xl text-center border ${
+                      isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className="text-[9px] text-slate-400 block whitespace-nowrap">Roset FO</span>
+                      <strong className="text-sky-400 font-black whitespace-nowrap">{saldoTeknisi.roset || 0} pcs</strong>
+                    </div>
+                    <div className={`px-3 py-2 rounded-xl text-center border ${
+                      isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className="text-[9px] text-slate-400 block whitespace-nowrap">Fast Conn</span>
+                      <strong className="text-amber-400 font-black whitespace-nowrap">{saldoTeknisi.fast_connector || 0} pcs</strong>
+                    </div>
+                    <div className={`px-3 py-2 rounded-xl text-center border ${
+                      isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <span className="text-[9px] text-slate-400 block whitespace-nowrap">Klem Segitiga</span>
+                      <strong className="text-purple-400 font-black whitespace-nowrap">{saldoTeknisi.klem_segitiga || 0} pcs</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Segmented Tabs untuk Tampilan Mobile (< lg) */}
               <div className="flex lg:hidden items-center p-1 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-inner">
                 <button
