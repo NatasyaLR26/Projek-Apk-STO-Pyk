@@ -53,7 +53,7 @@ html.dark body {
 }
 
 html.light body {
-  background-color: #f8fafc;
+  background-color: #f1f5f9; /* Slate-100 fondasi sejuk, elegan & tidak silau serba putih */
   color: #0f172a;
 }
 
@@ -84,24 +84,26 @@ html.light .text-white:not(
   [class*="bg-black"],
   [class*="bg-linear"],
   [class*="bg-gradient"],
+  [class*="bg-cyan"],
   button:not([class*="bg-white"]):not([class*="bg-slate-100"]):not([class*="bg-slate-50"]),
   .badge
 ) {
   color: #0f172a !important; /* Deep Navy */
 }
 
-html.light .text-slate-100,
-html.light .text-slate-200 {
-  color: #1e293b !important;
+/* Hanya ubah text-slate di container terang, pertahankan kontras elemen gelap/peta */
+html.light :not([class*="bg-slate-8"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]) > .text-slate-100,
+html.light :not([class*="bg-slate-8"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]) > .text-slate-200 {
+  color: #1e293b;
 }
-html.light .text-slate-300 {
-  color: #1e293b !important; /* Slate-800 */
+html.light :not([class*="bg-slate-8"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]) > .text-slate-300 {
+  color: #1e293b; /* Slate-800 */
 }
-html.light .text-slate-400 {
-  color: #475569 !important; /* Slate-600 high contrast */
+html.light :not([class*="bg-slate-8"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]) > .text-slate-400 {
+  color: #475569; /* Slate-600 high contrast */
 }
-html.light .text-slate-500 {
-  color: #334155 !important; /* Slate-700 high contrast */
+html.light :not([class*="bg-slate-8"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-emerald"]) > .text-slate-500 {
+  color: #334155; /* Slate-700 high contrast */
 }
 html.light .text-gray-400 {
   color: #4b5563 !important;
@@ -140,6 +142,12 @@ html.light ::-webkit-scrollbar-thumb {
 }
 html.light ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Hindari visual glitch / wrapping rusak pada badge inline */
+span[class*="rounded-"] {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 /* Leaflet Map Controls & Smooth Transition */

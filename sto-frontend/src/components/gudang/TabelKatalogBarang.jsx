@@ -43,8 +43,8 @@ export default function TabelKatalogBarang({ onNavigateToInputBarang }) {
   ];
 
   const resolveKategori = useCallback((b) => {
-    if (b.kategori && b.kategori !== 'Umum' && b.kategori !== 'Material') {
-      if (b.kategori === 'Perangkat Aktif (ONT)' || b.kategori === 'Perangkat Aktif (CPE / ONT)') {
+    if (b.kategori && b.kategori !== 'Umum' && b.kategori !== 'Material' && b.kategori !== 'Logistik Sentral') {
+      if (b.kategori === 'Perangkat Aktif (ONT)' || b.kategori === 'Perangkat Aktif (CPE / ONT)' || b.kategori === 'Perangkat Aktif') {
         return 'Perangkat Aktif (CPE / ONT)';
       }
       if (b.kategori === 'Perangkat Pasif' || b.kategori === 'Perangkat Pasif (Splitter / Roset)') {
@@ -53,15 +53,42 @@ export default function TabelKatalogBarang({ onNavigateToInputBarang }) {
       return b.kategori;
     }
     const name = (b.nama_barang || '').toLowerCase();
-    if (name.includes('kabel') || name.includes('dropcore') || name.includes('fo') || name.includes('fiber') || name.includes('serat')) {
-      return 'Kabel & Serat Optik';
-    }
-    if (name.includes('ont') || name.includes('modem') || name.includes('zte') || name.includes('huawei') || name.includes('fiberhome') || name.includes('stb') || name.includes('cpe')) {
+    const cat = (b.kategori || '').toLowerCase();
+
+    // 1. Perangkat Aktif ONT
+    if (
+      name.includes('ont') || name.includes('modem') || name.includes('zte') ||
+      name.includes('huawei') || name.includes('fiberhome') || name.includes('stb') ||
+      name.includes('cpe') || cat.includes('aktif') || cat.includes('modem') || cat.includes('ont')
+    ) {
+      if (name.includes('adaptor') || name.includes('adapter') || name.includes('power')) {
+        return 'Consumable & Aksesoris';
+      }
+      if (name.includes('lan') || name.includes('utp')) {
+        return 'Kabel & Serat Optik';
+      }
       return 'Perangkat Aktif (CPE / ONT)';
     }
-    if (name.includes('roset') || name.includes('patchcord') || name.includes('splitter') || name.includes('adapter') || name.includes('odp')) {
+
+    // 2. Perangkat Pasif
+    if (
+      name.includes('roset') || name.includes('splitter') || name.includes('patchcord') ||
+      name.includes('patch cord') || name.includes('pigtail') || name.includes('odp') ||
+      cat.includes('pasif')
+    ) {
       return 'Perangkat Pasif (Splitter / Roset)';
     }
+
+    // 3. Kabel & Serat Optik
+    if (
+      !name.includes('clamp') && !name.includes('klem') && !name.includes('hook') &&
+      (name.includes('kabel') || name.includes('dropcore') || name.includes('drop core') ||
+       name.includes('fo') || name.includes('fiber') || name.includes('serat') ||
+       name.includes('utp') || name.includes('lan') || cat.includes('kabel') || cat.includes('serat'))
+    ) {
+      return 'Kabel & Serat Optik';
+    }
+
     return 'Consumable & Aksesoris';
   }, []);
 

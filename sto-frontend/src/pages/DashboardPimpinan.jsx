@@ -445,97 +445,125 @@ function DashboardPimpinan() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
                 
                 {/* 1. Kolom 1 (Total Operasi) */}
-                <div className="p-3 sm:p-3.5 rounded-xl border bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all flex flex-col justify-between">
+                <div className={`p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                  isDark
+                    ? 'bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
+                    : 'bg-white border-slate-200 shadow-sm'
+                }`}>
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         Total Operasi
                       </span>
-                      <div className="w-6 h-6 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center text-slate-300">
+                      <div className={`w-6 h-6 rounded-lg border flex items-center justify-center ${
+                        isDark ? 'bg-slate-900 border-white/5 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                      }`}>
                         <Layers className="w-3.5 h-3.5" />
                       </div>
                     </div>
-                    <div className="text-2xl sm:text-3xl font-black text-white mt-1 font-mono tracking-tight">
+                    <div className={`text-2xl sm:text-3xl font-black mt-1 font-mono tracking-tight ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
                       {totalTasks}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-2 pt-1.5 border-t border-white/5 text-[10px] font-mono truncate">
-                    <span className="text-blue-400 font-bold">{psbCount} PSB</span>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-rose-400 font-bold">{gangguanCount} Gangguan</span>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-amber-400 font-bold">{otherCount} Lainnya</span>
+                  <div className={`flex items-center gap-1.5 mt-2 pt-1.5 border-t text-[10px] font-mono truncate ${
+                    isDark ? 'border-white/5' : 'border-slate-100'
+                  }`}>
+                    <span className="text-blue-500 font-bold">{psbCount} PSB</span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-rose-500 font-bold">{gangguanCount} Gangguan</span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-amber-500 font-bold">{otherCount} Lainnya</span>
                   </div>
                 </div>
 
                 {/* 2. Kolom 2 (Tiket Dalam Proses / Operasi Berjalan) */}
-                <div className="p-3 sm:p-3.5 rounded-xl border bg-slate-950/70 backdrop-blur-xl border-blue-950/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all flex flex-col justify-between">
+                <div className={`p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                  isDark
+                    ? 'bg-slate-950/70 backdrop-blur-xl border-blue-950/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
+                    : 'bg-blue-50/70 border-blue-200/80 shadow-sm'
+                }`}>
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider">
                         Tiket Dalam Proses
                       </span>
-                      <div className="w-6 h-6 rounded-lg bg-blue-950/60 border border-blue-500/30 text-blue-400 flex items-center justify-center shadow-[0_0_8px_rgba(59,130,246,0.2)]">
+                      <div className="w-6 h-6 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-500 dark:text-blue-400 flex items-center justify-center shadow-[0_0_8px_rgba(59,130,246,0.2)]">
                         <Clock className="w-3.5 h-3.5" />
                       </div>
                     </div>
-                    <div className="text-2xl sm:text-3xl font-black text-blue-400 mt-1 font-mono tracking-tight">
+                    <div className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 mt-1 font-mono tracking-tight">
                       {progressTasks}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 mt-2 pt-1.5 border-t border-white/5 text-[10px]">
+                  <div className={`flex items-center gap-1 mt-2 pt-1.5 border-t text-[10px] ${
+                    isDark ? 'border-white/5' : 'border-blue-200/60'
+                  }`}>
                     <span className="relative flex h-1.5 w-1.5 mr-0.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                     </span>
-                    <span className="text-emerald-400 font-bold font-mono">{activeTechCount} Teknisi</span>
-                    <span className="text-slate-400">On-Duty</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">{activeTechCount} Teknisi</span>
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>On-Duty</span>
                   </div>
                 </div>
 
                 {/* 3. Kolom 3 (Tiket Selesai / QC Passed) */}
-                <div className="p-3 sm:p-3.5 rounded-xl border bg-slate-950/70 backdrop-blur-xl border-emerald-950/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all flex flex-col justify-between">
+                <div className={`p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                  isDark
+                    ? 'bg-slate-950/70 backdrop-blur-xl border-emerald-950/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
+                    : 'bg-emerald-50/70 border-emerald-200/80 shadow-sm'
+                }`}>
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                         Tiket Selesai (QC Passed)
                       </span>
-                      <div className="w-6 h-6 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                      <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-[0_0_8px_rgba(16,185,129,0.2)]">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </div>
                     </div>
-                    <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-1 font-mono tracking-tight">
+                    <div className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-mono tracking-tight">
                       {doneTasks}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/5 text-[10px]">
-                    <span className="text-slate-400">Kepatuhan Redaman:</span>
-                    <span className="font-mono font-bold text-cyan-400">{attenuationPercent}% Optimal</span>
+                  <div className={`flex items-center justify-between mt-2 pt-1.5 border-t text-[10px] ${
+                    isDark ? 'border-white/5' : 'border-emerald-200/60'
+                  }`}>
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Kepatuhan Redaman:</span>
+                    <span className="font-mono font-bold text-teal-600 dark:text-cyan-400">{attenuationPercent}% Optimal</span>
                   </div>
                 </div>
 
                 {/* 4. Kolom 4 (Pending Otorisasi / Menunggu Persetujuan) */}
                 <div
                   onClick={() => handleSetActiveMenu('approval')}
-                  className="p-3 sm:p-3.5 rounded-xl border bg-slate-950/70 backdrop-blur-xl border-amber-500/40 hover:border-amber-400 shadow-[0_8px_30px_rgba(0,0,0,0.35)] hover:shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+                  className={`p-3 sm:p-3.5 rounded-xl border hover:scale-[1.02] transition-all duration-300 cursor-pointer group flex flex-col justify-between ${
+                    isDark
+                      ? 'bg-slate-950/70 backdrop-blur-xl border-amber-500/40 hover:border-amber-400 shadow-[0_8px_30px_rgba(0,0,0,0.35)] hover:shadow-[0_0_20px_rgba(245,158,11,0.25)]'
+                      : 'bg-amber-50/70 border-amber-200/80 hover:border-amber-400 shadow-sm hover:shadow-md'
+                  }`}
                   title="Klik untuk meninjau permohonan material teknisi"
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider group-hover:text-amber-300 transition">
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider group-hover:text-amber-500 transition">
                         Pending Otorisasi
                       </span>
-                      <div className="w-6 h-6 rounded-lg bg-amber-950/60 border border-amber-500/30 text-amber-400 flex items-center justify-center shadow-[0_0_8px_rgba(245,158,11,0.25)] group-hover:scale-110 transition">
+                      <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-[0_0_8px_rgba(245,158,11,0.25)] group-hover:scale-110 transition">
                         <AlertTriangle className="w-3.5 h-3.5" />
                       </div>
                     </div>
-                    <div className="text-2xl sm:text-3xl font-black text-amber-400 mt-1 font-mono tracking-tight group-hover:text-amber-300 transition">
+                    <div className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 mt-1 font-mono tracking-tight group-hover:text-amber-500 transition">
                       {pendingRequests}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/5 text-[10px]">
-                    <span className="text-slate-400">Status Permohonan:</span>
-                    <span className="font-bold text-amber-300 flex items-center gap-1 group-hover:underline">
+                  <div className={`flex items-center justify-between mt-2 pt-1.5 border-t text-[10px] ${
+                    isDark ? 'border-white/5' : 'border-amber-200/60'
+                  }`}>
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Status Permohonan:</span>
+                    <span className="font-bold text-amber-600 dark:text-amber-300 flex items-center gap-1 group-hover:underline">
                       <span>{pendingRequests > 0 ? 'Perlu Tindakan' : 'Semua Clear'}</span>
                       <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                     </span>
@@ -559,17 +587,21 @@ function DashboardPimpinan() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start">
                 
                 {/* KOLOM KIRI (65% ~ 8/12): Log Penugasan Terkini (Fixed-Width Table) */}
-                <div className="lg:col-span-8 p-3.5 sm:p-4 rounded-2xl border bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)] space-y-2.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                <div className={`lg:col-span-8 p-3.5 sm:p-4 rounded-2xl border space-y-2.5 ${
+                  isDark
+                    ? 'bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
+                    : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-rose-500" />
-                      <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide">
+                      <h2 className={`text-xs sm:text-sm font-bold tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         LOG PENUGASAN TERKINI
                       </h2>
                     </div>
                     <button
                       onClick={() => handleSetActiveMenu('laporan-kerja')}
-                      className="text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 transition cursor-pointer"
+                      className="text-xs text-rose-500 hover:text-rose-600 font-bold flex items-center gap-1 transition cursor-pointer"
                     >
                       <span>Lihat Semua</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -577,9 +609,11 @@ function DashboardPimpinan() {
                   </div>
 
                   {/* Tampilan Desktop: Table (hidden di mobile, tampil di md:block) */}
-                  <div className="hidden md:block w-full overflow-hidden rounded-xl border border-white/5">
-                    <table className="w-full table-fixed text-left text-xs text-slate-300">
-                      <thead className="bg-slate-950/90 text-slate-400 border-b border-rose-950/40 uppercase text-[10px] tracking-wider">
+                  <div className={`hidden md:block w-full overflow-hidden rounded-xl border ${isDark ? 'border-white/5' : 'border-slate-200'}`}>
+                    <table className={`w-full table-fixed text-left text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <thead className={`${
+                        isDark ? 'bg-slate-950/90 text-slate-400 border-rose-950/40' : 'bg-slate-100 text-slate-700 border-slate-200'
+                      } border-b uppercase text-[10px] tracking-wider`}>
                         <tr>
                           <th className="px-2.5 py-2 font-bold w-[24%]">ID &amp; Pekerjaan</th>
                           <th className="px-2.5 py-2 font-bold w-[44%]">Informasi Pelanggan &amp; Alamat</th>
@@ -587,7 +621,7 @@ function DashboardPimpinan() {
                           <th className="px-1.5 py-2 text-center font-bold w-[12%]">Status &amp; BASTP</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-rose-950/20">
+                      <tbody className={`divide-y ${isDark ? 'divide-rose-950/20' : 'divide-slate-200'}`}>
                         {tugas.slice(0, 5).map(t => {
                           const tech = users.find(u => Number(u.id) === Number(t.teknisi_id));
                           const cust = parseTelecomTaskDetails(t);
@@ -596,14 +630,14 @@ function DashboardPimpinan() {
                           const taskTypeCfg = getTaskTypeConfig(t.jenis_kerja);
 
                           return (
-                            <tr key={t.id} className="hover:bg-rose-950/10 transition-colors">
+                            <tr key={t.id} className={`${isDark ? 'hover:bg-rose-950/10' : 'hover:bg-slate-50'} transition-colors`}>
                               {/* Kolom 1: ID Tiket & Jenis Pekerjaan */}
                               <td className="px-2.5 py-2">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <span className="font-mono font-black text-rose-500 text-xs shrink-0">
                                     #{t.id}
                                   </span>
-                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-bold border tracking-wide truncate ${taskTypeCfg.badgeBg}`}>
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-bold border tracking-wide whitespace-nowrap shrink-0 ${taskTypeCfg.badgeBg}`}>
                                     {taskTypeCfg.badgeText}
                                   </span>
                                 </div>
@@ -612,10 +646,10 @@ function DashboardPimpinan() {
                               {/* Kolom 2: Informasi Pelanggan & Alamat (Diparsing Bersih Tanpa Duplikasi) */}
                               <td className="px-2.5 py-2">
                                 <div className="space-y-0.5 min-w-0">
-                                  <div className="font-semibold text-slate-100 text-xs truncate">
+                                  <div className={`font-semibold text-xs truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                                     <span>{cust.name}</span>
                                     {cust.telp && (
-                                      <span className="text-[10px] text-slate-400 font-mono font-normal ml-1">
+                                      <span className={`text-[10px] font-mono font-normal ml-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                         • {cust.telp}
                                       </span>
                                     )}
@@ -774,32 +808,38 @@ function DashboardPimpinan() {
                 </div>
 
                 {/* KOLOM KANAN (35% ~ 4/12): Status Penugasan Tim Teknisi */}
-                <div className="lg:col-span-4 p-3.5 sm:p-4 rounded-2xl border bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)] space-y-2.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                <div className={`lg:col-span-4 p-3.5 sm:p-4 rounded-2xl border space-y-2.5 ${
+                  isDark
+                    ? 'bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
+                    : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-rose-500" />
-                      <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide">
+                      <h2 className={`text-xs sm:text-sm font-bold tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         Status Tim Teknisi
                       </h2>
                     </div>
 
                     <button
                       onClick={() => handleSetActiveMenu('tracking')}
-                      className="px-2 py-0.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 hover:border-rose-400 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
+                      className="px-2 py-0.5 rounded-lg bg-rose-600/10 hover:bg-rose-600/20 text-rose-500 border border-rose-500/30 hover:border-rose-400 text-[10px] font-bold flex items-center gap-1 transition cursor-pointer"
                     >
-                      <MapPin className="w-3 h-3 text-rose-400" />
+                      <MapPin className="w-3 h-3 text-rose-500" />
                       <span>Peta Sebaran ODP</span>
                     </button>
                   </div>
 
                   {/* Bagian Atas: Teknisi Aktif Lapangan (On-Duty) */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400">
                       <span>Teknisi Aktif ({activeTechAssignments.length})</span>
                     </div>
 
                     {activeTechAssignments.length === 0 ? (
-                      <div className="p-2.5 rounded-xl bg-slate-900/50 border border-white/5 text-[10px] text-slate-400 italic text-center">
+                      <div className={`p-2.5 rounded-xl border text-[10px] italic text-center ${
+                        isDark ? 'bg-slate-900/50 border-white/5 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
+                      }`}>
                         Tidak ada teknisi aktif di lapangan saat ini.
                       </div>
                     ) : (
@@ -810,7 +850,11 @@ function DashboardPimpinan() {
                         return (
                           <div
                             key={tech.id}
-                            className="p-2 rounded-xl bg-slate-900/60 border border-white/5 hover:border-blue-500/30 transition-all flex flex-col gap-1"
+                            className={`p-2 rounded-xl border transition-all flex flex-col gap-1 ${
+                              isDark
+                                ? 'bg-slate-900/60 border-white/5 hover:border-blue-500/30'
+                                : 'bg-slate-50 border-slate-200 hover:border-blue-300'
+                            }`}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1.5">
@@ -818,7 +862,7 @@ function DashboardPimpinan() {
                                   {tech.nama_lengkap?.charAt(0) || 'T'}
                                 </div>
                                 <div className="leading-tight">
-                                  <div className="text-[11px] font-bold text-white">{tech.nama_lengkap}</div>
+                                  <div className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tech.nama_lengkap}</div>
                                   <div className="text-[9px] text-slate-400 font-mono">Tiket #{currentTask.id}</div>
                                 </div>
                               </div>
@@ -827,16 +871,18 @@ function DashboardPimpinan() {
                               </span>
                             </div>
 
-                            <div className="text-[10px] text-slate-300 flex items-center gap-1 truncate">
+                            <div className={`text-[10px] flex items-center gap-1 truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                               <MapPin className="w-2.5 h-2.5 text-rose-500 shrink-0" />
                               <span className="truncate" title={cust.address}>{cust.address}</span>
                             </div>
 
-                            <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                            <div className={`flex items-center justify-between pt-1 border-t ${isDark ? 'border-white/5' : 'border-slate-200'}`}>
                               <button
                                 type="button"
                                 onClick={() => setSelectedTechnician(tech)}
-                                className="text-[9px] text-slate-400 hover:text-white transition flex items-center gap-1 cursor-pointer"
+                                className={`text-[9px] transition flex items-center gap-1 cursor-pointer ${
+                                  isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                                }`}
                               >
                                 <User className="w-2.5 h-2.5" />
                                 <span>Detail</span>
@@ -860,8 +906,8 @@ function DashboardPimpinan() {
                   </div>
 
                   {/* Bagian Bawah: Teknisi Siaga / Posko (Standby) */}
-                  <div className="space-y-1.5 pt-1.5 border-t border-white/5">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                  <div className={`space-y-1.5 pt-1.5 border-t ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
                       <span>Siaga di Posko ({idleTechnicians.length})</span>
                     </div>
 
@@ -876,14 +922,20 @@ function DashboardPimpinan() {
                             key={tech.id}
                             type="button"
                             onClick={() => setSelectedTechnician(tech)}
-                            className="px-2 py-0.5 rounded-lg bg-slate-900/60 hover:bg-slate-900 border border-white/5 hover:border-emerald-500/30 transition flex items-center gap-1.5 cursor-pointer group"
+                            className={`px-2 py-0.5 rounded-lg border transition flex items-center gap-1.5 cursor-pointer group ${
+                              isDark
+                                ? 'bg-slate-900/60 hover:bg-slate-900 border-white/5 hover:border-emerald-500/30'
+                                : 'bg-slate-100 hover:bg-slate-200 border-slate-200'
+                            }`}
                             title={tech.nama_lengkap}
                           >
                             <span className="relative flex h-1.5 w-1.5">
                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                             </span>
-                            <span className="text-[10px] font-semibold text-slate-300 group-hover:text-white transition truncate max-w-[120px]">
+                            <span className={`text-[10px] font-semibold transition truncate max-w-[120px] ${
+                              isDark ? 'text-slate-300 group-hover:text-white' : 'text-slate-700'
+                            }`}>
                               {getTechDisplayName(tech, fieldTechnicians)}
                             </span>
                           </button>

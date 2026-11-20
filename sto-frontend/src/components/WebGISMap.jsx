@@ -21,6 +21,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 import { parseTaskDetails } from '../utils/taskFormatter';
 import {
   Layers,
@@ -252,6 +253,7 @@ export default function WebGISMap({
   const taskMarkersRef = useRef({});
   const tempMarkerRef = useRef(null);
 
+  const { isDark } = useTheme();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isClusterMode, setIsClusterMode] = useState(true);
 
@@ -469,7 +471,11 @@ export default function WebGISMap({
       zoom: 14,
       preferCanvas: true, // Optimasi performa render canvas untuk puluhan/ratusan marker ODP & vector
       zoomControl: false,
-      scrollWheelZoom: false, // Cegah scroll trap agar scrolling halaman ke tabel di bawah berjalan mulus
+      scrollWheelZoom: true, // Zoom responsif dengan scroll/mouse wheel
+      doubleClickZoom: true, // Zoom dengan double-click
+      touchZoom: true, // Zoom dengan pinch layar sentuh / touchpad
+      boxZoom: true,
+      keyboard: true,
       attributionControl: false
     });
 
@@ -1291,186 +1297,233 @@ export default function WebGISMap({
   }, [selectedTugasId, tugas]);
 
   // Render Toolbar Kontrol Peta (Dapat digunakan di dalam map untuk desktop & di luar map untuk mobile)
+  // Render Toolbar Kontrol Peta (Dikelompokkan rapi, elegan, adaptif Light/Dark Mode)
   const renderToolbarControls = () => (
-    <>
-      {/* 1. Dropdown Layer: Satelit Hybrid */}
-      <div className="relative">
+    <div className="flex flex-wrap items-center gap-2">
+      {/* KELOMPOK 1: LAPISAN PETA & FILTER STATUS ODP */}
+      <div className="flex items-center gap-1.5">
+        {/* Dropdown Layer Peta */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowLayerPicker(!showLayerPicker)}
+            className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl text-xs font-bold border shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap ${
+              isDark
+                ? 'bg-slate-900/90 hover:bg-slate-800 text-white border-slate-700/80'
+                : 'bg-white/95 hover:bg-slate-50 text-slate-800 border-slate-200'
+            }`}
+            title="Ganti Lapisan Peta"
+          >
+            <Layers className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+            <span>{MAP_LAYERS[activeLayerId]?.name?.replace('Satelit Hybrid', 'Satelit') || 'Peta'}</span>
+            <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+          </button>
+
+          {showLayerPicker && (
+            <div className={`absolute top-10 left-0 w-56 rounded-2xl border shadow-2xl p-2 text-xs space-y-1 z-50 animate-in fade-in zoom-in-95 ${
+              isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
+            }`}>
+              <div className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                isDark ? 'text-slate-400' : 'text-slate-500'
+              }`}>
+                Pilih Tampilan Peta
+              </div>
+              {Object.values(MAP_LAYERS).map((layer) => (
+                <button
+                  key={layer.id}
+                  type="button"
+                  onClick={() => {
+                    switchBaseLayer(layer.id);
+                    setShowLayerPicker(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition ${
+                    activeLayerId === layer.id
+                      ? 'bg-rose-600 text-white font-bold'
+                      : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div>
+                    <div className="font-semibold">{layer.name}</div>
+                    <div className="text-[10px] opacity-75">{layer.desc}</div>
+                  </div>
+                  {activeLayerId === layer.id && <Check className="w-4 h-4 shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Dropdown Filter Status ODP */}
+        <div className={`h-8 flex items-center rounded-xl border px-2 text-xs shadow-md ${
+          isDark ? 'bg-slate-900/90 border-slate-700/80 text-white' : 'bg-white/95 border-slate-200 text-slate-800'
+        }`}>
+          <Filter className="w-3.5 h-3.5 mr-1 text-slate-400 shrink-0" />
+          <select
+            value={odpStatusFilter}
+            onChange={(e) => setOdpStatusFilter(e.target.value)}
+            className={`text-xs pr-1 py-0.5 focus:outline-none cursor-pointer font-bold border-none ${
+              isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'
+            }`}
+          >
+            <option value="all">Semua Status</option>
+            <option value="Tersedia" className="text-emerald-500 font-bold">Tersedia</option>
+            <option value="Penuh" className="text-rose-500 font-bold">Penuh</option>
+            <option value="Maintenance" className="text-amber-500 font-bold">Maintenance</option>
+          </select>
+        </div>
+      </div>
+
+      {/* KELOMPOK 2: SEGMENTED CONTROL LAPISAN (Cluster | ODP | Tiket) */}
+      <div className={`flex items-center rounded-xl p-0.5 border shadow-md backdrop-blur-md ${
+        isDark ? 'bg-slate-900/90 border-slate-700/80' : 'bg-white/95 border-slate-200'
+      }`}>
+        {/* Toggle Cluster */}
         <button
           type="button"
-          onClick={() => setShowLayerPicker(!showLayerPicker)}
-          className="h-8 flex items-center gap-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-lg border border-slate-700 cursor-pointer transition active:scale-95 whitespace-nowrap"
-          title="Ganti Tampilan Peta"
+          onClick={() => {
+            setIsClusterMode(prev => {
+              const next = !prev;
+              showToast(next ? '🎯 Mode Cluster Aktif' : '📍 Mode Titik Individual Aktif', 'info');
+              return next;
+            });
+          }}
+          className={`h-7 px-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+            isClusterMode
+              ? isDark
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                : 'bg-cyan-50 text-cyan-700 border border-cyan-300'
+              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
+          }`}
+          title={isClusterMode ? 'Nonaktifkan Cluster' : 'Aktifkan Pengelompokan Cluster'}
         >
-          <Layers className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-          <span>{MAP_LAYERS[activeLayerId]?.name || 'Satelit Hybrid'}</span>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <Network className="w-3 h-3 text-cyan-400 shrink-0" />
+          <span>Cluster</span>
         </button>
 
-        {/* Layer Switcher Dropdown */}
-        {showLayerPicker && (
-          <div className="absolute top-10 left-0 w-56 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-2 text-xs space-y-1 z-50 animate-in fade-in zoom-in-95">
-            <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Pilih Tampilan Peta
-            </div>
-            {Object.values(MAP_LAYERS).map((layer) => (
-              <button
-                key={layer.id}
-                type="button"
-                onClick={() => {
-                  switchBaseLayer(layer.id);
-                  setShowLayerPicker(false);
-                }}
-                className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition ${
-                  activeLayerId === layer.id
-                    ? 'bg-rose-600 text-white font-bold'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <div>
-                  <div className="font-semibold">{layer.name}</div>
-                  <div className="text-[10px] opacity-75">{layer.desc}</div>
-                </div>
-                {activeLayerId === layer.id && <Check className="w-4 h-4 shrink-0" />}
-              </button>
-            ))}
+        <div className={`w-px h-3.5 mx-0.5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+
+        {/* Toggle ODP */}
+        <button
+          type="button"
+          onClick={() => {
+            setShowOdpPoints(prev => {
+              const next = !prev;
+              showToast(next ? '📍 Titik ODP ditampilkan' : 'Titik ODP disembunyikan', 'info');
+              return next;
+            });
+          }}
+          className={`h-7 px-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+            showOdpPoints
+              ? isDark
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
+          }`}
+          title={showOdpPoints ? 'Sembunyikan ODP' : 'Tampilkan Titik ODP'}
+        >
+          <Radio className="w-3 h-3 text-emerald-400 shrink-0" />
+          <span>ODP</span>
+        </button>
+
+        <div className={`w-px h-3.5 mx-0.5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+
+        {/* Toggle Tiket & Teknisi */}
+        <button
+          type="button"
+          onClick={() => {
+            setShowTasks(prev => {
+              const next = !prev;
+              showToast(next ? '👷 Layer Tiket & Teknisi ditampilkan' : 'Layer Tiket & Teknisi disembunyikan', 'info');
+              return next;
+            });
+          }}
+          className={`h-7 px-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+            showTasks
+              ? isDark
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                : 'bg-blue-50 text-blue-700 border border-blue-300'
+              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
+          }`}
+          title={showTasks ? 'Sembunyikan Tiket & Teknisi' : 'Tampilkan Tiket & Teknisi'}
+        >
+          <User className="w-3 h-3 text-blue-400 shrink-0" />
+          <span>Tiket</span>
+        </button>
+      </div>
+
+      {/* KELOMPOK 3: DRAWER WILAYAH & PINPOINT ODP (LOGO KECIL JELAS) */}
+      <div className="flex items-center gap-1.5">
+        {/* Drawer Grouping Wilayah */}
+        <button
+          type="button"
+          onClick={() => setShowGroupDrawer(prev => !prev)}
+          className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl text-xs font-bold border shadow-md transition active:scale-95 cursor-pointer whitespace-nowrap ${
+            showGroupDrawer
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+              : isDark
+              ? 'bg-slate-900/90 text-slate-300 border-slate-700/80 hover:bg-slate-800'
+              : 'bg-white/95 text-slate-700 border-slate-200 hover:bg-slate-50'
+          }`}
+          title="Buka / Tutup Panel Pengelompokan ODP per Wilayah"
+        >
+          <FolderTree className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>Wilayah ({odp.length})</span>
+        </button>
+
+        {/* Pinpoint ODP & Form Manual untuk Pimpinan */}
+        {isPimpinan && (
+          <div className={`flex items-center rounded-xl p-0.5 border shadow-md ${
+            isDark ? 'bg-slate-900/90 border-slate-700/80' : 'bg-white/95 border-slate-200'
+          }`}>
+            {/* Tombol Pinpoint Klik Peta (Logo kecil namun jelas) */}
+            <button
+              type="button"
+              onClick={() => {
+                const nextMode = !isPinpointMode;
+                setIsPinpointMode(nextMode);
+                if (nextMode) {
+                  showToast('🎯 Mode Pinpoint: Klik lokasi di peta untuk meletakkan titik ODP', 'info');
+                } else {
+                  if (tempMarkerRef.current && mapInstanceRef.current) {
+                    mapInstanceRef.current.removeLayer(tempMarkerRef.current);
+                    tempMarkerRef.current = null;
+                  }
+                  showToast('Mode Pinpoint dibatalkan', 'info');
+                }
+              }}
+              className={`h-7 px-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                isPinpointMode
+                  ? 'bg-amber-500 text-slate-950 shadow-sm animate-pulse'
+                  : isDark
+                  ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-600/50'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100'
+              }`}
+              title={isPinpointMode ? 'Batalkan Pinpoint (Esc)' : 'Tambah ODP: Klik peta untuk letakkan titik baru'}
+            >
+              <MapPin className={`w-3.5 h-3.5 shrink-0 ${isPinpointMode ? 'text-slate-950' : 'text-emerald-500'}`} />
+              <span>{isPinpointMode ? 'Batal' : '+ Pinpoint'}</span>
+            </button>
+
+            <div className={`w-px h-3.5 mx-0.5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+
+            {/* Tombol Form Manual */}
+            <button
+              type="button"
+              onClick={handleOpenManualModal}
+              className={`h-7 px-2 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                isDark
+                  ? 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title="Input ODP Manual via Formulir"
+            >
+              <Plus className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span>Manual</span>
+            </button>
           </div>
         )}
       </div>
-
-      {/* 2. Filter Status Dropdown (Solid Opaque, Zero Text Leak) */}
-      <div className="h-8 flex items-center bg-slate-900 rounded-xl border border-slate-700 px-2.5 text-xs text-white shadow-lg">
-        <Filter className="w-3.5 h-3.5 mr-1.5 text-slate-400 shrink-0" />
-        <select
-          value={odpStatusFilter}
-          onChange={(e) => setOdpStatusFilter(e.target.value)}
-          className="bg-slate-900 text-xs text-white pr-2 py-0.5 focus:outline-none cursor-pointer font-bold border-none"
-        >
-          <option value="all" className="bg-slate-900 text-white">Filter Status</option>
-          <option value="Tersedia" className="bg-slate-900 text-emerald-400">ODP Tersedia</option>
-          <option value="Penuh" className="bg-slate-900 text-rose-400">ODP Port Penuh</option>
-          <option value="Maintenance" className="bg-slate-900 text-amber-400">ODP Maintenance</option>
-        </select>
-      </div>
-
-      {/* 3. Toggle Cluster/Grouping (Lucide Layers Icon) */}
-      <button
-        type="button"
-        onClick={() => {
-          setIsClusterMode(prev => {
-            const next = !prev;
-            showToast(next ? '🎯 Mode Cluster Aktif: Titik ODP berdekatan dilebur menjadi bubble cluster' : '📍 Mode Cluster Nonaktif: Menampilkan semua titik ODP secara individual', 'info');
-            return next;
-          });
-        }}
-        className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
-          isClusterMode
-            ? 'bg-cyan-950/80 border-cyan-500/60 text-cyan-400 ring-1 ring-cyan-500/40 shadow-cyan-950/40'
-            : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
-        }`}
-        title="Aktifkan/Nonaktifkan Pengelompokan Cluster Titik ODP di Peta"
-      >
-        <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-        <span>Cluster</span>
-      </button>
-
-      {/* 4. Toggle Layer Titik ODP */}
-      <button
-        type="button"
-        onClick={() => {
-          setShowOdpPoints(prev => {
-            const next = !prev;
-            showToast(next ? '📍 Layer Titik ODP ditampilkan' : 'Layer Titik ODP disembunyikan', 'info');
-            return next;
-          });
-        }}
-        className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
-          showOdpPoints
-            ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-400 ring-1 ring-emerald-500/40 shadow-emerald-950/40'
-            : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
-        }`}
-        title={showOdpPoints ? 'Sembunyikan Layer ODP' : 'Tampilkan Layer ODP'}
-      >
-        <Radio className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-        <span>ODP</span>
-      </button>
-
-      {/* 5. Toggle Layer Tiket & Teknisi */}
-      <button
-        type="button"
-        onClick={() => {
-          setShowTasks(prev => {
-            const next = !prev;
-            showToast(next ? '👷 Layer Tiket & Teknisi ditampilkan' : 'Layer Tiket & Teknisi disembunyikan', 'info');
-            return next;
-          });
-        }}
-        className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
-          showTasks
-            ? 'bg-blue-950/80 border-blue-500/60 text-blue-400 ring-1 ring-blue-500/40 shadow-blue-950/40'
-            : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
-        }`}
-        title={showTasks ? 'Sembunyikan Layer Tiket & Teknisi' : 'Tampilkan Layer Tiket & Teknisi'}
-      >
-        <User className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-        <span>Tiket & Teknisi</span>
-      </button>
-
-      {/* 6. Toggle Drawer ODP Wilayah (Grouping ODP) */}
-      <button
-        type="button"
-        onClick={() => setShowGroupDrawer(prev => !prev)}
-        className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
-          showGroupDrawer
-            ? 'bg-slate-800 border-amber-500 text-amber-400 ring-1 ring-amber-500/40 shadow-amber-950/40'
-            : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-        }`}
-        title="Buka / Tutup Panel Pengelompokan ODP per Wilayah"
-      >
-        <FolderTree className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-        <span>Grouping ODP ({odp.length})</span>
-      </button>
-
-      {/* 7. Tombol Tambah ODP & Form Manual (Pimpinan) */}
-      {isPimpinan && (
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              const nextMode = !isPinpointMode;
-              setIsPinpointMode(nextMode);
-              if (nextMode) {
-                showToast('🎯 Mode Pinpoint Aktif: Klik lokasi mana saja di peta untuk meletakkan titik ODP!', 'info');
-              } else {
-                if (tempMarkerRef.current && mapInstanceRef.current) {
-                  mapInstanceRef.current.removeLayer(tempMarkerRef.current);
-                  tempMarkerRef.current = null;
-                }
-                showToast('Mode Pinpoint dibatalkan', 'info');
-              }
-            }}
-            className={`h-8 flex items-center gap-1.5 px-3 rounded-xl text-xs font-bold border shadow-lg transition active:scale-95 cursor-pointer whitespace-nowrap ${
-              isPinpointMode
-                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-white ring-2 ring-amber-300 animate-pulse'
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400'
-            }`}
-            title={isPinpointMode ? 'Batalkan Mode Pinpoint (atau tekan tombol Esc)' : 'Tambah ODP: Klik lokasi di peta untuk meletakkan titik ODP baru'}
-          >
-            <MapPin className={`w-3.5 h-3.5 shrink-0 ${isPinpointMode ? 'text-slate-950' : 'text-white'}`} />
-            <span>{isPinpointMode ? '❌ Batal' : '+ Tambah ODP (Klik Peta)'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleOpenManualModal}
-            className="h-8 flex items-center gap-1.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-bold shadow-lg border border-slate-700 cursor-pointer whitespace-nowrap"
-            title="Input ODP melalui form manual"
-          >
-            <Plus className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-            <span>Input Form Manual</span>
-          </button>
-        </div>
-      )}
-    </>
+    </div>
   );
 
   return (
@@ -1515,8 +1568,8 @@ export default function WebGISMap({
           </div>
         )}
 
-        {/* Desktop Top Floating Control Bar (hanya di layar md ke atas, 1 baris horizontal rapi tanpa wrap) */}
-        <div className="hidden md:flex absolute top-3 left-3 z-30 items-center gap-2 max-w-[calc(100%-80px)] overflow-x-auto no-scrollbar whitespace-nowrap">
+        {/* Desktop Top Floating Control Bar (Tersusun rapi dalam 3 grup kontrol terpadu) */}
+        <div className="hidden md:flex absolute top-3 left-3 z-30 items-center">
           {renderToolbarControls()}
         </div>
 
@@ -1525,7 +1578,11 @@ export default function WebGISMap({
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="w-8 h-8 rounded-xl bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700 flex items-center justify-center shadow-xl transition active:scale-95 cursor-pointer backdrop-blur-md"
+            className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-xl transition active:scale-95 cursor-pointer backdrop-blur-md border ${
+              isDark
+                ? 'bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-white border-slate-700'
+                : 'bg-white/95 hover:bg-slate-50 text-slate-700 hover:text-slate-950 border-slate-200'
+            }`}
             title={isFullscreen ? 'Keluar Layar Penuh (ESC)' : 'Layar Penuh (Fullscreen)'}
           >
             {isFullscreen ? (
@@ -1538,19 +1595,25 @@ export default function WebGISMap({
 
       {/* DRAWER PENGELOMPOKAN (GROUPING) ODP PER WILAYAH */}
       {showGroupDrawer && (
-        <div className="absolute top-14 left-2 right-2 md:right-auto md:left-3 z-35 md:w-80 bottom-12 max-h-[calc(100%-72px)] overflow-y-auto rounded-3xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl p-4 text-xs text-white space-y-3 animate-in fade-in slide-in-from-left-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div className={`absolute top-14 left-2 right-2 md:right-auto md:left-3 z-35 md:w-80 bottom-12 max-h-[calc(100%-72px)] overflow-y-auto rounded-3xl backdrop-blur-md border shadow-2xl p-4 text-xs space-y-3 animate-in fade-in slide-in-from-left-4 ${
+          isDark
+            ? 'bg-slate-900/95 border-slate-700 text-white'
+            : 'bg-white/95 border-slate-200 text-slate-800 shadow-xl'
+        }`}>
+          <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
             <div className="flex items-center gap-2">
               <FolderTree className="w-4 h-4 text-amber-400" />
               <div>
-                <h4 className="font-extrabold text-xs">Pengelompokan ODP Wilayah</h4>
-                <p className="text-[10px] text-slate-400">{odp.length} Total Titik Terdata</p>
+                <h4 className={`font-extrabold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>Pengelompokan ODP Wilayah</h4>
+                <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{odp.length} Total Titik Terdata</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setShowGroupDrawer(false)}
-              className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800/80 transition cursor-pointer"
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800/80' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+              }`}
               title="Tutup Panel"
             >
               <X className="w-4 h-4" />
@@ -1667,31 +1730,33 @@ export default function WebGISMap({
       )}
 
       {/* Floating Overlay Legend Bar di Pojok Kiri Bawah Map */}
-      <div className="absolute bottom-3 left-3 z-30 flex flex-wrap items-center gap-3 bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-700/80 shadow-2xl text-xs pointer-events-auto">
+      <div className={`absolute bottom-3 left-3 z-30 flex flex-wrap items-center gap-3 backdrop-blur-md px-3.5 py-1.5 rounded-xl border shadow-xl text-xs pointer-events-auto ${
+        isDark ? 'bg-slate-900/90 border-slate-700/80 text-white' : 'bg-white/95 border-slate-200 text-slate-800 shadow-md'
+      }`}>
         {/* 1. Sentral STO */}
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="w-3.5 h-3.5 rounded-md bg-white border border-rose-600 flex items-center justify-center shadow-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
           </span>
-          <span className="text-slate-200 font-bold text-[11px]">Sentral STO</span>
+          <span className={`font-bold text-[11px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Sentral STO</span>
         </div>
 
         {/* 2. ODP Tersedia */}
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white shadow-xs"></span>
-          <span className="text-slate-300 font-medium text-[11px]">Tersedia</span>
+          <span className={`font-medium text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Tersedia</span>
         </div>
 
         {/* 3. Hampir Penuh */}
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white shadow-xs"></span>
-          <span className="text-slate-300 font-medium text-[11px]">Hampir Penuh</span>
+          <span className={`font-medium text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Hampir Penuh</span>
         </div>
 
         {/* 4. Port Penuh */}
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-600 border border-white shadow-xs"></span>
-          <span className="text-slate-300 font-medium text-[11px]">Port Penuh</span>
+          <span className={`font-medium text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Port Penuh</span>
         </div>
 
         {/* 5. Teknisi (GPS) */}
@@ -1699,7 +1764,7 @@ export default function WebGISMap({
           <span className="w-3.5 h-3.5 rounded-full bg-cyan-500 border border-white flex items-center justify-center shadow-xs text-white ring-2 ring-cyan-400/30">
             <User className="w-2 h-2 text-white stroke-[3]" />
           </span>
-          <span className="text-slate-300 font-medium text-[11px]">Teknisi (GPS)</span>
+          <span className={`font-medium text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Teknisi (GPS)</span>
         </div>
 
         {/* 6. Tiket Lapangan */}
@@ -1707,12 +1772,12 @@ export default function WebGISMap({
           <span className="w-3.5 h-3.5 rounded-md bg-sky-600 border border-white flex items-center justify-center shadow-xs text-white font-black text-[8px]">
             TKG
           </span>
-          <span className="text-slate-300 font-medium text-[11px]">Tiket</span>
+          <span className={`font-medium text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Tiket</span>
         </div>
 
         {/* 7. Total ODP Terdata (Badge dengan margin dan padding yang pas) */}
-        <div className="flex items-center pl-2.5 pr-1 border-l border-slate-700/80 shrink-0">
-          <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold shadow-xs whitespace-nowrap">
+        <div className={`flex items-center pl-2.5 pr-1 border-l shrink-0 ${isDark ? 'border-slate-700/80' : 'border-slate-200'}`}>
+          <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 font-mono text-[10px] font-bold shadow-xs whitespace-nowrap">
             {odp.length} ODP
           </span>
         </div>

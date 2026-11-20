@@ -185,15 +185,41 @@ export default function GudangDashboard() {
   const resolveKategori = (b) => {
     const name = (b.nama_barang || '').toLowerCase();
     const cat = (b.kategori || '').toLowerCase();
-    if (name.includes('kabel') || name.includes('dropcore') || name.includes('fo') || name.includes('fiber') || name.includes('serat') || name.includes('utp') || name.includes('lan') || cat.includes('kabel') || cat.includes('serat')) {
-      return 'Kabel & Serat Optik';
-    }
-    if (name.includes('ont') || name.includes('modem') || name.includes('zte') || name.includes('huawei') || name.includes('fiberhome') || name.includes('stb') || cat.includes('aktif') || cat.includes('modem') || cat.includes('ont')) {
+
+    // 1. Perangkat Aktif ONT (Modem, ONT, STB, CPE, Router)
+    if (
+      name.includes('ont') || name.includes('modem') || name.includes('zte') ||
+      name.includes('huawei') || name.includes('fiberhome') || name.includes('stb') ||
+      cat.includes('aktif') || cat.includes('modem') || cat.includes('ont')
+    ) {
+      if (name.includes('adaptor') || name.includes('adapter') || name.includes('power')) {
+        return 'Consumable & Aksesoris';
+      }
+      if (name.includes('lan') || name.includes('utp')) {
+        return 'Kabel & Serat Optik';
+      }
       return 'Perangkat Aktif (ONT)';
     }
-    if (name.includes('roset') || name.includes('patchcord') || name.includes('splitter') || name.includes('adapter') || name.includes('odp') || cat.includes('pasif')) {
+
+    // 2. Perangkat Pasif (Roset, Splitter, Patchcord, Pigtail, ODP Box)
+    if (
+      name.includes('roset') || name.includes('splitter') || name.includes('patchcord') ||
+      name.includes('patch cord') || name.includes('pigtail') || name.includes('odp') ||
+      cat.includes('pasif')
+    ) {
       return 'Perangkat Pasif';
     }
+
+    // 3. Kabel & Serat Optik (Dropcore, Kabel FO, Pre-Conn, UTP)
+    if (
+      !name.includes('clamp') && !name.includes('klem') && !name.includes('hook') &&
+      (name.includes('kabel') || name.includes('dropcore') || name.includes('drop core') ||
+       name.includes('fo') || name.includes('fiber') || name.includes('serat') ||
+       name.includes('utp') || name.includes('lan') || cat.includes('kabel') || cat.includes('serat'))
+    ) {
+      return 'Kabel & Serat Optik';
+    }
+
     return 'Consumable & Aksesoris';
   };
 

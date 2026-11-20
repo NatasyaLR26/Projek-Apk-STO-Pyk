@@ -78,41 +78,43 @@ export default function WebGISTracking({ initialSelectedTaskId = null, onEditOdp
         <div className={`p-3.5 rounded-2xl border transition-all ${
           isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TOTAL ODP</div>
-          <div className="text-xl sm:text-2xl font-black mt-0.5 text-white font-mono">{totalOdp} Titik</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Tersebar di Payakumbuh</div>
+          <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TOTAL ODP</div>
+          <div className={`text-xl sm:text-2xl font-black mt-0.5 font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalOdp} Titik</div>
+          <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Tersebar di Payakumbuh</div>
         </div>
 
         {/* Card 2: Port Tersedia */}
         <div className={`p-3.5 rounded-2xl border transition-all ${
-          isDark ? 'bg-slate-950/70 border-emerald-950/40 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
+          isDark ? 'bg-slate-950/70 border-emerald-950/40 backdrop-blur-xl shadow-lg' : 'bg-emerald-50/70 border-emerald-200 shadow-sm'
         }`}>
-          <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">PORT TERSEDIA</div>
-          <div className="text-xl sm:text-2xl font-black mt-0.5 text-emerald-400 font-mono">{totalIdlePorts} Port Idle</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Siap Pasang Baru</div>
+          <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">PORT TERSEDIA</div>
+          <div className="text-xl sm:text-2xl font-black mt-0.5 text-emerald-600 dark:text-emerald-400 font-mono">{totalIdlePorts} Port Idle</div>
+          <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-emerald-700/80'}`}>Siap Pasang Baru</div>
         </div>
 
         {/* Card 3: ODP Penuh */}
         <div className={`p-3.5 rounded-2xl border transition-all ${
-          isDark ? 'bg-slate-950/70 border-rose-950/40 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
+          isDark ? 'bg-slate-950/70 border-rose-950/40 backdrop-blur-xl shadow-lg' : 'bg-rose-50/70 border-rose-200 shadow-sm'
         }`}>
-          <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">ODP PENUH</div>
-          <div className="text-xl sm:text-2xl font-black mt-0.5 text-rose-400 font-mono">{penuhCount} Titik</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Okupansi 100%</div>
+          <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">ODP PENUH</div>
+          <div className="text-xl sm:text-2xl font-black mt-0.5 text-rose-600 dark:text-rose-400 font-mono">{penuhCount} Titik</div>
+          <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-rose-700/80'}`}>Okupansi 100%</div>
         </div>
 
         {/* Card 4: Perlu Optimasi */}
         <div className={`p-3.5 rounded-2xl border transition-all ${
-          isDark ? 'bg-slate-950/70 border-amber-950/40 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
+          isDark ? 'bg-slate-950/70 border-amber-950/40 backdrop-blur-xl shadow-lg' : 'bg-amber-50/70 border-amber-200 shadow-sm'
         }`}>
-          <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">PERLU OPTIMASI</div>
-          <div className="text-xl sm:text-2xl font-black mt-0.5 text-amber-400 font-mono">{optimasiCount} Titik</div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Redaman &gt; -24 dBm</div>
+          <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">PERLU OPTIMASI</div>
+          <div className="text-xl sm:text-2xl font-black mt-0.5 text-amber-600 dark:text-amber-400 font-mono">{optimasiCount} Titik</div>
+          <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-amber-700/80'}`}>Redaman &gt; -24 dBm</div>
         </div>
       </div>
 
       {/* Grid: Map Utama */}
-      <div className="h-[520px] w-full rounded-2xl overflow-hidden shadow-xl border border-slate-800/80">
+      <div className={`h-[520px] w-full rounded-2xl overflow-hidden shadow-xl border ${
+        isDark ? 'border-slate-800/80' : 'border-slate-300'
+      }`}>
         <WebGISMap
           selectedOdpId={selectedOdpId}
           onSelectOdp={setSelectedOdpId}
