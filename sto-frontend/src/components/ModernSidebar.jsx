@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import BrandLogo from './BrandLogo';
+import ModalLogoutConfirm from './ModalLogoutConfirm';
 import {
   LayoutDashboard,
   MapPin,
@@ -34,6 +35,7 @@ import {
 
 export default function ModernSidebar({ activeTab, onTabChange }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const { isDark, toggleTheme } = useTheme();
   const {
@@ -353,12 +355,9 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            {/* Logout Button */}
+            {/* Logout Button (Membuka Modern Alert Konfirmasi dengan Efek Grayscale Layar Turn-off) */}
             <button
-              onClick={() => {
-                logout();
-                navigate('/login', { replace: true });
-              }}
+              onClick={() => setShowLogoutConfirm(true)}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition cursor-pointer ${
                 isDark
                   ? 'bg-rose-950/40 border-rose-900/60 text-rose-400 hover:bg-rose-900/50 hover:text-white'
@@ -372,6 +371,17 @@ export default function ModernSidebar({ activeTab, onTabChange }) {
           </div>
         </div>
       </aside>
+
+      {/* Modal Alert Konfirmasi Logout Modern dengan Background Hitam Putih (Turn-Off Effect) */}
+      <ModalLogoutConfirm
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          logout();
+          navigate('/login', { replace: true });
+        }}
+      />
     </>
   );
 }
