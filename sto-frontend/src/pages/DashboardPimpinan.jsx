@@ -198,6 +198,7 @@ function DashboardPimpinan() {
     permohonan = [],
     barang = [],
     users = [],
+    odp = [],
     sidebarCollapsed
   } = useApp();
 
@@ -606,6 +607,7 @@ function DashboardPimpinan() {
               <AnalyticsChartsPimpinan
                 tugas={tugas}
                 barang={barang}
+                odp={odp}
                 onNavigateGudang={() => handleSetActiveMenu('laporan-gudang')}
               />
 

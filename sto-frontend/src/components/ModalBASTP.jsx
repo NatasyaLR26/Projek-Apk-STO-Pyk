@@ -357,31 +357,37 @@ export default function ModalBASTP({ task, onClose }) {
                 }`}>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-0.5">
-                      <img
-                        src={bastp.foto_sn}
-                        alt="SN Barcode Modem"
-                        className="w-full h-11 object-cover rounded-md border border-slate-400 shadow-xs"
-                      />
+                      <div className="aspect-square w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-900/50 flex items-center justify-center">
+                        <img
+                          src={bastp.foto_sn}
+                          alt="SN Barcode Modem"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                       <span className="block text-[8px] font-mono text-center text-slate-500 font-bold truncate">
                         SN: {bastp.sn_ont}
                       </span>
                     </div>
                     <div className="space-y-0.5">
-                      <img
-                        src={bastp.foto_opm}
-                        alt="Redaman OPM"
-                        className="w-full h-11 object-cover rounded-md border border-slate-400 shadow-xs"
-                      />
+                      <div className="aspect-square w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-900/50 flex items-center justify-center">
+                        <img
+                          src={bastp.foto_opm}
+                          alt="Redaman OPM"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                       <span className="block text-[8px] font-mono text-center text-emerald-600 dark:text-emerald-400 font-bold">
                         OPM: {bastp.redaman_dbm} dBm
                       </span>
                     </div>
                     <div className="space-y-0.5">
-                      <img
-                        src={bastp.foto_rumah}
-                        alt="Rumah Pelanggan"
-                        className="w-full h-11 object-cover rounded-md border border-slate-400 shadow-xs"
-                      />
+                      <div className="aspect-square w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-900/50 flex items-center justify-center">
+                        <img
+                          src={bastp.foto_rumah}
+                          alt="Rumah Pelanggan"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                       <span className="block text-[8px] text-center text-slate-500 font-bold truncate">
                         Rumah &amp; Pelanggan
                       </span>

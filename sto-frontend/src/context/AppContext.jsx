@@ -320,12 +320,14 @@ export function AppProvider({ children }) {
         resBarang,
         resTugas,
         resPermohonan,
-        resDetail] = await Promise.all([
+        resDetail,
+        resPelanggan] = await Promise.all([
         supabase.from('users').select('*'),
         supabase.from('barang').select('*').order('nama_barang', { ascending: true }),
         supabase.from('tugas').select('*').order('id', { ascending: false }),
         supabase.from('permohonan').select('*').order('id', { ascending: false }),
-        supabase.from('detail_permohonan').select('*')
+        supabase.from('detail_permohonan').select('*'),
+        supabase.from('pelanggan').select('*').order('id', { ascending: false }).then(r => r, () => ({ data: [] }))
       ]);
 
       if (Array.isArray(resUsers.data) && resUsers.data.length > 0) {
@@ -499,13 +501,17 @@ export function AppProvider({ children }) {
         // Tetap gunakan state lokal odp
       }
 
-      // 8. Sinkronisasi Data Pelanggan (Sintesis Realtime dari Tugas Selesai PSB, Audit Asset, & Cache Lokal)
+      // 8. Sinkronisasi Data Pelanggan (Sintesis Realtime dari Supabase, Tugas Selesai PSB, Audit Asset, & Cache)
       try {
         let dbPelanggan = [];
         try {
-          const localStoredCust = JSON.parse(localStorage.getItem('sto_data_pelanggan') || '[]');
-          if (Array.isArray(localStoredCust) && localStoredCust.length > 0) {
-            dbPelanggan = localStoredCust;
+          if (Array.isArray(resPelanggan?.data) && resPelanggan.data.length > 0) {
+            dbPelanggan = resPelanggan.data;
+          } else {
+            const localStoredCust = JSON.parse(localStorage.getItem('sto_pelanggan') || '[]');
+            if (Array.isArray(localStoredCust) && localStoredCust.length > 0) {
+              dbPelanggan = localStoredCust;
+            }
           }
         } catch {}
 
@@ -964,9 +970,9 @@ export function AppProvider({ children }) {
       const assignedUser = users.find(u => Number(u.id) === assignedTeknisiId);
       const penugasanText = assignedTeknisiId === 99 ? '📢 SIAGA TERBUKA (Siapapun Teknisi Dapat Mengambil Tiket)' : `👷 ${assignedUser?.nama_lengkap || 'Teknisi Lapangan'}`;
 
-      const teksTelegram = `🚨 <b>[TELKOM AKSES — NOC DISPATCH STO PAYAKUMBUH]</b>\n` +
+      const teksTelegram = `🚨 <b>[TELKOM AKSES — FIBER OPS STO PAYAKUMBUH]</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `⚡ <b>WORK ORDER / TIKET GANGGUAN BARU</b>\n` +
+        `⚡ <b>WORK ORDER / TIKET PEKERJAAN BARU</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `📋 <b>No. Tiket:</b> #${finalTask.id}\n` +
         `🔌 <b>Titik ODP:</b> <code>${odpKode}</code>\n` +
@@ -974,11 +980,11 @@ export function AppProvider({ children }) {
         `💼 <b>Klasifikasi:</b> ${finalTask.jenis_kerja}\n` +
         (finalTask.pelanggan_nama ? `👤 <b>Pelanggan:</b> ${finalTask.pelanggan_nama}\n` : '') +
         (finalTask.pelanggan_telp ? `📞 <b>Kontak:</b> ${finalTask.pelanggan_telp}\n` : '') +
-        (finalTask.keterangan ? `📝 <b>Instruksi NOC:</b> ${finalTask.keterangan}\n` : '') +
+        (finalTask.keterangan ? `📝 <b>Instruksi Operasional:</b> ${finalTask.keterangan}\n` : '') +
         `📊 <b>Penugasan:</b> <code>${penugasanText}</code>\n` +
         `⏱️ <b>Target SLA:</b> &lt; 3 Jam (Prioritas Utama)\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `👉 <a href="https://sto-telkom.vercel.app">Buka Aplikasi STO Payakumbuh</a>`;
+        `👉 <a href="https://sto-telkom.vercel.app">Buka Telkom Akses Fiber Ops</a>`;
 
       sendTelegramAlert(teksTelegram);
     } catch {}
@@ -2317,22 +2323,68 @@ export function AppProvider({ children }) {
     return newUser;
   }, [users, showToast]);
 
-  const approveUser = useCallback((userId) => {
-    const target = users.find(u => Number(u.id) === Number(userId));
-    setUsers(prev => prev.map(u => {
-      if (Number(u.id) === Number(userId)) {
-        return { ...u, status_verifikasi: 'Verified' };
-      }
-      return u;
-    }));
-    showToast(`Akun ${target?.nama_lengkap || `#${userId}`} berhasil DISETUJUI & diverifikasi Pimpinan!`, 'success');
-  }, [users, showToast]);
+  const approveUser = useCallback(async (userId) => {
+    const parsedId = parseInt(userId, 10);
+    const target = users.find(u => Number(u.id) === parsedId);
+    
+    // 1. Update State Lokal segera
+    setUsers(prev => {
+      const updated = prev.map(u => {
+        if (Number(u.id) === parsedId) {
+          return { ...u, status_verifikasi: 'Verified' };
+        }
+        return u;
+      });
+      try { localStorage.setItem('sto_users', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
 
-  const rejectUser = useCallback((userId) => {
-    const target = users.find(u => Number(u.id) === Number(userId));
-    setUsers(prev => prev.filter(u => Number(u.id) !== Number(userId)));
-    showToast(`Registrasi akun ${target?.nama_lengkap || `#${userId}`} telah ditolak.`, 'info');
-  }, [users, showToast]);
+    // 2. Update status ke Database Supabase Realtime
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('users').update({ status_verifikasi: 'Verified' }).eq('id', parsedId);
+      } catch (err) {
+        console.warn('[Supabase Approve User Notice]:', err.message);
+      }
+    }
+
+    // 3. Sync via Backend API jika aktif
+    try {
+      await api.patch(`/users/${parsedId}`, { status_verifikasi: 'Verified' });
+    } catch {}
+
+    broadcastLiveSignal('user_updated', { id: parsedId, status_verifikasi: 'Verified' });
+    showToast(`Akun ${target?.nama_lengkap || `#${parsedId}`} berhasil DISETUJUI & diverifikasi Pimpinan!`, 'success');
+  }, [users, showToast, broadcastLiveSignal]);
+
+  const rejectUser = useCallback(async (userId) => {
+    const parsedId = parseInt(userId, 10);
+    const target = users.find(u => Number(u.id) === parsedId);
+
+    // 1. Update State Lokal segera (hapus dari memori & localStorage)
+    setUsers(prev => {
+      const updated = prev.filter(u => Number(u.id) !== parsedId);
+      try { localStorage.setItem('sto_users', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    // 2. Hapus Permanen dari Supabase Database (mencegah akun balik lagi saat sinkronisasi realtime)
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('users').delete().eq('id', parsedId);
+      } catch (err) {
+        console.warn('[Supabase Delete User Notice]:', err.message);
+      }
+    }
+
+    // 3. Hapus via Backend API jika aktif
+    try {
+      await api.delete(`/users/${parsedId}`);
+    } catch {}
+
+    broadcastLiveSignal('user_deleted', { id: parsedId });
+    showToast(`Akun ${target?.nama_lengkap || `#${parsedId}`} berhasil dihapus permanen dari sistem & database!`, 'info');
+  }, [users, showToast, broadcastLiveSignal]);
 
   const removeGpsEntry = useCallback((teknisiId) => {
     const parsedId = parseInt(teknisiId, 10);

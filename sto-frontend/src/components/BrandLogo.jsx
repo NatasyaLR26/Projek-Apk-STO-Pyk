@@ -155,6 +155,9 @@ export default function BrandLogo({
           >
             <span className="font-extrabold tracking-tight">TELKOM</span>
             <span className="text-rose-600 dark:text-rose-500 font-black">AKSES</span>
+            <span className="px-1.5 py-0.2 rounded-md bg-rose-600/15 border border-rose-500/30 text-rose-500 dark:text-rose-400 text-[10px] font-black tracking-normal ml-0.5">
+              Fiber Ops
+            </span>
           </div>
           <div
             className={`tracking-wider uppercase text-slate-500 dark:text-slate-400 ${currentSize.sub} truncate flex items-center gap-1.5 mt-0.5`}

@@ -266,6 +266,42 @@ html.light .leaflet-popup-tip {
   background-color: #ffffff !important;
 }
 
+/* Micro-interactions: Animations, Button Press, Card Hover, Skeleton Shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite linear;
+}
+
+html.light .skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.08) 50%, rgba(0, 0, 0, 0.04) 75%);
+  background-size: 200% 100%;
+}
+
+.card-interactive {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.25);
+}
+
+.btn-interactive {
+  transition: transform 0.15s ease, filter 0.15s ease, background-color 0.15s ease;
+}
+.btn-interactive:active {
+  transform: scale(0.96);
+}
+
 /* Print styling for official STO Audit Report & BASTP */
 @page {
   size: A4 portrait;
@@ -273,6 +309,14 @@ html.light .leaflet-popup-tip {
 }
 
 @media print {
+  /* Hilangkan URL / link yang otomatis dicetak oleh header browser */
+  a[href]:after {
+    content: none !important;
+  }
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
   body {
     background-color: #ffffff !important;
     color: #0f172a !important;

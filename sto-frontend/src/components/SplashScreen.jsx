@@ -70,12 +70,18 @@ export default function SplashScreen({ onFinish, duration = 2200 }) {
 
       {/* Text Branding */}
       <div className="text-center px-4 mb-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-950/60 border border-rose-500/40 text-[10px] sm:text-[11px] font-bold text-rose-300 uppercase tracking-widest mb-1.5">
+        <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2 mb-1">
+          <span>Fiber Ops</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-rose-600/30 border border-rose-500/50 text-rose-300 font-semibold tracking-normal">
+            Fiber Operasional
+          </span>
+        </h1>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 border border-slate-700/60 text-[10px] sm:text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
           <Radio className="w-3.5 h-3.5 animate-pulse text-rose-400" />
-          <span>Sentral Telepon Otomatis (STO) Payakumbuh</span>
+          <span>PT Telkom Akses &bull; STO Payakumbuh</span>
         </div>
         <p className="text-xs text-slate-400 max-w-sm mx-auto">
-          PT Telkom Akses • Integrasi Operasional Lapangan &amp; Logistik
+          Integrasi Operasional Jaringan FO &amp; Logistik Terpadu
         </p>
       </div>
 
