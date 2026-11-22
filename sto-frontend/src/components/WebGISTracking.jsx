@@ -41,7 +41,7 @@ export default function WebGISTracking({ initialSelectedTaskId = null, onEditOdp
       {/* 4 Kartu KPI Atas (Telecom OSS Standard) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Card 1: Total ODP */}
-        <div className={`p-3.5 rounded-2xl border transition-all ${
+        <div className={`card-interactive cursor-pointer p-3.5 rounded-2xl border transition-all ${
           isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
         }`}>
           <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TOTAL ODP</div>
@@ -50,7 +50,7 @@ export default function WebGISTracking({ initialSelectedTaskId = null, onEditOdp
         </div>
 
         {/* Card 2: Port Tersedia */}
-        <div className={`p-3.5 rounded-2xl border transition-all ${
+        <div className={`card-interactive cursor-pointer p-3.5 rounded-2xl border transition-all ${
           isDark ? 'bg-slate-950/70 border-emerald-950/40 backdrop-blur-xl shadow-lg' : 'bg-emerald-50/70 border-emerald-200 shadow-sm'
         }`}>
           <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">PORT TERSEDIA</div>
@@ -59,7 +59,7 @@ export default function WebGISTracking({ initialSelectedTaskId = null, onEditOdp
         </div>
 
         {/* Card 3: ODP Penuh */}
-        <div className={`p-3.5 rounded-2xl border transition-all ${
+        <div className={`card-interactive cursor-pointer p-3.5 rounded-2xl border transition-all ${
           isDark ? 'bg-slate-950/70 border-rose-950/40 backdrop-blur-xl shadow-lg' : 'bg-rose-50/70 border-rose-200 shadow-sm'
         }`}>
           <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">ODP PENUH</div>
@@ -68,7 +68,7 @@ export default function WebGISTracking({ initialSelectedTaskId = null, onEditOdp
         </div>
 
         {/* Card 4: Perlu Optimasi */}
-        <div className={`p-3.5 rounded-2xl border transition-all ${
+        <div className={`card-interactive cursor-pointer p-3.5 rounded-2xl border transition-all ${
           isDark ? 'bg-slate-950/70 border-amber-950/40 backdrop-blur-xl shadow-lg' : 'bg-amber-50/70 border-amber-200 shadow-sm'
         }`}>
           <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">PERLU OPTIMASI</div>

@@ -266,8 +266,83 @@ html.light .leaflet-popup-tip {
   background-color: #ffffff !important;
 }
 
-/* Micro-interactions: Animations, Button Press, Card Hover, Skeleton Shimmer */
-@keyframes shimmer {
+/* ==========================================================================
+   GLOBAL MICRO-INTERACTIONS (TACTILE SPRING FEEDBACK, ELEVATION & SHIMMER)
+   ========================================================================== */
+
+/* 1. Global Button Tactile Feedback (Click bounce + Hover lift) */
+button:not(:disabled),
+a[role="button"],
+.btn-interactive {
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 0.16s ease, 
+              filter 0.16s ease !important;
+  cursor: pointer;
+}
+
+button:not(:disabled):hover,
+a[role="button"]:hover,
+.btn-interactive:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+}
+
+button:not(:disabled):active,
+a[role="button"]:active,
+.btn-interactive:active {
+  transform: scale(0.94) translateY(0) !important;
+  filter: brightness(0.95);
+  transition-duration: 0.08s !important;
+}
+
+/* 2. Global Input & Form Focus Feedback */
+input, select, textarea {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  transform: translateY(-1.5px);
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.28), 0 8px 20px -4px rgba(225, 29, 72, 0.15) !important;
+  border-color: #f43f5e !important;
+}
+
+/* 3. Card Elevate & Interactive Hovers */
+.card-interactive,
+div[class*="rounded-2xl"][class*="hover:border"],
+div[class*="rounded-xl"][class*="hover:border"],
+div[class*="rounded-2xl"][class*="hover:bg-slate-800"],
+div[class*="rounded-2xl"][class*="hover:bg-slate-900"] {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.2s ease !important;
+}
+
+.card-interactive:hover,
+div[class*="rounded-2xl"][class*="hover:border"]:hover,
+div[class*="rounded-xl"][class*="hover:border"]:hover,
+div[class*="rounded-2xl"][class*="hover:bg-slate-800"]:hover,
+div[class*="rounded-2xl"][class*="hover:bg-slate-900"]:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 28px -6px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 4. Table Row Smooth Hover */
+table tbody tr {
+  transition: background-color 0.16s ease, transform 0.16s ease !important;
+}
+
+table tbody tr:hover {
+  background-color: rgba(225, 29, 72, 0.06) !important;
+}
+
+html.dark table tbody tr:hover {
+  background-color: rgba(244, 63, 94, 0.1) !important;
+}
+
+/* 5. Skeleton Shimmer: High-contrast moving light beam */
+@keyframes shimmerWave {
   0% {
     background-position: -200% 0;
   }
@@ -277,29 +352,30 @@ html.light .leaflet-popup-tip {
 }
 
 .skeleton-shimmer {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.04) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.8s infinite linear;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.02) 20%, rgba(244, 63, 94, 0.22) 50%, rgba(255, 255, 255, 0.02) 80%) !important;
+  background-size: 200% 100% !important;
+  animation: shimmerWave 1.5s infinite linear !important;
 }
 
 html.light .skeleton-shimmer {
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.04) 25%, rgba(0, 0, 0, 0.08) 50%, rgba(0, 0, 0, 0.04) 75%);
-  background-size: 200% 100%;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.02) 20%, rgba(225, 29, 72, 0.15) 50%, rgba(0, 0, 0, 0.02) 80%) !important;
+  background-size: 200% 100% !important;
 }
 
-.card-interactive {
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease;
-}
-.card-interactive:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.25);
+/* 6. Glowing Online / Pulse Indicator */
+@keyframes pulseSubtle {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.7;
+  }
 }
 
-.btn-interactive {
-  transition: transform 0.15s ease, filter 0.15s ease, background-color 0.15s ease;
-}
-.btn-interactive:active {
-  transform: scale(0.96);
+.pulse-active {
+  animation: pulseSubtle 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
 
 /* Print styling for official STO Audit Report & BASTP */

@@ -474,7 +474,7 @@ function DashboardPimpinan() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
                 
                 {/* 1. Kolom 1 (Total Operasi) */}
-                <div className={`p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                <div className={`card-interactive cursor-pointer p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
                   isDark
                     ? 'bg-slate-950/70 backdrop-blur-xl border-rose-950/30 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
                     : 'bg-white border-slate-200 shadow-sm'
@@ -508,7 +508,7 @@ function DashboardPimpinan() {
                 </div>
 
                 {/* 2. Kolom 2 (Tiket Dalam Proses / Operasi Berjalan) */}
-                <div className={`p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                <div className={`card-interactive cursor-pointer p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
                   isDark
                     ? 'bg-slate-950/70 backdrop-blur-xl border-blue-950/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
                     : 'bg-blue-50/70 border-blue-200/80 shadow-sm'
@@ -539,7 +539,7 @@ function DashboardPimpinan() {
                 </div>
 
                 {/* 3. Kolom 3 (Tiket Selesai / QC Passed) */}
-                <div className={`p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                <div className={`card-interactive cursor-pointer p-3 sm:p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
                   isDark
                     ? 'bg-slate-950/70 backdrop-blur-xl border-emerald-950/40 shadow-[0_8px_30px_rgba(0,0,0,0.35)]'
                     : 'bg-emerald-50/70 border-emerald-200/80 shadow-sm'

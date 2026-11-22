@@ -283,15 +283,8 @@ export default function Login({ onTriggerSplash }) {
           }`}
         >
           {/* Header Brand */}
-          <div className="flex flex-col items-center text-center mb-6">
-            <BrandLogo size="lg" className="mb-2 justify-center" />
-            <h1 className={`text-xl sm:text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'} mt-1`}>
-              Fiber Ops
-            </h1>
-            <p className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'} flex items-center justify-center gap-1.5 mt-0.5`}>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <span>STO PAYAKUMBUH</span>
-            </p>
+          <div className="flex flex-col items-center justify-center text-center mb-6">
+            <BrandLogo size="lg" clickable={false} className="justify-center" />
           </div>
 
           {/* Tab Switcher: Masuk vs Registrasi Teknisi */}
