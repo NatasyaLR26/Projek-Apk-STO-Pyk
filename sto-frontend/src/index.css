@@ -269,7 +269,7 @@ html.light .leaflet-popup-tip {
 /* Print styling for official STO Audit Report & BASTP */
 @page {
   size: A4 portrait;
-  margin: 8mm 10mm 8mm 10mm;
+  margin: 6mm 8mm 6mm 8mm;
 }
 
 @media print {
@@ -297,23 +297,62 @@ html.light .leaflet-popup-tip {
   .print-table th, .print-table td {
     border: 1px solid #94a3b8 !important;
     color: #0f172a !important;
-    padding: 6px 10px !important;
+    padding: 4px 8px !important;
   }
   .print-table th {
     background-color: #f1f5f9 !important;
   }
 
+  /* Isolasi Cetak Dokumen BASTP: Sembunyikan SEMUA elemen background di luar modal BASTP */
+  body.bastp-print-mode #root,
+  body.bastp-print-mode > *:not(.modal-bastp-backdrop),
+  body:has(.printable-bastp) #root,
+  body:has(.printable-bastp) > *:not(.modal-bastp-backdrop) {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .modal-bastp-backdrop {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .modal-bastp-backdrop > div {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    max-height: none !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
   /* BASTP Single Sheet Print Optimization (1 Pelanggan = Tepat 1 Lembar A4) */
   .printable-bastp {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+    position: static !important;
+    display: block !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
     color: #0f172a !important;
     box-shadow: none !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
   }
 
   .bastp-sheet {
@@ -322,14 +361,22 @@ html.light .leaflet-popup-tip {
     color: #0f172a !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    padding: 2mm 4mm !important;
+    padding: 0 0 2mm 0 !important;
     margin: 0 !important;
     border: none !important;
+    /* Kunci tinggi maksimal tepat 1 lembar A4 proporsional (275mm) */
+    max-height: 275mm !important;
+    overflow: hidden !important;
   }
 
   .bastp-sheet:not(:last-child) {
     page-break-after: always !important;
     break-after: page !important;
+  }
+
+  .bastp-sheet:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 }
 

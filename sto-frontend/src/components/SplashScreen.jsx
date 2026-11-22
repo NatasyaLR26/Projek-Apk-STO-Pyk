@@ -79,34 +79,24 @@ export default function SplashScreen({ onFinish, duration = 2200 }) {
         </p>
       </div>
 
-      {/* CORE VALUES BUMN: AKHLAK DENGAN PENJELASAN ARTI LENGKAP */}
-      <div className="w-full max-w-xl mx-auto my-3 p-3.5 rounded-3xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md shadow-2xl">
-        <div className="flex items-center justify-center gap-2 mb-2.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-          <span className="text-[10px] font-black uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
-            <Sparkles className="w-3 h-3" />
-            <span>Nilai Utama BUMN • AKHLAK Telkom Group</span>
-          </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+      {/* CORE VALUES BUMN: AKHLAK TELKOM GROUP (SIMPLE, COMPACT & SLEEK) */}
+      <div className="w-full max-w-lg mx-auto my-3 text-center">
+        <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-rose-950/40 border border-rose-500/30 text-[10px] font-bold text-rose-300 mb-2.5">
+          <Sparkles className="w-3 h-3 text-rose-400" />
+          <span>Core Values BUMN • AKHLAK</span>
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
           {AKHLAK_VALUES.map((item, idx) => (
             <div
               key={idx}
-              className="p-2 sm:p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 hover:border-rose-500/40 transition flex items-start gap-2"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900/80 border border-slate-800 shadow-sm"
             >
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-rose-600 to-rose-700 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-sm shadow-rose-950">
+              <span className="w-5 h-5 rounded-md bg-gradient-to-br from-rose-600 to-rose-700 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs shadow-rose-950">
                 {item.letter}
-              </div>
-              <div className="min-w-0">
-                <div className="text-[11px] font-extrabold text-white truncate leading-tight">
-                  {item.name}
-                </div>
-                <div className="text-[9px] text-slate-400 leading-tight mt-0.5 line-clamp-2">
-                  {item.desc}
-                </div>
-              </div>
+              </span>
+              <span className="text-[11px] font-bold text-slate-200">
+                {item.name}
+              </span>
             </div>
           ))}
         </div>

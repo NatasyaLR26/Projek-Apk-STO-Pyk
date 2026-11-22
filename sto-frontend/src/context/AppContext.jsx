@@ -38,6 +38,7 @@ import supabase, { isSupabaseConfigured } from '../api/supabaseClient';
 import api from '../api/axiosInstance';
 import { playNotificationChime } from '../utils/soundHelper';
 import { parseTaskDetails } from '../utils/taskFormatter';
+import { sendTelegramAlert } from '../utils/telegramHelper';
 import {
   initialUsers,
   initialBarang,
@@ -828,47 +829,51 @@ export function AppProvider({ children }) {
       waktu_buat: formattedDate
     };
 
-    // 1. Simpan ke database (Prioritaskan Backend API, fallback ke direct Supabase Cloud)
-    let backendHandled = false;
-    try {
-      const apiRes = await api.post('/tugas', {
-        pimpinan_id: Number(finalTask.pimpinan_id) || 1,
-        teknisi_id: assignedTeknisiId,
-        jenis_kerja: finalTask.jenis_kerja,
-        lokasi: finalTask.lokasi,
-        pelanggan_nama: finalTask.pelanggan_nama,
-        pelanggan_telp: finalTask.pelanggan_telp,
-        odp_kode: taskData.odp_kode || 'ODP-PYK-FA/001',
-        odp_id: taskData.odp_id,
-        keterangan: taskData.keterangan || ''
-      });
-      if (apiRes.data?.success && apiRes.data?.data) {
-        backendHandled = true;
-        finalTask = { ...finalTask, ...apiRes.data.data, id: apiRes.data.data.id };
-      }
-    } catch (apiErr) {
-      console.warn('[createTugas] Backend API notice (beralih ke direct Supabase):', apiErr.message);
-    }
-
-    // Direct Supabase Fallback jika backend API offline
-    if (!backendHandled && isSupabaseConfigured()) {
+    // 1. Simpan ke database Supabase Cloud (Single Source of Truth)
+    let dbAssignedId = null;
+    if (isSupabaseConfigured()) {
       try {
+        // Validasi Foreign Key Pimpinan & Teknisi terhadap database
+        const pimpinanIdValid = users.some(u => Number(u.id) === Number(finalTask.pimpinan_id))
+          ? Number(finalTask.pimpinan_id)
+          : 1;
+
+        const teknisiIdValid = users.some(u => Number(u.id) === Number(assignedTeknisiId))
+          ? Number(assignedTeknisiId)
+          : 99;
+
+        // Validasi Foreign Key ODP
+        let validOdpId = null;
+        if (taskData.odp_id && odp.some(o => Number(o.id) === Number(taskData.odp_id))) {
+          validOdpId = Number(taskData.odp_id);
+        }
+
         const insertPayload = {
-          pimpinan_id: Number(finalTask.pimpinan_id) || 1,
-          teknisi_id: assignedTeknisiId,
+          pimpinan_id: pimpinanIdValid,
+          teknisi_id: teknisiIdValid,
           jenis_kerja: finalTask.jenis_kerja,
           lokasi: fullLokasi,
           status: 'menunggu',
           broadcast_status: 'sent'
         };
 
-        if (taskData.odp_id) {
-          insertPayload.odp_id = Number(taskData.odp_id);
+        if (validOdpId) {
+          insertPayload.odp_id = validOdpId;
         }
 
-        const { data: dbData, error: dbErr } = await supabase.from('tugas').insert([insertPayload]).select();
+        let { data: dbData, error: dbErr } = await supabase.from('tugas').insert([insertPayload]).select();
+
+        // Jika gagal karena foreign key ODP, otomatis coba lagi tanpa odp_id
+        if (dbErr && dbErr.code === '23503' && insertPayload.odp_id) {
+          delete insertPayload.odp_id;
+          const retryRes = await supabase.from('tugas').insert([insertPayload]).select();
+          dbData = retryRes.data;
+          dbErr = retryRes.error;
+        }
+
         if (!dbErr && dbData && dbData.length > 0) {
-          finalTask = { ...finalTask, id: dbData[0].id, ...dbData[0] };
+          dbAssignedId = dbData[0].id;
+          finalTask = { ...finalTask, id: dbAssignedId, ...dbData[0] };
         } else if (dbErr) {
           console.warn('[createTugas] Supabase direct insert notice:', dbErr.message);
         }
@@ -877,8 +882,27 @@ export function AppProvider({ children }) {
       }
     }
 
-    // 2. Update state React lokal seketika
-    setTugas(prev => [finalTask, ...prev.filter(t => t.id !== newId && t.id !== finalTask.id)]);
+    // Backend Express Sync jika online (non-blocking)
+    api.post('/tugas', {
+      pimpinan_id: Number(finalTask.pimpinan_id) || 1,
+      teknisi_id: assignedTeknisiId,
+      jenis_kerja: finalTask.jenis_kerja,
+      lokasi: finalTask.lokasi,
+      pelanggan_nama: finalTask.pelanggan_nama,
+      pelanggan_telp: finalTask.pelanggan_telp,
+      odp_kode: taskData.odp_kode || 'ODP-PYK-FA/001',
+      odp_id: taskData.odp_id,
+      keterangan: taskData.keterangan || ''
+    }).catch(() => {});
+
+    // 2. Update state React lokal seketika & persistensikan ke localStorage
+    setTugas(prev => {
+      const updated = [finalTask, ...prev.filter(t => t.id !== newId && t.id !== finalTask.id)];
+      try {
+        localStorage.setItem('sto_tugas', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
 
     // 2b. Simpan data calon pelanggan ke Master Data Pelanggan STO sejak awal tiket diterbitkan Pimpinan
     if (finalTask.pelanggan_nama) {
@@ -915,8 +939,9 @@ export function AppProvider({ children }) {
 
     // 3. Supabase Realtime WebSocket Broadcast
     broadcastLiveSignal('tugas_baru', finalTask);
+    playNotificationChime();
 
-    // 4. Siarkan Notifikasi ke Grup Telegram via Backend API
+    // 4. Siarkan Notifikasi ke Grup Telegram (Dual-Dispatch: Express API + Direct Telegram Bot API)
     try {
       const odpKode = taskData.odp_kode || 'ODP-PYK-FA/001';
       const assignedUser = users.find(u => Number(u.id) === assignedTeknisiId);
@@ -938,7 +963,7 @@ export function AppProvider({ children }) {
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `👉 <a href="https://sto-telkom.vercel.app">Buka Aplikasi STO Payakumbuh</a>`;
 
-      api.post('/telegram/send', { text: teksTelegram }).catch(() => {});
+      sendTelegramAlert(teksTelegram);
     } catch {}
 
     showToast(`Tiket #${finalTask.id} (${taskData.jenis_kerja}) berhasil disiarkan ke aplikasi & Telegram!`, "success");
@@ -1016,7 +1041,7 @@ export function AppProvider({ children }) {
       teknisi_nama: techName
     });
 
-    // Notifikasi ke Grup Telegram via Backend API
+    // Notifikasi ke Grup Telegram (Dual-Dispatch)
     try {
       const claimText = `👷 <b>[TIKET DIAMBIL TEKNISI LAPANGAN]</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -1026,7 +1051,7 @@ export function AppProvider({ children }) {
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `👉 <i>Teknisi sedang menyiapkan permohonan material dan menuju Gudang STO untuk pengambilan barang.</i>`;
 
-      api.post('/telegram/send', { text: claimText }).catch(() => {});
+      sendTelegramAlert(claimText);
     } catch {}
 
     showToast(`Tiket #${parsedTugasId} berhasil Anda ambil! Segera ajukan permohonan material ke gudang.`, 'success');
@@ -1188,7 +1213,7 @@ export function AppProvider({ children }) {
       items
     });
 
-    // 4. Notifikasi Telegram ke Grup Gudang via Backend API (Bebas Leak Bot Token Client-Side)
+    // 4. Notifikasi Telegram ke Grup Gudang (Dual-Dispatch)
     try {
       const parentTask = tugas.find(t => Number(t.id) === parsedTugasId);
       const itemListText = items.map(i => `• ${i.nama_barang || 'Barang ID: ' + i.barang_id}: ${i.jumlah_minta} ${i.satuan || 'pcs'}`).join('\n');
@@ -1204,7 +1229,7 @@ export function AppProvider({ children }) {
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `👉 <i>Silakan buka aplikasi Gudang untuk merilis barang fisik ke teknisi.</i>`;
 
-      api.post('/telegram/send', { text: textGudang }).catch(() => {});
+      sendTelegramAlert(textGudang);
     } catch {}
 
     showToast(`Permohonan material #${realPId} berhasil diajukan ke Gudang STO!`, "success");

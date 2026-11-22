@@ -13,6 +13,7 @@
  */
 
 import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { parseTaskDetails } from '../utils/taskFormatter';
@@ -111,10 +112,18 @@ export default function ModalBASTP({ task, onClose }) {
   };
 
   const handlePrint = () => {
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('bastp-print-mode');
+    }
     window.print();
+    setTimeout(() => {
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('bastp-print-mode');
+      }
+    }, 1500);
   };
 
-  return (
+  const modalElement = (
     <div className="modal-bastp-backdrop fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[9999] overflow-y-auto animate-in fade-in duration-200">
       <div className={`rounded-3xl w-full max-w-4xl border-2 shadow-2xl transition-all max-h-[96vh] flex flex-col ${
         isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
@@ -395,4 +404,9 @@ export default function ModalBASTP({ task, onClose }) {
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalElement, document.body);
+  }
+  return modalElement;
 }

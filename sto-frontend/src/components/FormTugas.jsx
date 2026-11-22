@@ -59,7 +59,7 @@ function FormTugas({ onCreated }) {
 
     const targetOdp = odp.find(o => String(o.id) === String(selectedOdpId)) || {
       id: 1,
-      kode_odp: 'ODP-PYK-01/04'
+      kode_odp: 'ODP-PYK-FA/001'
     };
 
     const assignedId = selectedTeknisiId && selectedTeknisiId !== '99' ? Number(selectedTeknisiId) : 99;
@@ -71,8 +71,8 @@ function FormTugas({ onCreated }) {
       pelanggan_telp: pelangganTelp || '0812-6789-0123',
       lokasi,
       keterangan,
-      odp_id: targetOdp.id,
-      odp_kode: targetOdp.kode_odp,
+      odp_id: targetOdp.id ? Number(targetOdp.id) : 1,
+      odp_kode: targetOdp.kode_odp || 'ODP-PYK-FA/001',
       status: 'menunggu'
     };
 
