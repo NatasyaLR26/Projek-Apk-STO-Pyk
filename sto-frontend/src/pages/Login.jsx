@@ -261,10 +261,9 @@ export default function Login({ onTriggerSplash }) {
           <div className="flex flex-col items-center text-center mb-6">
             <BrandLogo size="lg" className="mb-2 justify-center" />
             <h1 className={`text-base font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Fiber Ops
             </h1>
             <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              STO Telkom Akses Payakumbuh
+               Fiber Ops
             </p>
           </div>
 
