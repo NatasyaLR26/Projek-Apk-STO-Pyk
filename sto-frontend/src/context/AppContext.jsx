@@ -81,7 +81,7 @@ export function AppProvider({ children }) {
     if (saved) {
       try { return JSON.parse(saved); } catch { /* ignore */ }
     }
-    return initialUsers[0]; // Pimpinan Ir. Bambang
+    return initialUsers[0]; // Pimpinan Robby Permana Putra
   });
 
   // 3. Database Tables
@@ -108,6 +108,10 @@ export function AppProvider({ children }) {
   });
 
   const [tugas, setTugas] = useState(() => {
+    // Jika Supabase terhubung, inisialisasi awal ke array kosong agar realtime dari Supabase dan tidak memunculkan data tiket yang telah dihapus
+    if (isSupabaseConfigured()) {
+      return [];
+    }
     const saved = localStorage.getItem('sto_tugas');
     if (saved) {
       try {
@@ -115,8 +119,7 @@ export function AppProvider({ children }) {
         if (Array.isArray(parsed)) return parsed;
       } catch {}
     }
-    // Jika Supabase terhubung, inisialisasi awal ke array kosong agar tidak memunculkan data dummy/hantu
-    return isSupabaseConfigured() ? [] : initialTugas;
+    return initialTugas;
   });
 
   const [permohonan, setPermohonan] = useState(() => {
@@ -173,18 +176,26 @@ export function AppProvider({ children }) {
     } catch {}
   }, [pelanggan]);
 
-  // Saldo Sisa Material Teknisi (Mobile Stock di Kendaraan Teknisi)
+  // Saldo Sisa Material Teknisi (Mobile Stock di Kendaraan Teknisi - Realtime Otomatis Dari Sisa Pemasangan)
   const [saldoTeknisi, setSaldoTeknisi] = useState(() => {
     try {
       const saved = localStorage.getItem('sto_saldo_teknisi');
-      return saved ? JSON.parse(saved) : {
-        kabel_m: 85, // sisa 85 meter dropcore dari penarikan sebelumnya
-        roset: 2,
-        fast_connector: 4,
-        klem_segitiga: 3
-      };
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Sanitasi: jika masih menyimpan sisa dummy lama (85m), reset ke 0 agar data murni otomatis
+        if (parsed && (parsed.kabel_m === 85 || parsed.dummy)) {
+          return { kabel_m: 0, roset: 0, fast_connector: 0, klem_segitiga: 0 };
+        }
+        return {
+          kabel_m: Number(parsed.kabel_m) || 0,
+          roset: Number(parsed.roset) || 0,
+          fast_connector: Number(parsed.fast_connector) || 0,
+          klem_segitiga: Number(parsed.klem_segitiga) || 0
+        };
+      }
+      return { kabel_m: 0, roset: 0, fast_connector: 0, klem_segitiga: 0 };
     } catch {
-      return { kabel_m: 85, roset: 2, fast_connector: 4, klem_segitiga: 3 };
+      return { kabel_m: 0, roset: 0, fast_connector: 0, klem_segitiga: 0 };
     }
   });
 
@@ -1331,7 +1342,36 @@ export function AppProvider({ children }) {
       : [Number(targetPermohonan.tugas_id)];
 
     const allocations = (typeof sn === 'object' && sn !== null) ? sn : {};
-    const defaultSn = typeof sn === 'string' ? sn : null;
+    let defaultSn = typeof sn === 'string' ? sn : null;
+
+    // Baca stok serials ONT di gudang untuk alokasi otomatis jika belum ditentukan manual
+    let storedOnts = [];
+    try {
+      storedOnts = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
+    } catch {}
+
+    const hasOntRequested = itemsToRelease.some(d => {
+      const b = barang.find(x => Number(x.id) === Number(d.barang_id));
+      const nm = String(b?.nama_barang || '').toLowerCase();
+      return nm.includes('ont') || nm.includes('modem') || nm.includes('zte') || nm.includes('huawei');
+    });
+
+    // Otomatis salin dan alokasikan Serial Number ONT dari stok ready jika ada permintaan ONT
+    let readySearchIdx = 0;
+    targetTugasIds.forEach((tid) => {
+      let currentSn = (typeof allocations[tid] === 'object' ? allocations[tid]?.sn : allocations[tid]) || defaultSn;
+      if (!currentSn && hasOntRequested) {
+        const readyOnt = storedOnts.find((s, idx) => (s.status === 'Tersedia' || s.status === 'Di Gudang') && idx >= readySearchIdx);
+        if (readyOnt) {
+          currentSn = readyOnt.sn;
+          readySearchIdx++;
+        } else {
+          currentSn = `ZTEGC8B902${String(tid).padStart(2, '0')}`;
+        }
+        allocations[tid] = { sn: currentSn, model: 'Modem ONT ZTE F670L Dual Band' };
+        if (!defaultSn) defaultSn = currentSn;
+      }
+    });
 
     setPermohonan(prev => prev.map(p => {
       if (Number(p.id) === parsedId) {
@@ -1368,22 +1408,33 @@ export function AppProvider({ children }) {
 
     // Simpan trasir ONT ke penyimpanan lokal
     try {
-      const storedOnts = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
       targetTugasIds.forEach(tid => {
         const assignedData = allocations[tid];
         const snToStore = (typeof assignedData === 'object' ? assignedData?.sn : assignedData) || defaultSn;
         const modelToStore = (typeof assignedData === 'object' ? assignedData?.model : null) || 'Modem ONT ZTE F670L Dual Band';
         const taskObj = tugas.find(t => Number(t.id) === Number(tid));
 
-        if (snToStore && !storedOnts.some(s => s.sn === snToStore)) {
-          storedOnts.push({
-            id: `ONT-TRANS-${parsedId}-${tid}`,
-            sn: snToStore,
-            model: modelToStore,
-            status: 'Di Perjalanan',
-            pelanggan: taskObj?.pelanggan_nama || 'Pelanggan STO',
-            tugas_id: tid
-          });
+        if (snToStore) {
+          const existIdx = storedOnts.findIndex(s => s.sn === snToStore);
+          if (existIdx !== -1) {
+            storedOnts[existIdx] = {
+              ...storedOnts[existIdx],
+              status: 'Di Perjalanan',
+              pelanggan: taskObj?.pelanggan_nama || 'Pelanggan STO',
+              tugas_id: tid,
+              waktu_rilis: formattedDate
+            };
+          } else {
+            storedOnts.push({
+              id: `ONT-TRANS-${parsedId}-${tid}`,
+              sn: snToStore,
+              model: modelToStore,
+              status: 'Di Perjalanan',
+              pelanggan: taskObj?.pelanggan_nama || 'Pelanggan STO',
+              tugas_id: tid,
+              waktu_rilis: formattedDate
+            });
+          }
         }
       });
       localStorage.setItem('sto_ont_serials', JSON.stringify(storedOnts));
@@ -1665,12 +1716,29 @@ export function AppProvider({ children }) {
       }
     }
 
-    // Update status serial number ONT di penyimpanan lokal agar statusnya otomatis Terpasang
+    // Update status serial number ONT di penyimpanan lokal agar statusnya otomatis Terpasang & terlacak lengkap
     try {
       const storedOnts = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
       const updatedOnts = storedOnts.map(s => {
-        if (s.sn === snOnt) {
-          return { ...s, status: 'Terpasang', pelanggan: pelangganNama || 'Pelanggan STO', tugas_id: parsedTugasId };
+        if (s.sn === snOnt || Number(s.tugas_id) === parsedTugasId) {
+          return {
+            ...s,
+            status: 'Terpasang',
+            pelanggan: pelangganNama || s.pelanggan || 'Pelanggan STO',
+            tugas_id: parsedTugasId,
+            lokasi: lokasiAlamat || s.lokasi || 'Payakumbuh',
+            target_lat: currentTask?.target_lat || s.target_lat,
+            target_lng: currentTask?.target_lng || s.target_lng,
+            foto_bukti: isPayloadObject ? argPhotoOrPayload.fotoBuktiUrl : argPhotoOrPayload,
+            foto_sn: isPayloadObject ? argPhotoOrPayload.foto_sn : null,
+            foto_opm: isPayloadObject ? argPhotoOrPayload.foto_opm : null,
+            foto_rumah: isPayloadObject ? argPhotoOrPayload.foto_rumah : null,
+            redaman_dbm: isPayloadObject ? argPhotoOrPayload.redaman_dbm : '-18.5',
+            odp_id: isPayloadObject ? argPhotoOrPayload.odp_id : 'ODP-PYK-FA/001',
+            port_odp: isPayloadObject ? argPhotoOrPayload.port_odp : '01',
+            bastp_no: bastpData.nomor_bastp,
+            waktu_pasang: formattedDate
+          };
         }
         return s;
       });
@@ -1905,6 +1973,12 @@ export function AppProvider({ children }) {
     // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
     if (!backendHandled && isSupabaseConfigured()) {
       try {
+        const { data: perms } = await supabase.from('permohonan').select('id').eq('tugas_id', parsedId);
+        if (perms && perms.length > 0) {
+          const permIds = perms.map(p => p.id);
+          await supabase.from('detail_permohonan').delete().in('permohonan_id', permIds);
+          await supabase.from('permohonan').delete().eq('tugas_id', parsedId);
+        }
         await supabase.from('tugas').delete().eq('id', parsedId);
       } catch (err) {
         console.warn('Supabase delete tugas error:', err);

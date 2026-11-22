@@ -857,7 +857,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
                 <div>
                   <div className="text-[10px] text-slate-500">Mengetahui, Pimpinan STO</div>
                   <div className="h-12" />
-                  <div className="font-bold underline">Ir. Bambang Sudirman, M.T.</div>
+                  <div className="font-bold underline">Robby Permana Putra</div>
                 </div>
               </div>
             </div>

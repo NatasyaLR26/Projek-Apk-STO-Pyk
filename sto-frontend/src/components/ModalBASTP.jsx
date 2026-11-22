@@ -90,6 +90,9 @@ export default function ModalBASTP({ task, onClose }) {
       waktu_closing: tItem.waktu_selesai || existing?.waktu_closing || new Date().toISOString().slice(0, 16).replace('T', ' '),
       catatan_teknisi: tItem.catatan_selesai || tItem.catatan || existing?.catatan_teknisi || 'Instalasi selesai, sinyal optik stabil dan lolos uji QC Telkom.',
       foto_bukti: tItem.foto_bukti || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+      foto_sn: tItem.foto_sn || existing?.foto_sn || 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&auto=format&fit=crop&q=80',
+      foto_opm: tItem.foto_opm || existing?.foto_opm || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80',
+      foto_rumah: tItem.foto_rumah || tItem.foto_bukti || existing?.foto_rumah || 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80',
       jenis_kerja: tItem.jenis_kerja || task.jenis_kerja || 'Pasang Baru (PSB)',
       reconciliation: existing?.reconciliation || [
         {
@@ -348,25 +351,50 @@ export default function ModalBASTP({ task, onClose }) {
                   </div>
                 </div>
 
-                {/* BUKTI FOTO & CATATAN TEKNISI (KOMPAK) */}
-                <div className={`p-2.5 rounded-xl border flex items-center gap-3 ${
+                {/* 3 BUKTI FOTO FISIK (SN ONT, OPM DBM, RUMAH/PELANGGAN) & CATATAN */}
+                <div className={`p-2 rounded-xl border space-y-1.5 ${
                   isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  {bastp.foto_bukti && (
-                    <img
-                      src={bastp.foto_bukti}
-                      alt="Dokumentasi BASTP"
-                      className="w-16 h-14 object-cover rounded-lg border border-slate-400 shadow-xs shrink-0"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1 text-[11px]">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-0.5">
+                      <img
+                        src={bastp.foto_sn}
+                        alt="SN Barcode Modem"
+                        className="w-full h-11 object-cover rounded-md border border-slate-400 shadow-xs"
+                      />
+                      <span className="block text-[8px] font-mono text-center text-slate-500 font-bold truncate">
+                        SN: {bastp.sn_ont}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <img
+                        src={bastp.foto_opm}
+                        alt="Redaman OPM"
+                        className="w-full h-11 object-cover rounded-md border border-slate-400 shadow-xs"
+                      />
+                      <span className="block text-[8px] font-mono text-center text-emerald-600 dark:text-emerald-400 font-bold">
+                        OPM: {bastp.redaman_dbm} dBm
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <img
+                        src={bastp.foto_rumah}
+                        alt="Rumah Pelanggan"
+                        className="w-full h-11 object-cover rounded-md border border-slate-400 shadow-xs"
+                      />
+                      <span className="block text-[8px] text-center text-slate-500 font-bold truncate">
+                        Rumah &amp; Pelanggan
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-slate-200 dark:border-slate-800">
                     <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Instalasi &amp; Redaman Terverifikasi Sistem</span>
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>3 Foto Fisik Lolos Verifikasi Lapangan</span>
                     </span>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5" title={bastp.catatan_teknisi}>
-                      Catatan: "{bastp.catatan_teknisi}"
-                    </p>
+                    <span className="text-slate-400 italic truncate max-w-[220px]" title={bastp.catatan_teknisi}>
+                      "{bastp.catatan_teknisi}"
+                    </span>
                   </div>
                 </div>
 
@@ -391,7 +419,7 @@ export default function ModalBASTP({ task, onClose }) {
                   <div className={`p-2 rounded-xl border ${isDark ? 'border-slate-800 bg-slate-950/30' : 'border-slate-300 bg-slate-50'} space-y-1`}>
                     <div className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Pimpinan STO</div>
                     <div className="h-10 flex items-center justify-center border-y border-dashed border-slate-300 dark:border-slate-700 my-0.5 font-bold text-[11px]">
-                      ( Ir. Bambang Hermanto )
+                      ( Robby Permana Putra )
                     </div>
                     <p className="text-[9px] text-slate-400">Manager STO Payakumbuh</p>
                   </div>

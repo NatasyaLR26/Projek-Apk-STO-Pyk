@@ -298,6 +298,18 @@ exports.deleteTugas = async (req, res) => {
     return errorResponse(res, 400, 'ID tugas tidak valid');
   }
 
+  // Bersihkan ketergantungan relasi (permohonan & detail) agar penghapusan di Supabase tidak terkendala foreign key
+  try {
+    const { data: perms } = await supabase.from('permohonan').select('id').eq('tugas_id', parsedId);
+    if (perms && perms.length > 0) {
+      const permIds = perms.map(p => p.id);
+      await supabase.from('detail_permohonan').delete().in('permohonan_id', permIds);
+      await supabase.from('permohonan').delete().eq('tugas_id', parsedId);
+    }
+  } catch (cascadeErr) {
+    console.info('[deleteTugas] Cascade notice:', cascadeErr.message);
+  }
+
   const { data, error } = await supabase
     .from('tugas')
     .delete()

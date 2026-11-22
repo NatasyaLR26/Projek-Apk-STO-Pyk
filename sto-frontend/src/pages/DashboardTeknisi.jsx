@@ -265,7 +265,7 @@ export default function DashboardTeknisi() {
         <div className="p-4 sm:p-6 lg:p-8 space-y-6 flex-1 max-w-7xl w-full mx-auto">
           
           {/* Header Banner */}
-          <div className={`p-5 sm:p-6 rounded-3xl border ${
+          <div className={`no-print p-5 sm:p-6 rounded-3xl border ${
             isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
           } flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors`}>
             <div>
@@ -297,7 +297,7 @@ export default function DashboardTeknisi() {
           {activeMenu === 'tiket' && (
             <div className="space-y-6 animate-in fade-in duration-200">
 
-              {/* Saldo Sisa Material di Mobil Teknisi (Mobile Stock Bebas Clipping) */}
+              {/* Saldo Sisa Material di Mobil Teknisi (Otomatis Dari Sisa Pemasangan / Gulungan Kabel Putus) */}
               {saldoTeknisi && (
                 <div className={`p-4 rounded-3xl border transition-all ${
                   isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
@@ -308,11 +308,15 @@ export default function DashboardTeknisi() {
                     </div>
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-amber-400 flex items-center gap-2 flex-wrap">
-                        <span>Mobile Stock di Mobil Anda (Sisa Material Sebelumnya)</span>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 font-mono">Tercatat</span>
+                        <span>Mobile Stock di Kendaraan Teknisi</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono ${
+                          (Number(saldoTeknisi.kabel_m) || 0) > 0 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {(Number(saldoTeknisi.kabel_m) || 0) > 0 ? 'Tersedia Sisa Kabel' : 'Stok Kosong (Siap Kerja)'}
+                        </span>
                       </div>
                       <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5 leading-relaxed`}>
-                        Gunakan sisa material di kendaraan sebelum meminta material baru ke gudang STO. Kehilangan material menjadi tanggung jawab teknisi.
+                        Kabel dropcore berlebih (misal sisa 10m) digulung di kendaraan untuk perbaikan kabel putus. Bertambah otomatis jika ada sisa saat closing tiket.
                       </p>
                     </div>
                   </div>
@@ -322,25 +326,33 @@ export default function DashboardTeknisi() {
                       isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
                     }`}>
                       <span className="text-[9px] text-slate-400 block whitespace-nowrap">Sisa Dropcore</span>
-                      <strong className="text-emerald-400 font-black whitespace-nowrap">{saldoTeknisi.kabel_m || 0} m</strong>
+                      <strong className={`font-black whitespace-nowrap ${(Number(saldoTeknisi.kabel_m) || 0) > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        {saldoTeknisi.kabel_m || 0} m
+                      </strong>
                     </div>
                     <div className={`px-3 py-2 rounded-xl text-center border ${
                       isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
                     }`}>
                       <span className="text-[9px] text-slate-400 block whitespace-nowrap">Roset FO</span>
-                      <strong className="text-sky-400 font-black whitespace-nowrap">{saldoTeknisi.roset || 0} pcs</strong>
+                      <strong className={`font-black whitespace-nowrap ${(Number(saldoTeknisi.roset) || 0) > 0 ? 'text-sky-400' : 'text-slate-500'}`}>
+                        {saldoTeknisi.roset || 0} pcs
+                      </strong>
                     </div>
                     <div className={`px-3 py-2 rounded-xl text-center border ${
                       isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
                     }`}>
                       <span className="text-[9px] text-slate-400 block whitespace-nowrap">Fast Conn</span>
-                      <strong className="text-amber-400 font-black whitespace-nowrap">{saldoTeknisi.fast_connector || 0} pcs</strong>
+                      <strong className={`font-black whitespace-nowrap ${(Number(saldoTeknisi.fast_connector) || 0) > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
+                        {saldoTeknisi.fast_connector || 0} pcs
+                      </strong>
                     </div>
                     <div className={`px-3 py-2 rounded-xl text-center border ${
                       isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
                     }`}>
                       <span className="text-[9px] text-slate-400 block whitespace-nowrap">Klem Segitiga</span>
-                      <strong className="text-purple-400 font-black whitespace-nowrap">{saldoTeknisi.klem_segitiga || 0} pcs</strong>
+                      <strong className={`font-black whitespace-nowrap ${(Number(saldoTeknisi.klem_segitiga) || 0) > 0 ? 'text-purple-400' : 'text-slate-500'}`}>
+                        {saldoTeknisi.klem_segitiga || 0} pcs
+                      </strong>
                     </div>
                   </div>
                 </div>

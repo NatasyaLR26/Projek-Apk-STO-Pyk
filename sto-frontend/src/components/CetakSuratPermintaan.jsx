@@ -154,7 +154,7 @@ export default function CetakSuratPermintaan({ task, items = [], onClose }) {
               <div className="text-slate-500 uppercase font-semibold">Pimpinan Wilayah STO</div>
               <div className="h-14"></div>
               <div className="font-bold border-t border-slate-400 pt-1 inline-block w-4/5">
-                Ir. Bambang Hermanto
+                Robby Permana Putra
               </div>
             </div>
           </div>

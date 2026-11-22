@@ -370,14 +370,30 @@ export default function AuditReportPage() {
                       )}
                     </td>
                     <td className="px-3 py-3 text-center">
-                      {task.foto_bukti ? (
-                        <div className="inline-block">
+                      {(task.foto_sn || task.foto_opm || task.foto_bukti) ? (
+                        <div className="inline-flex items-center justify-center gap-1">
+                          {task.foto_sn && (
+                            <img
+                              src={task.foto_sn}
+                              alt="SN Barcode"
+                              title={`SN Barcode: ${task.sn_ont || ''}`}
+                              className="w-8 h-8 object-cover rounded border border-purple-500/40 shadow-xs"
+                            />
+                          )}
+                          {task.foto_opm && (
+                            <img
+                              src={task.foto_opm}
+                              alt="Redaman OPM"
+                              title={`Redaman OPM: ${task.redaman_dbm || ''} dBm`}
+                              className="w-8 h-8 object-cover rounded border border-emerald-500/40 shadow-xs"
+                            />
+                          )}
                           <img
-                            src={task.foto_bukti}
-                            alt="Bukti"
-                            className={`w-12 h-12 object-cover rounded-lg border ${isDark ? 'border-slate-700' : 'border-slate-200'} shadow mx-auto`}
+                            src={task.foto_rumah || task.foto_bukti}
+                            alt="Rumah / Pelanggan"
+                            title="Foto Rumah / Serah Terima Pelanggan"
+                            className={`w-8 h-8 object-cover rounded border ${isDark ? 'border-slate-700' : 'border-slate-300'} shadow-xs`}
                           />
-                          <span className="text-[9px] text-emerald-500 block mt-0.5">Tervalidasi</span>
                         </div>
                       ) : (
                         <span className={`text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'} italic`}>- Belum ada -</span>
@@ -414,7 +430,7 @@ export default function AuditReportPage() {
               <div className="h-20 flex items-center justify-center">
                 <span className={`${isDark ? 'text-slate-600' : 'text-slate-400'} italic text-[11px] print-text-dark`}>( Tanda Tangan & Cap Wilayah )</span>
               </div>
-              <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark underline`}>Ir. Bambang Sudirman, M.T.</p>
+              <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'} print-text-dark underline`}>Robby Permana Putra</p>
               <p className="text-[10px]">Manager STO Payakumbuh</p>
             </div>
           </div>

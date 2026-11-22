@@ -69,7 +69,15 @@ export default function CetakSuratPermohonan({ initialRequestId = null }) {
     });
 
   const handlePrint = () => {
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('spmg-print-mode');
+    }
     window.print();
+    setTimeout(() => {
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('spmg-print-mode');
+      }
+    }, 1500);
   };
 
   return (
@@ -121,9 +129,9 @@ export default function CetakSuratPermohonan({ initialRequestId = null }) {
         </div>
       </div>
 
-      {/* Official Telkom Akses Printable Letter */}
+      {/* Official Telkom Akses Printable Letter (Kunci Tepat 1 Lembar A4) */}
       {activeRequest ? (
-        <div className={`p-5 sm:p-10 rounded-3xl border-2 ${isDark ? 'bg-slate-900/90 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'} shadow-2xl print-card transition-all`}>
+        <div className={`p-4 sm:p-8 rounded-3xl border-2 ${isDark ? 'bg-slate-900/90 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'} shadow-2xl print-card printable-spmg-sheet transition-all`}>
           
           {/* Official Letterhead (KOP SURAT RESMI TELKOM AKSES) */}
           <div className="pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -274,51 +282,53 @@ export default function CetakSuratPermohonan({ initialRequestId = null }) {
             </table>
           </div>
 
-          {/* Official Signatures Block dengan Border Box Rapi */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t-2 border-slate-300 dark:border-slate-700 text-center text-xs print-text-dark">
-            {/* Box 1: Teknisi */}
-            <div className={`p-4 rounded-2xl border-2 ${isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-300 bg-slate-50'} space-y-2`}>
-              <p className="font-bold uppercase tracking-wider text-[11px] text-slate-500 dark:text-slate-400">
-                Pemohon (Teknisi Lapangan)
-              </p>
-              <div className="h-16 flex items-center justify-center border-y border-dashed border-slate-300 dark:border-slate-700 my-1">
-                <span className="text-slate-400 italic text-[11px]">( Tanda Tangan Fisik )</span>
-              </div>
-              <p className="font-black text-slate-900 dark:text-white underline">{activeTech?.nama_lengkap || 'Ahmad Fadli'}</p>
-              <p className="text-[10px] text-slate-500 font-mono">NIK: TA-{activeTech?.id || '02'}9821</p>
-            </div>
-
-            {/* Box 2: Pimpinan STO */}
-            <div className={`p-4 rounded-2xl border-2 ${isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-300 bg-slate-50'} space-y-2`}>
-              <p className="font-bold uppercase tracking-wider text-[11px] text-slate-500 dark:text-slate-400">
+          {/* Official Signatures Block dengan Border Box Rapi & Proporsional 1 Lembar */}
+          <div className="grid grid-cols-3 gap-3 pt-3 border-t-2 border-slate-300 dark:border-slate-700 text-center text-xs print-text-dark">
+            {/* Box 1: Pimpinan STO */}
+            <div className={`p-3 rounded-2xl border-2 ${isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-300 bg-slate-50'} space-y-1.5`}>
+              <p className="font-bold uppercase tracking-wider text-[10px] text-slate-500 dark:text-slate-400">
                 Menyetujui (Pimpinan STO)
               </p>
-              <div className="h-16 flex items-center justify-center border-y border-dashed border-slate-300 dark:border-slate-700 my-1">
+              <div className="h-12 flex items-center justify-center border-y border-dashed border-slate-300 dark:border-slate-700 my-1">
                 {activeRequest.status === 'Approved' || activeRequest.status === 'Released' ? (
-                  <div className="px-3 py-1 rounded-xl border border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold flex items-center gap-1">
+                  <div className="px-2.5 py-0.5 rounded-xl border border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>DISETUJUI DIGITAL</span>
                   </div>
                 ) : (
-                  <span className="text-slate-400 italic text-[11px]">( Tanda Tangan & Cap )</span>
+                  <span className="text-slate-400 italic text-[10px]">( Tanda Tangan & Cap )</span>
                 )}
               </div>
-              <p className="font-black text-slate-900 dark:text-white underline">
-                {activePimpinan?.nama_lengkap || 'Ir. Bambang Sudirman, M.T.'}
+              <p className="font-black text-slate-900 dark:text-white underline text-xs">
+                {activePimpinan?.nama_lengkap || 'Robby Permana Putra'}
               </p>
               <p className="text-[10px] text-slate-500">Manager STO Payakumbuh</p>
             </div>
 
-            {/* Box 3: Petugas Gudang */}
-            <div className={`p-4 rounded-2xl border-2 ${isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-300 bg-slate-50'} space-y-2`}>
-              <p className="font-bold uppercase tracking-wider text-[11px] text-slate-500 dark:text-slate-400">
+            {/* Box 2: Petugas Gudang */}
+            <div className={`p-3 rounded-2xl border-2 ${isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-300 bg-slate-50'} space-y-1.5`}>
+              <p className="font-bold uppercase tracking-wider text-[10px] text-slate-500 dark:text-slate-400">
                 Menyerahkan (Petugas Gudang)
               </p>
-              <div className="h-16 flex items-center justify-center border-y border-dashed border-slate-300 dark:border-slate-700 my-1">
-                <span className="text-slate-400 italic text-[11px]">( Tanda Tangan & Cap Logistik )</span>
+              <div className="h-12 flex items-center justify-center border-y border-dashed border-slate-300 dark:border-slate-700 my-1">
+                <span className="text-slate-400 italic text-[10px]">( Tanda Tangan & Cap Logistik )</span>
               </div>
-              <p className="font-black text-slate-900 dark:text-white underline">Restui / Siti Rahmawati</p>
+              <p className="font-black text-slate-900 dark:text-white underline text-xs">Restui</p>
               <p className="text-[10px] text-slate-500">Staff Logistik & Inventaris</p>
+            </div>
+
+            {/* Box 3: Pemohon / Teknisi Lapangan */}
+            <div className={`p-3 rounded-2xl border-2 ${isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-300 bg-slate-50'} space-y-1.5`}>
+              <p className="font-bold uppercase tracking-wider text-[10px] text-slate-500 dark:text-slate-400">
+                Pemohon (Teknisi Lapangan)
+              </p>
+              <div className="h-12 flex items-center justify-center border-y border-dashed border-slate-300 dark:border-slate-700 my-1">
+                <span className="text-slate-400 italic text-[10px]">( Tanda Tangan Fisik )</span>
+              </div>
+              <p className="font-black text-slate-900 dark:text-white underline text-xs">
+                {activeTech?.nama_lengkap || 'Teknisi Lapangan'}
+              </p>
+              <p className="text-[10px] text-slate-500 font-mono">NIK: TA-{activeTech?.id || '02'}9821</p>
             </div>
           </div>
 

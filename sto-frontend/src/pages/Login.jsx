@@ -260,8 +260,11 @@ export default function Login({ onTriggerSplash }) {
           {/* Header Brand */}
           <div className="flex flex-col items-center text-center mb-6">
             <BrandLogo size="lg" className="mb-2 justify-center" />
-            <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              STO Telkom Akses Payakumbuh (Koto Nan IV)
+            <h1 className={`text-base font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Fiber Ops
+            </h1>
+            <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              STO Telkom Akses Payakumbuh
             </p>
           </div>
 
@@ -325,14 +328,9 @@ export default function Login({ onTriggerSplash }) {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className={`block text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                    Kata Sandi
-                  </label>
-                  <span className="text-[11px] font-semibold text-rose-500 hover:underline cursor-pointer">
-                    Lupa Sandi?
-                  </span>
-                </div>
+                <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                  Kata Sandi
+                </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -464,7 +462,7 @@ export default function Login({ onTriggerSplash }) {
 
               <div>
                 <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  Kode Otorisasi (Opsional)
+                  Autentikasi
                 </label>
                 <div className="relative">
                   <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -472,7 +470,7 @@ export default function Login({ onTriggerSplash }) {
                     type="text"
                     value={regToken}
                     onChange={(e) => setRegToken(e.target.value.toUpperCase())}
-                    placeholder="Masukkan kode otorisasi jika ada"
+                    placeholder="Kode Autentikasi"
                     className={`w-full pl-10 pr-3.5 py-2.5 rounded-2xl text-xs font-mono uppercase tracking-wider border outline-none transition ${
                       isDark
                         ? 'bg-slate-950/80 border-slate-700 text-white focus:border-rose-500'

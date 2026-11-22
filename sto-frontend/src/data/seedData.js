@@ -31,7 +31,7 @@ export const initialUsers = [
   },
   {
     id: 4,
-    nama_lengkap: "Ir. Bambang Sudirman, M.T.",
+    nama_lengkap: "Robby Permana Putra",
     role: "pimpinan",
     email: "pimpinan@telkomakses.co.id",
     password: "password123",

@@ -33,6 +33,22 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan }) {
   const [batchModelInputs, setBatchModelInputs] = useState({});
   const [releasingId, setReleasingId] = useState(null);
 
+  // Daftar SN ONT yang ready/tersedia di gudang dari stok inventaris
+  const availableOntSerials = useMemo(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
+      const ready = stored.filter(s => s.status === 'Tersedia' || s.status === 'Di Gudang');
+      if (ready.length > 0) return ready;
+    } catch {}
+    return [
+      { sn: 'ZTEGC8B90201', model: 'Modem ONT ZTE F670L Dual Band' },
+      { sn: 'ZTEGC8B90202', model: 'Modem ONT ZTE F670L Dual Band' },
+      { sn: 'ZTEGC8B90203', model: 'Modem ONT ZTE F670L Dual Band' },
+      { sn: 'ZTEGC8B90204', model: 'Modem ONT ZTE F670L Dual Band' },
+      { sn: 'HWTC8B90205', model: 'Modem ONT Huawei HG8245H5' }
+    ];
+  }, []);
+
   // Permohonan material masuk dari teknisi yang siap diserahkan oleh petugas gudang
   const approvedRequests = useMemo(() => {
     return permohonan
@@ -66,6 +82,45 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan }) {
         };
       });
   }, [permohonan, tugas, users, detailPermohonan, barang]);
+
+  // Otomatis salin/isi Serial Number ONT dari stok gudang yang ready
+  useEffect(() => {
+    let serialIdx = 0;
+    const newSingleInputs = { ...snOntInputs };
+    const newBatchInputs = { ...batchSnInputs };
+    let hasChanges = false;
+
+    approvedRequests.forEach((req) => {
+      const isBatch = req.is_batch || (req.tugas_ids && req.tugas_ids.length > 1);
+      const hasOnt = req.details.some(d => d.item?.nama_barang?.toLowerCase().includes('ont') || d.item?.nama_barang?.toLowerCase().includes('modem'));
+      
+      if (!hasOnt) return;
+
+      if (isBatch && req.tugas_ids) {
+        req.tugas_ids.forEach(tid => {
+          const key = `${req.id}_${tid}`;
+          if (!newBatchInputs[key]) {
+            const pick = availableOntSerials[serialIdx % availableOntSerials.length];
+            newBatchInputs[key] = pick?.sn || `ZTEGC8B902${String(serialIdx + 1).padStart(2, '0')}`;
+            serialIdx++;
+            hasChanges = true;
+          }
+        });
+      } else {
+        if (!newSingleInputs[req.id]) {
+          const pick = availableOntSerials[serialIdx % availableOntSerials.length];
+          newSingleInputs[req.id] = pick?.sn || `ZTEGC8B902${String(serialIdx + 1).padStart(2, '0')}`;
+          serialIdx++;
+          hasChanges = true;
+        }
+      }
+    });
+
+    if (hasChanges) {
+      setSnOntInputs(newSingleInputs);
+      setBatchSnInputs(newBatchInputs);
+    }
+  }, [approvedRequests, availableOntSerials]);
 
   const handleRelease = async (reqId) => {
     if (releasingId) return;
@@ -211,8 +266,8 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan }) {
                       <Barcode className="w-4 h-4" />
                       <span>Alokasi SN ONT per Pelanggan (Gudang Menentukan):</span>
                     </span>
-                    <span className="text-[10px] text-purple-300 font-mono bg-purple-900/60 px-2 py-0.5 rounded border border-purple-500/40">
-                      Batch {req.tugas_ids?.length || 1} Pelanggan
+                    <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                      ⚡ Terisi Otomatis Dari Stok Ready
                     </span>
                   </div>
                   <div className="space-y-2">
@@ -268,9 +323,14 @@ export default function TabelPermohonanGudang({ onNavigateToSuratJalan }) {
               ) : (
                 req.details.some(d => d.item?.nama_barang?.toLowerCase().includes('ont') || d.item?.nama_barang?.toLowerCase().includes('modem')) && (
                   <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/30 space-y-2 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <Barcode className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                      <span className="font-bold text-purple-400">Alokasi SN Modem ONT:</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Barcode className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                        <span className="font-bold text-purple-400">Alokasi SN Modem ONT:</span>
+                      </div>
+                      <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                        ⚡ Terisi Otomatis Dari Stok Ready
+                      </span>
                     </div>
                     <input
                       type="text"

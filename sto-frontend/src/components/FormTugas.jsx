@@ -27,7 +27,7 @@ function FormTugas({ onCreated }) {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem('user')) || { id: 1, nama_lengkap: 'Ir. Bambang Sudirman' };
+  const user = JSON.parse(localStorage.getItem('user')) || { id: 1, nama_lengkap: 'Robby Permana Putra' };
 
   // Set default ODP jika data ODP telah termuat
   useEffect(() => {

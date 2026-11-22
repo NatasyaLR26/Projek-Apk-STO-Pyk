@@ -378,6 +378,32 @@ html.light .leaflet-popup-tip {
     page-break-after: auto !important;
     break-after: auto !important;
   }
+
+  /* SPMG (Surat Permohonan Material Gudang) 1 Page A4 Print Mode */
+  body.spmg-print-mode aside,
+  body.spmg-print-mode header,
+  body.spmg-print-mode nav,
+  body.spmg-print-mode .no-print {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+  }
+
+  body.spmg-print-mode .printable-spmg-sheet {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-height: 270mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 }
 
 /* Utility to hide scrollbars while keeping horizontal/vertical scrollability */
