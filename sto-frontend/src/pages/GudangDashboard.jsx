@@ -85,7 +85,8 @@ export default function GudangDashboard() {
 
   const [activeMenu, setActiveMenu] = useState(() => {
     try {
-      const saved = localStorage.getItem('sto_active_tab_gudang');
+      // Gunakan sessionStorage agar saat pertama login/buka aplikasi selalu tampil Dashboard Gudang Utama
+      const saved = sessionStorage.getItem('sto_active_tab_gudang');
       if (saved === 'daftar-barang') return 'dashboard-gudang';
       const valid = [
         'dashboard-gudang',
@@ -105,15 +106,41 @@ export default function GudangDashboard() {
   const handleSetActiveMenu = (tab) => {
     setActiveMenu(tab);
     try {
-      localStorage.setItem('sto_active_tab_gudang', tab);
+      sessionStorage.setItem('sto_active_tab_gudang', tab);
+      window.history.pushState({ role: 'gudang', tab }, '', window.location.pathname);
     } catch {}
   };
+
+  // Mencegah tombol Back browser kembali ke halaman Login tanpa logout eksplisit
+  useEffect(() => {
+    window.history.pushState({ role: 'gudang', tab: activeMenu }, '', window.location.pathname);
+
+    const handlePopState = (e) => {
+      // Jika pengguna menekan tombol Back saat berada di sub-menu gudang, arahkan kembali ke Dashboard Utama
+      if (activeMenu !== 'dashboard-gudang') {
+        setActiveMenu('dashboard-gudang');
+        try {
+          sessionStorage.setItem('sto_active_tab_gudang', 'dashboard-gudang');
+        } catch {}
+        window.history.pushState({ role: 'gudang', tab: 'dashboard-gudang' }, '', window.location.pathname);
+      } else {
+        // Jika sudah di dashboard utama, cegah browser back ke form login
+        window.history.pushState({ role: 'gudang', tab: 'dashboard-gudang' }, '', window.location.pathname);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeMenu]);
 
   // Reset tab ke dashboard gudang jika logo diklik
   useEffect(() => {
     const handleReset = (e) => {
       if (!e.detail?.role || e.detail.role === 'gudang') {
         setActiveMenu('dashboard-gudang');
+        try {
+          sessionStorage.setItem('sto_active_tab_gudang', 'dashboard-gudang');
+        } catch {}
       }
     };
     window.addEventListener('sto:reset-dashboard-tab', handleReset);

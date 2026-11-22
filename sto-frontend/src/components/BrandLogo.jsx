@@ -71,15 +71,15 @@ export default function BrandLogo({
       const role = user?.role;
 
       if (role === 'teknisi') {
-        try { localStorage.setItem('sto_active_tab_teknisi', 'tiket'); } catch {}
+        try { sessionStorage.setItem('sto_active_tab_teknisi', 'tiket'); } catch {}
         window.dispatchEvent(new CustomEvent('sto:reset-dashboard-tab', { detail: { role: 'teknisi', tab: 'tiket' } }));
         navigate('/dashboard-teknisi');
       } else if (role === 'gudang') {
-        try { localStorage.setItem('sto_active_tab_gudang', 'daftar-barang'); } catch {}
-        window.dispatchEvent(new CustomEvent('sto:reset-dashboard-tab', { detail: { role: 'gudang', tab: 'daftar-barang' } }));
+        try { sessionStorage.setItem('sto_active_tab_gudang', 'dashboard-gudang'); } catch {}
+        window.dispatchEvent(new CustomEvent('sto:reset-dashboard-tab', { detail: { role: 'gudang', tab: 'dashboard-gudang' } }));
         navigate('/dashboard-gudang');
       } else if (role === 'pimpinan' || role === 'admin') {
-        try { localStorage.setItem('sto_active_tab_pimpinan', 'dashboard'); } catch {}
+        try { sessionStorage.setItem('sto_active_tab_pimpinan', 'dashboard'); } catch {}
         window.dispatchEvent(new CustomEvent('sto:reset-dashboard-tab', { detail: { role: 'pimpinan', tab: 'dashboard' } }));
         navigate('/dashboard-pimpinan');
       } else {

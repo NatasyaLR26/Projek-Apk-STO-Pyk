@@ -1299,7 +1299,7 @@ export default function WebGISMap({
   // Render Toolbar Kontrol Peta (Dapat digunakan di dalam map untuk desktop & di luar map untuk mobile)
   // Render Toolbar Kontrol Peta (Dikelompokkan rapi, elegan, adaptif Light/Dark Mode)
   const renderToolbarControls = () => (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0">
       {/* KELOMPOK 1: LAPISAN PETA & FILTER STATUS ODP */}
       <div className="flex items-center gap-1.5">
         {/* Dropdown Layer Peta */}

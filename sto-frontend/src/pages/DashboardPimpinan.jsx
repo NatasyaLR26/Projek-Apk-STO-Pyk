@@ -131,7 +131,8 @@ const getTechDisplayName = (tech, allTechs = []) => {
 function DashboardPimpinan() {
   const [activeMenu, setActiveMenu] = useState(() => {
     try {
-      const saved = localStorage.getItem('sto_active_tab_pimpinan');
+      // Gunakan sessionStorage agar saat tutup browser/aplikasi selalu kembali ke Dashboard utama
+      const saved = sessionStorage.getItem('sto_active_tab_pimpinan');
       const valid = ['dashboard', 'tracking', 'tabel-odp', 'kelola-tugas', 'approval', 'laporan-kerja', 'laporan-gudang', 'tabel-pelanggan', 'kelola-pegawai'];
       return saved && valid.includes(saved) ? saved : 'dashboard';
     } catch {
@@ -142,15 +143,42 @@ function DashboardPimpinan() {
   const handleSetActiveMenu = (tab) => {
     setActiveMenu(tab);
     try {
-      localStorage.setItem('sto_active_tab_pimpinan', tab);
+      sessionStorage.setItem('sto_active_tab_pimpinan', tab);
+      window.history.pushState({ role: 'pimpinan', tab }, '', window.location.pathname);
     } catch {}
   };
+
+  // Mencegah tombol Back browser kembali ke halaman Login tanpa logout eksplisit
+  useEffect(() => {
+    // Inisialisasi state awal di history browser
+    window.history.pushState({ role: 'pimpinan', tab: activeMenu }, '', window.location.pathname);
+
+    const handlePopState = (e) => {
+      // Jika pengguna menekan tombol Back saat berada di sub-menu, arahkan kembali ke Dashboard utama
+      if (activeMenu !== 'dashboard') {
+        setActiveMenu('dashboard');
+        try {
+          sessionStorage.setItem('sto_active_tab_pimpinan', 'dashboard');
+        } catch {}
+        window.history.pushState({ role: 'pimpinan', tab: 'dashboard' }, '', window.location.pathname);
+      } else {
+        // Jika sudah di dashboard utama, tahan pengguna agar tidak mental kembali ke form login
+        window.history.pushState({ role: 'pimpinan', tab: 'dashboard' }, '', window.location.pathname);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeMenu]);
 
   // Reset tab ke overview dashboard jika logo diklik
   useEffect(() => {
     const handleReset = (e) => {
       if (!e.detail?.role || e.detail.role === 'pimpinan') {
         setActiveMenu('dashboard');
+        try {
+          sessionStorage.setItem('sto_active_tab_pimpinan', 'dashboard');
+        } catch {}
       }
     };
     window.addEventListener('sto:reset-dashboard-tab', handleReset);

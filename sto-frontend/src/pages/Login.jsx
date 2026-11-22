@@ -44,6 +44,23 @@ export default function Login({ onTriggerSplash }) {
   const { users, setCurrentUser, addUser, showToast } = useApp();
   const navigate = useNavigate();
 
+  // Auto-redirect jika pengguna SUDAH login (mencegah tombol Back browser kembali ke form login tanpa logout)
+  useEffect(() => {
+    try {
+      const rawUser = localStorage.getItem('user');
+      const activeUser = currentUser || (rawUser ? JSON.parse(rawUser) : null);
+      if (activeUser && activeUser.role) {
+        const dest =
+          activeUser.role === 'teknisi'
+            ? '/dashboard-teknisi'
+            : activeUser.role === 'gudang'
+            ? '/dashboard-gudang'
+            : '/dashboard-pimpinan';
+        navigate(dest, { replace: true });
+      }
+    } catch {}
+  }, [currentUser, navigate]);
+
   // Handle Automatic Role-Based Login via Backend Controller
   const handleLogin = async (e) => {
     e?.preventDefault();
@@ -127,6 +144,14 @@ export default function Login({ onTriggerSplash }) {
       localStorage.setItem('user', JSON.stringify(loggedInUser));
       setCurrentUser(loggedInUser);
 
+      // Bersihkan tab historis sesi lama agar saat pertama login SELALU membuka Dashboard utama
+      localStorage.removeItem('sto_active_tab_pimpinan');
+      localStorage.removeItem('sto_active_tab_teknisi');
+      localStorage.removeItem('sto_active_tab_gudang');
+      sessionStorage.removeItem('sto_active_tab_pimpinan');
+      sessionStorage.removeItem('sto_active_tab_teknisi');
+      sessionStorage.removeItem('sto_active_tab_gudang');
+
       showToast(`Selamat datang, ${loggedInUser.nama_lengkap}! Masuk sebagai ${loggedInUser.role.toUpperCase()}`, 'success');
 
       // Validasi redirect dari Link Pesan Bot Telegram (/tiket/:id)
@@ -135,18 +160,18 @@ export default function Login({ onTriggerSplash }) {
 
       if (redirectUrl) {
         sessionStorage.removeItem('sto_redirect_after_login');
-        navigate(redirectUrl);
+        navigate(redirectUrl, { replace: true });
         return;
       }
 
       if (loggedInUser.role === 'pimpinan') {
-        navigate('/dashboard-pimpinan');
+        navigate('/dashboard-pimpinan', { replace: true });
       } else if (loggedInUser.role === 'teknisi') {
-        navigate('/dashboard-teknisi');
+        navigate('/dashboard-teknisi', { replace: true });
       } else if (loggedInUser.role === 'gudang') {
-        navigate('/dashboard-gudang');
+        navigate('/dashboard-gudang', { replace: true });
       } else {
-        navigate('/dashboard-pimpinan');
+        navigate('/dashboard-pimpinan', { replace: true });
       }
     } catch (err) {
       setError('Terjadi kendala saat memproses login. Silakan coba lagi.');

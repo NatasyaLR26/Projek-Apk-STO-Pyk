@@ -14,7 +14,7 @@ import DetailTiketTelegram from './pages/DetailTiketTelegram';
 import MagicLogin from './pages/MagicLogin';
 
 function AppContent() {
-  const { notification, setNotification } = useApp();
+  const { notification, setNotification, currentUser } = useApp();
   const [showSplash, setShowSplash] = useState(() => {
     // Show splash screen on first visit in the browser session
     const seen = sessionStorage.getItem('sto_splash_seen');
@@ -30,6 +30,22 @@ function AppContent() {
     setShowSplash(true);
   };
 
+  // Evaluasi sesi aktif: mencegah tombol Back browser kembali ke login tanpa logout
+  const getAuthenticatedDashboard = () => {
+    try {
+      const rawUser = localStorage.getItem('user');
+      const activeUser = currentUser || (rawUser ? JSON.parse(rawUser) : null);
+      if (activeUser && activeUser.role) {
+        if (activeUser.role === 'teknisi') return '/dashboard-teknisi';
+        if (activeUser.role === 'gudang') return '/dashboard-gudang';
+        return '/dashboard-pimpinan';
+      }
+    } catch {}
+    return null;
+  };
+
+  const activeDashboard = getAuthenticatedDashboard();
+
   return (
     <>
       {showSplash && (
@@ -39,11 +55,23 @@ function AppContent() {
       <Routes>
         <Route
           path="/"
-          element={<Login onTriggerSplash={handleTriggerSplash} />}
+          element={
+            activeDashboard ? (
+              <Navigate to={activeDashboard} replace />
+            ) : (
+              <Login onTriggerSplash={handleTriggerSplash} />
+            )
+          }
         />
         <Route
           path="/login"
-          element={<Login onTriggerSplash={handleTriggerSplash} />}
+          element={
+            activeDashboard ? (
+              <Navigate to={activeDashboard} replace />
+            ) : (
+              <Login onTriggerSplash={handleTriggerSplash} />
+            )
+          }
         />
         <Route path="/dashboard-pimpinan" element={<DashboardPimpinan />} />
         <Route path="/dashboard-teknisi" element={<DashboardTeknisi />} />
@@ -51,7 +79,7 @@ function AppContent() {
         <Route path="/laporan-audit" element={<AuditReportPage />} />
         <Route path="/tiket/:id" element={<DetailTiketTelegram />} />
         <Route path="/magic-login" element={<MagicLogin />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to={activeDashboard || "/"} replace />} />
       </Routes>
 
       <Snackbar

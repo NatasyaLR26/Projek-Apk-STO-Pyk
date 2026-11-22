@@ -800,6 +800,12 @@ export function AppProvider({ children }) {
   const logout = useCallback(() => {
     localStorage.removeItem('user');
     localStorage.removeItem('sto_currentUser');
+    localStorage.removeItem('sto_active_tab_pimpinan');
+    localStorage.removeItem('sto_active_tab_teknisi');
+    localStorage.removeItem('sto_active_tab_gudang');
+    sessionStorage.removeItem('sto_active_tab_pimpinan');
+    sessionStorage.removeItem('sto_active_tab_teknisi');
+    sessionStorage.removeItem('sto_active_tab_gudang');
     setCurrentUser(null);
     setCurrentView('landing');
     showToast("Anda telah keluar dari sistem.", "info");

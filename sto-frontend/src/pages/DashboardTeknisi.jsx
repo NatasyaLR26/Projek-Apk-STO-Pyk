@@ -146,7 +146,8 @@ export default function DashboardTeknisi() {
 
   const [activeMenu, setActiveMenu] = useState(() => {
     try {
-      const saved = localStorage.getItem('sto_active_tab_teknisi');
+      // Gunakan sessionStorage agar saat pertama login/buka aplikasi selalu tampil Dashboard Utama (tiket)
+      const saved = sessionStorage.getItem('sto_active_tab_teknisi');
       const valid = ['tiket', 'surat-permohonan', 'status-approval', 'pengerjaan', 'cetak-surat'];
       return saved && valid.includes(saved) ? saved : 'tiket';
     } catch {
@@ -157,15 +158,41 @@ export default function DashboardTeknisi() {
   const handleSetActiveMenu = (tab) => {
     setActiveMenu(tab);
     try {
-      localStorage.setItem('sto_active_tab_teknisi', tab);
+      sessionStorage.setItem('sto_active_tab_teknisi', tab);
+      window.history.pushState({ role: 'teknisi', tab }, '', window.location.pathname);
     } catch {}
   };
+
+  // Mencegah tombol Back browser kembali ke halaman Login tanpa logout eksplisit
+  useEffect(() => {
+    window.history.pushState({ role: 'teknisi', tab: activeMenu }, '', window.location.pathname);
+
+    const handlePopState = (e) => {
+      // Jika pengguna menekan tombol Back saat berada di sub-menu teknisi, arahkan kembali ke Dashboard Utama (tiket)
+      if (activeMenu !== 'tiket') {
+        setActiveMenu('tiket');
+        try {
+          sessionStorage.setItem('sto_active_tab_teknisi', 'tiket');
+        } catch {}
+        window.history.pushState({ role: 'teknisi', tab: 'tiket' }, '', window.location.pathname);
+      } else {
+        // Jika sudah di tab tiket (dashboard utama), cegah browser back ke form login
+        window.history.pushState({ role: 'teknisi', tab: 'tiket' }, '', window.location.pathname);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeMenu]);
 
   // Reset tab ke tiket jika logo diklik
   useEffect(() => {
     const handleReset = (e) => {
       if (!e.detail?.role || e.detail.role === 'teknisi') {
         setActiveMenu('tiket');
+        try {
+          sessionStorage.setItem('sto_active_tab_teknisi', 'tiket');
+        } catch {}
       }
     };
     window.addEventListener('sto:reset-dashboard-tab', handleReset);
