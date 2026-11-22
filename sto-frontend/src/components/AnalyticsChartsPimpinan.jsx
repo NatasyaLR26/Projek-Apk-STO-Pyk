@@ -158,16 +158,16 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNav
         {/* ================================================================= */}
         {/* VISUAL 1: PIE / DONUT CHART (Distribusi Tiket & SLA Realtime) */}
         {/* ================================================================= */}
-        <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/30 rounded-2xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden">
+        <div className="bg-white dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-rose-950/30 rounded-2xl p-4 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden">
           <div>
-            <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/5 mb-3">
               <div className="flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                <PieChart className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   Status Tiket
                 </h3>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 font-mono">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 font-mono">
                 {donePercent}% Selesai
               </span>
             </div>
@@ -254,8 +254,8 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNav
 
                 {/* Center Donut Label */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                  <span className="text-lg font-black text-white">{totalTasks}</span>
-                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest px-1 truncate max-w-[70px]">
+                  <span className="text-xl font-black text-slate-900 dark:text-white">{totalTasks}</span>
+                  <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest px-1 truncate max-w-[80px]">
                     {hoveredSlice ? 'Info' : 'Total'}
                   </span>
                 </div>
@@ -265,49 +265,49 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNav
               <div className="space-y-1.5 text-xs shrink-0">
                 <div className="flex items-center justify-between gap-2.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                    <span className="text-slate-300 text-[11px]">Selesai</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                    <span className="text-slate-600 dark:text-slate-300 text-[11px]">Selesai</span>
                   </div>
-                  <span className="font-mono font-bold text-emerald-400 text-xs">{doneCount} ({donePercent}%)</span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">{doneCount} ({donePercent}%)</span>
                 </div>
                 <div className="flex items-center justify-between gap-2.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
-                    <span className="text-slate-300 text-[11px]">Progress</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                    <span className="text-slate-600 dark:text-slate-300 text-[11px]">Progress</span>
                   </div>
-                  <span className="font-mono font-bold text-blue-400 text-xs">{progressCount} ({progressPercent}%)</span>
+                  <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-xs">{progressCount} ({progressPercent}%)</span>
                 </div>
                 <div className="flex items-center justify-between gap-2.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                    <span className="text-slate-300 text-[11px]">Siaga</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+                    <span className="text-slate-600 dark:text-slate-300 text-[11px]">Siaga</span>
                   </div>
-                  <span className="font-mono font-bold text-amber-400 text-xs">{waitingCount} ({waitingPercent}%)</span>
+                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400 text-xs">{waitingCount} ({waitingPercent}%)</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Footer Info Pie */}
-          <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <span>SLA Realtime:</span>
-            <span className="font-bold text-emerald-400 font-mono">{donePercent >= 70 ? 'Optimal (SLA Terpenuhi)' : 'Dalam Target'}</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">{donePercent >= 70 ? 'Optimal (SLA Terpenuhi)' : 'Dalam Target'}</span>
           </div>
         </div>
 
         {/* ================================================================= */}
         {/* VISUAL 2: DIAGRAM BATANG (BAR CHART) JENIS PEKERJAAN STO */}
         {/* ================================================================= */}
-        <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/30 rounded-2xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden">
+        <div className="bg-white dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-rose-950/30 rounded-2xl p-4 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden">
           <div>
-            <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/5 mb-3">
               <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-blue-400" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                <BarChart3 className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   Jenis Tugas
                 </h3>
               </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-950/60 text-blue-400 border border-blue-500/30 font-mono">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 font-mono">
                 {totalTasks} Tiket
               </span>
             </div>
@@ -319,17 +319,17 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNav
                 return (
                   <div key={cat.key} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-300 text-[11px] flex items-center gap-1.5 truncate">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300 text-[11px] flex items-center gap-1.5 truncate">
                         <span className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${cat.color} shrink-0`}></span>
                         <span className="truncate">{cat.label}</span>
                       </span>
                       <div className="flex items-center gap-1 font-mono text-xs shrink-0">
-                        <span className="font-bold text-white">{cat.count}</span>
-                        <span className="text-slate-400 text-[10px]">({cat.pct}%)</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{cat.count}</span>
+                        <span className="text-slate-500 dark:text-slate-400 text-[10px]">({cat.pct}%)</span>
                       </div>
                     </div>
 
-                    <div className="w-full h-2 rounded-full overflow-hidden bg-slate-900 p-0.5 border border-white/5">
+                    <div className="w-full h-2 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-900 p-0.5 border border-slate-200 dark:border-white/5">
                       <div
                         className={`h-full rounded-full bg-gradient-to-r ${cat.color} transition-all duration-700 ease-out`}
                         style={{ width: `${barWidth}%` }}
@@ -342,28 +342,28 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNav
           </div>
 
           {/* Footer Info Bar */}
-          <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <span>Dominasi Kerja:</span>
-            <span className="font-bold text-blue-400 font-mono">{dominantCategory.label} ({dominantCategory.pct}%)</span>
+            <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">{dominantCategory.label} ({dominantCategory.pct}%)</span>
           </div>
         </div>
 
         {/* ================================================================= */}
         {/* VISUAL 3: RINGKASAN STOK MATERIAL GUDANG (STATUS SEDERHANA) */}
         {/* ================================================================= */}
-        <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/30 rounded-2xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden">
+        <div className="bg-white dark:bg-slate-950/70 backdrop-blur-xl border border-slate-200 dark:border-rose-950/30 rounded-2xl p-4 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden">
           <div>
-            <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/5 mb-3">
               <div className="flex items-center gap-2">
-                <Package className="w-4 h-4 text-amber-400" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                <Package className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
                   Stok Material
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={onNavigateGudang}
-                className="text-[10px] text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 transition cursor-pointer"
+                className="text-[10px] text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 font-bold flex items-center gap-1 transition cursor-pointer"
                 title="Buka Data Gudang Lengkap"
               >
                 <span>Gudang</span>
@@ -373,21 +373,21 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNav
 
             {/* Indikator Status Material (Merah Menipis, Kuning Waspada, Hijau Aman) */}
             <div className="grid grid-cols-3 gap-1.5 mb-2.5">
-              <div className="p-1.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-center">
-                <span className="text-[9px] text-rose-400 font-bold block">Menipis</span>
-                <span className="text-xs font-black text-rose-300 font-mono">
+              <div className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-500/40 text-center">
+                <span className="text-[9px] text-rose-600 dark:text-rose-400 font-bold block">Menipis</span>
+                <span className="text-xs font-black text-rose-600 dark:text-rose-300 font-mono">
                   {(Array.isArray(barang) ? barang : []).filter(b => Number(b.stok || 0) <= 10).length}
                 </span>
               </div>
-              <div className="p-1.5 rounded-xl bg-amber-950/50 border border-amber-500/40 text-center">
-                <span className="text-[9px] text-amber-400 font-bold block">Waspada</span>
-                <span className="text-xs font-black text-amber-300 font-mono">
+              <div className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-500/40 text-center">
+                <span className="text-[9px] text-amber-600 dark:text-amber-400 font-bold block">Waspada</span>
+                <span className="text-xs font-black text-amber-600 dark:text-amber-300 font-mono">
                   {(Array.isArray(barang) ? barang : []).filter(b => Number(b.stok || 0) > 10 && Number(b.stok || 0) <= 25).length}
                 </span>
               </div>
-              <div className="p-1.5 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-center">
-                <span className="text-[9px] text-emerald-400 font-bold block">Aman</span>
-                <span className="text-xs font-black text-emerald-300 font-mono">
+              <div className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-500/40 text-center">
+                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold block">Aman</span>
+                <span className="text-xs font-black text-emerald-600 dark:text-emerald-300 font-mono">
                   {(Array.isArray(barang) ? barang : []).filter(b => Number(b.stok || 0) > 25).length}
                 </span>
               </div>
@@ -396,15 +396,15 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNav
             {/* List Ringkas Material Lapangan */}
             <div className="space-y-1.5 pt-0.5">
               {inventoryItems.slice(0, 4).map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between text-[11px] py-1 border-b border-white/5 last:border-none">
-                  <span className="flex items-center gap-1.5 text-slate-300 truncate max-w-[140px]">
+                <div key={idx} className="flex items-center justify-between text-[11px] py-1 border-b border-slate-100 dark:border-white/5 last:border-none">
+                  <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 truncate max-w-[140px]">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${
                       item.isCritical ? 'bg-rose-500' : item.isLow ? 'bg-amber-500' : 'bg-emerald-500'
                     }`} />
                     <span className="truncate">{item.nama}</span>
                   </span>
                   <span className={`font-mono text-xs font-bold shrink-0 ${
-                    item.isCritical ? 'text-rose-400' : item.isLow ? 'text-amber-400' : 'text-emerald-400'
+                    item.isCritical ? 'text-rose-500 dark:text-rose-400' : item.isLow ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
                   }`}>
                     {item.stok} {item.satuan}
                   </span>
@@ -414,12 +414,12 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNav
           </div>
 
           {/* Footer Quality Strip */}
-          <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <Radio className="w-3 h-3 text-cyan-400 shrink-0" />
-              <span>Redaman:</span>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+              <Radio className="w-3 h-3 text-cyan-500 dark:text-cyan-400 shrink-0" />
+              <span>Redaman Optimal:</span>
             </div>
-            <span className="font-bold text-cyan-400 font-mono">{attenuationPercent}% Optimal</span>
+            <span className="font-bold text-cyan-600 dark:text-cyan-400 font-mono">{attenuationPercent}% (-16 s/d -24 dBm)</span>
           </div>
         </div>
 

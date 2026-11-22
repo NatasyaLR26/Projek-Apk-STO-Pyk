@@ -399,7 +399,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-400 block">Lokasi Sambungan:</span>
-                    <div className="p-2 rounded-xl bg-slate-900/40 border border-slate-800 text-xs font-sans text-slate-300 truncate">
+                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs font-sans text-slate-900 dark:text-slate-300 truncate">
                       {task?.lokasi || 'STO Payakumbuh Koto Nan IV'}
                     </div>
                   </div>
@@ -532,13 +532,13 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                 </div>
 
                 {/* Referensi Barang yang Diambil dari Gudang */}
-                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
                     Referensi Material yang Diambil dari Gudang:
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {materialList.map((m, idx) => (
-                      <span key={idx} className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-mono text-[11px] border border-slate-700 flex items-center gap-1.5">
+                      <span key={idx} className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-300 font-mono text-[11px] border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 shadow-xs">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                         <span>{m.nama_barang}: <strong>{m.jumlah_diambil} {m.satuan}</strong></span>
                       </span>

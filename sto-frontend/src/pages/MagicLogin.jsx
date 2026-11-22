@@ -188,11 +188,11 @@ export default function MagicLogin() {
           <div className={`p-4 rounded-2xl border text-left text-xs space-y-2 ${isDark ? 'bg-slate-950/60 border-slate-850' : 'bg-slate-50 border-slate-200'}`}>
             <div className="flex items-center justify-between">
               <span className="text-slate-400">Teknisi:</span>
-              <strong className="text-emerald-400">{verifiedData.user.nama_lengkap}</strong>
+              <strong className="text-emerald-400">{verifiedData.user?.nama_lengkap || 'Pengguna'}</strong>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-400">Role Sistem:</span>
-              <span className="uppercase font-mono font-bold text-blue-400">{verifiedData.user.role}</span>
+              <span className="uppercase font-mono font-bold text-blue-400">{verifiedData.user?.role || 'teknisi'}</span>
             </div>
             {verifiedData.tugasId && (
               <div className="flex items-center justify-between pt-1 border-t border-slate-800">

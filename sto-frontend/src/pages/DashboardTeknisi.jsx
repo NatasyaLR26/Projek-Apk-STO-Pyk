@@ -272,7 +272,7 @@ export default function DashboardTeknisi() {
 
   // Proteksi hak akses sesi teknisi
   useEffect(() => {
-    if (!user || user.role !== 'teknisi') {
+    if (!user || user?.role !== 'teknisi') {
       navigate('/');
     }
   }, [navigate]);

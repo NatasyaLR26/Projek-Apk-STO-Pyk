@@ -314,7 +314,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
             placeholder="Cari ID, nama pelanggan, SN modem, atau ODP..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-800 text-slate-200 placeholder-slate-500 rounded-lg text-xs md:text-sm focus:outline-none focus:border-rose-500 font-mono transition"
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg text-xs md:text-sm focus:outline-none focus:border-rose-500 font-mono transition"
           />
         </div>
 
@@ -324,7 +324,7 @@ export default function TabelPelangganAset({ isGudangView = false }) {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-auto bg-slate-900 border border-slate-800 text-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm focus:outline-none focus:border-rose-500 cursor-pointer"
+            className="w-full sm:w-auto bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm focus:outline-none focus:border-rose-500 cursor-pointer"
           >
             <option value="all">Semua Status</option>
             <option value="dismantle">Target Dismantle (Tunggak 3+ Bln)</option>

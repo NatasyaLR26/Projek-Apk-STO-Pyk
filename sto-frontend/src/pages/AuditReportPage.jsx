@@ -75,7 +75,7 @@ export default function AuditReportPage() {
     try {
       const stored = localStorage.getItem('user');
       const user = stored ? JSON.parse(stored) : (currentUser || null);
-      if (!user || user.role !== 'pimpinan') {
+      if (!user || user?.role !== 'pimpinan') {
         navigate('/');
       }
     } catch {

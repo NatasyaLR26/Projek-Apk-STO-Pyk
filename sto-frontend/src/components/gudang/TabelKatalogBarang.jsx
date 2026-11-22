@@ -210,10 +210,10 @@ export default function TabelKatalogBarang({ onNavigateToInputBarang }) {
             <select
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value)}
-              className="w-full md:w-64 bg-slate-900 border border-slate-800 text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-rose-500 cursor-pointer transition shrink-0"
+              className="w-full md:w-64 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-rose-500 cursor-pointer transition shrink-0"
             >
               {categories.map(cat => (
-                <option key={cat.value} value={cat.value} className="bg-slate-900 text-slate-200">
+                <option key={cat.value} value={cat.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
                   {cat.label}
                 </option>
               ))}
@@ -221,14 +221,14 @@ export default function TabelKatalogBarang({ onNavigateToInputBarang }) {
           </div>
 
           {/* Sisi Kanan: Baris 3 (Mobile: grid-cols-2) / Sejajar (Desktop: flex) */}
-          <div className="grid grid-cols-2 md:flex items-center gap-2 w-full md:w-auto shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/80">
+          <div className="grid grid-cols-2 md:flex items-center gap-2 w-full md:w-auto shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200 dark:border-slate-800/80">
             <button
               type="button"
               onClick={handleExportCsv}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs border border-slate-700 shadow transition cursor-pointer whitespace-nowrap w-full md:w-auto"
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-emerald-600 border-slate-300'} font-bold text-xs border shadow transition cursor-pointer whitespace-nowrap w-full md:w-auto`}
               title="Export Katalog ke CSV"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
+              <FileSpreadsheet className={`w-4 h-4 ${isDark ? 'text-emerald-400' : 'text-emerald-600'} shrink-0`} />
               <span>Export CSV</span>
             </button>
 

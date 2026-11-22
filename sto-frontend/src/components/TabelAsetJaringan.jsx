@@ -414,7 +414,9 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
       {/* Tampilan Mobile: Card-based List (block md:hidden) */}
       <div className="block md:hidden space-y-3">
         {filteredAssets.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 rounded-2xl border bg-slate-950/70 border-slate-800/80">
+          <div className={`p-8 text-center rounded-2xl border ${
+            isDark ? 'bg-slate-950/70 border-slate-800/80 text-slate-400' : 'bg-white border-slate-200 text-slate-500 shadow-sm'
+          }`}>
             Tidak ditemukan aset jaringan yang sesuai dengan filter.
           </div>
         ) : (
@@ -441,15 +443,23 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
             return (
               <div
                 key={item.id}
-                className="p-3.5 sm:p-4 rounded-xl border bg-slate-950/70 border-slate-800/80 backdrop-blur-xl shadow-lg space-y-2.5"
+                className={`p-3.5 sm:p-4 rounded-xl border backdrop-blur-xl space-y-2.5 ${
+                  isDark
+                    ? 'bg-slate-950/70 border-slate-800/80 shadow-lg'
+                    : 'bg-white border-slate-200 shadow-sm'
+                }`}
               >
                 {/* Header Kartu: Kode Aset, Badge Tipe, Badge Status Okupansi */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="font-mono font-bold text-rose-400 text-xs truncate">
+                    <span className="font-mono font-bold text-rose-500 text-xs truncate">
                       {item.kode_odp}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 border border-slate-700 text-slate-300 shrink-0">
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border shrink-0 ${
+                      isDark
+                        ? 'bg-slate-800 border-slate-700 text-slate-300'
+                        : 'bg-slate-100 border-slate-200 text-slate-700'
+                    }`}>
                       {type}
                     </span>
                   </div>
@@ -460,26 +470,38 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
 
                 {/* Lokasi & Koordinat */}
                 <div className="space-y-0.5">
-                  <div className="text-xs font-semibold text-slate-100 flex items-start gap-1.5">
+                  <div className={`text-xs font-semibold flex items-start gap-1.5 ${
+                    isDark ? 'text-slate-100' : 'text-slate-900'
+                  }`}>
                     <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
                     <span className="leading-snug">{item.nama_lokasi}</span>
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono pl-5">
+                  <div className={`text-[10px] font-mono pl-5 ${
+                    isDark ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
                     GPS: {item.latitude?.toFixed(4)}, {item.longitude?.toFixed(4)}
                   </div>
                 </div>
 
                 {/* Metrik Grid (2 Kolom) */}
-                <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-slate-900/60 border border-white/5 text-[11px]">
+                <div className={`grid grid-cols-2 gap-2 p-2 rounded-xl border text-[11px] ${
+                  isDark ? 'bg-slate-900/60 border-white/5' : 'bg-slate-50 border-slate-200'
+                }`}>
                   {/* Kolom 1: Okupansi Port */}
                   <div className="space-y-1">
-                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                    <div className={`text-[10px] flex items-center justify-between ${
+                      isDark ? 'text-slate-400' : 'text-slate-500'
+                    }`}>
                       <span>Okupansi Port:</span>
-                      <span className="font-mono font-bold text-slate-200">
+                      <span className={`font-mono font-bold ${
+                        isDark ? 'text-slate-200' : 'text-slate-800'
+                      }`}>
                         {item.port_terpakai} / {item.kapasitas_port} Port
                       </span>
                     </div>
-                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div className={`w-full h-1.5 rounded-full overflow-hidden ${
+                      isDark ? 'bg-slate-800' : 'bg-slate-200'
+                    }`}>
                       <div
                         className={`h-full rounded-full ${
                           ratio >= 1.0 ? 'bg-rose-500' : ratio >= 0.7 ? 'bg-amber-500' : 'bg-emerald-500'
@@ -491,7 +513,9 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
 
                   {/* Kolom 2: Redaman Optik */}
                   <div className="flex flex-col justify-center items-end">
-                    <span className="text-[10px] text-slate-400 mb-0.5">Redaman Optik:</span>
+                    <span className={`text-[10px] mb-0.5 ${
+                      isDark ? 'text-slate-400' : 'text-slate-500'
+                    }`}>Redaman Optik:</span>
                     <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border ${
                       isBadDbm ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                     }`}>
@@ -501,12 +525,18 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
                 </div>
 
                 {/* Footer Kartu: 3 Tombol Aksi Horizontal */}
-                <div className={`grid ${onNavigateToWebGis ? 'grid-cols-3' : 'grid-cols-2'} gap-2 pt-2 border-t border-white/5 text-xs font-bold`}>
+                <div className={`grid ${onNavigateToWebGis ? 'grid-cols-3' : 'grid-cols-2'} gap-2 pt-2 border-t text-xs font-bold ${
+                  isDark ? 'border-white/5' : 'border-slate-100'
+                }`}>
                   {onNavigateToWebGis && (
                     <button
                       type="button"
                       onClick={() => onNavigateToWebGis(item)}
-                      className="min-h-[38px] px-2 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                      className={`min-h-[38px] px-2 py-1.5 rounded-xl border flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition ${
+                        isDark
+                          ? 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border-blue-500/30'
+                          : 'bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200'
+                      }`}
                     >
                       <MapPin className="w-3.5 h-3.5" />
                       <span>Peta</span>
@@ -515,7 +545,11 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(item)}
-                    className="min-h-[38px] px-2 py-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                    className={`min-h-[38px] px-2 py-1.5 rounded-xl border flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition ${
+                      isDark
+                        ? 'bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border-amber-500/30'
+                        : 'bg-amber-50 hover:bg-amber-100 text-amber-600 border-amber-200'
+                    }`}
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                     <span>Edit</span>
@@ -523,7 +557,11 @@ export default function TabelAsetJaringan({ onNavigateToWebGis, hideHeader = fal
                   <button
                     type="button"
                     onClick={() => handleDelete(item)}
-                    className="min-h-[38px] px-2 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition"
+                    className={`min-h-[38px] px-2 py-1.5 rounded-xl border flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition ${
+                      isDark
+                        ? 'bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border-rose-500/30'
+                        : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200'
+                    }`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Hapus</span>
