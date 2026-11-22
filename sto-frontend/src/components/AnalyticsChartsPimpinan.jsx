@@ -17,33 +17,9 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], odp = [], onNavigateGudang }) {
+export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], onNavigateGudang }) {
   const { isDark } = useTheme();
   const [hoveredSlice, setHoveredSlice] = useState(null);
-
-  // =========================================================================
-  // 4. DATA KALKULASI REAL-TIME: STATUS ODP & PORT (ANIMATED PIE / DONUT)
-  // =========================================================================
-  const totalOdp = odp.length || 0;
-  const odpTersedia = odp.filter(o => o.status === 'Tersedia').length;
-  const odpPenuh = odp.filter(o => o.status === 'Penuh').length;
-  const odpMaint = odp.filter(o => o.status === 'Maintenance' || o.status === 'Optimasi').length;
-  const calcTotalOdp = totalOdp > 0 ? totalOdp : 1;
-
-  const odpRadius = 40;
-  const odpCircumference = 2 * Math.PI * odpRadius; // 251.32
-  const tersediaStroke = (odpTersedia / calcTotalOdp) * odpCircumference;
-  const penuhStroke = (odpPenuh / calcTotalOdp) * odpCircumference;
-  const maintStroke = (odpMaint / calcTotalOdp) * odpCircumference;
-
-  const tersediaPercent = totalOdp > 0 ? Math.round((odpTersedia / totalOdp) * 100) : 0;
-  const penuhPercent = totalOdp > 0 ? Math.round((odpPenuh / totalOdp) * 100) : 0;
-  const maintPercent = totalOdp > 0 ? Math.max(0, 100 - tersediaPercent - penuhPercent) : 0;
-
-  const totalPorts = odp.reduce((acc, curr) => acc + (Number(curr.kapasitas_port) || 8), 0);
-  const usedPorts = odp.reduce((acc, curr) => acc + (Number(curr.port_terpakai) || 0), 0);
-  const idlePorts = Math.max(0, totalPorts - usedPorts);
-  const portOkupansiPct = totalPorts > 0 ? Math.round((usedPorts / totalPorts) * 100) : 0;
 
   // =========================================================================
   // 1. DATA KALKULASI REAL-TIME: STATUS TIKET (DONUT / PIE CHART)
@@ -176,8 +152,8 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], odp =
 
   return (
     <div className="space-y-3.5">
-      {/* GRID UTAMA: 4 GRAFIK REALTIME (PIE STATUS TIKET, BAR JENIS KERJA, STATUS MATERIAL, & PIE STATUS ODP) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* GRID UTAMA: 3 GRAFIK REALTIME (STATUS TIKET, JENIS KERJA, STATUS MATERIAL) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         
         {/* ================================================================= */}
         {/* VISUAL 1: PIE / DONUT CHART (Distribusi Tiket & SLA Realtime) */}
@@ -375,7 +351,7 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], odp =
         {/* ================================================================= */}
         {/* VISUAL 3: RINGKASAN STOK MATERIAL GUDANG (STATUS SEDERHANA) */}
         {/* ================================================================= */}
-        <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/30 rounded-2xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden md:col-span-2 lg:col-span-1">
+        <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/30 rounded-2xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden">
           <div>
             <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-3">
               <div className="flex items-center gap-2">
@@ -444,120 +420,6 @@ export default function AnalyticsChartsPimpinan({ tugas = [], barang = [], odp =
               <span>Redaman:</span>
             </div>
             <span className="font-bold text-cyan-400 font-mono">{attenuationPercent}% Optimal</span>
-          </div>
-        </div>
-
-        {/* ================================================================= */}
-        {/* VISUAL 4: ANIMATED PIE / DONUT CHART STATUS ODP & OKUPANSI PORT */}
-        {/* ================================================================= */}
-        <div className="bg-slate-950/70 backdrop-blur-xl border border-rose-950/30 rounded-2xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between transition-all overflow-hidden">
-          <div>
-            <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-3">
-              <div className="flex items-center gap-2">
-                <Radio className="w-4 h-4 text-cyan-400" />
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-200">
-                  Status ODP
-                </h3>
-              </div>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-950/60 text-cyan-400 border border-cyan-500/30 font-mono">
-                {totalOdp} Titik
-              </span>
-            </div>
-
-            {/* SVG Donut Graphic */}
-            <div className="flex items-center justify-center gap-3 py-1.5">
-              <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={odpRadius}
-                    fill="transparent"
-                    stroke="#1e293b"
-                    strokeWidth="12"
-                  />
-                  {/* Sektor 1: Tersedia (Emerald) */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={odpRadius}
-                    fill="transparent"
-                    stroke="#10b981"
-                    strokeWidth="12"
-                    strokeDasharray={`${tersediaStroke} ${odpCircumference}`}
-                    strokeDashoffset="0"
-                    className="transition-all duration-700 ease-out"
-                  />
-                  {/* Sektor 2: Penuh (Rose) */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={odpRadius}
-                    fill="transparent"
-                    stroke="#f43f5e"
-                    strokeWidth="12"
-                    strokeDasharray={`${penuhStroke} ${odpCircumference}`}
-                    strokeDashoffset={`-${tersediaStroke}`}
-                    className="transition-all duration-700 ease-out"
-                  />
-                  {/* Sektor 3: Maintenance (Amber) */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={odpRadius}
-                    fill="transparent"
-                    stroke="#f59e0b"
-                    strokeWidth="12"
-                    strokeDasharray={`${maintStroke} ${odpCircumference}`}
-                    strokeDashoffset={`-${tersediaStroke + penuhStroke}`}
-                    className="transition-all duration-700 ease-out"
-                  />
-                </svg>
-
-                {/* Center Port Idle Counter */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                  <span className="text-base font-black text-white font-mono leading-none">
-                    {idlePorts}
-                  </span>
-                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
-                    Port Idle
-                  </span>
-                </div>
-              </div>
-
-              {/* Legend Badges */}
-              <div className="space-y-1.5 shrink-0 text-[11px]">
-                <div className="flex items-center justify-between gap-2.5">
-                  <span className="flex items-center gap-1.5 text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                    <span>Tersedia:</span>
-                  </span>
-                  <strong className="font-mono text-emerald-400">{odpTersedia} ({tersediaPercent}%)</strong>
-                </div>
-
-                <div className="flex items-center justify-between gap-2.5">
-                  <span className="flex items-center gap-1.5 text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
-                    <span>Penuh:</span>
-                  </span>
-                  <strong className="font-mono text-rose-400">{odpPenuh} ({penuhPercent}%)</strong>
-                </div>
-
-                <div className="flex items-center justify-between gap-2.5">
-                  <span className="flex items-center gap-1.5 text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                    <span>Maintenance:</span>
-                  </span>
-                  <strong className="font-mono text-amber-400">{odpMaint} ({maintPercent}%)</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Okupansi Port */}
-          <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
-            <span className="text-slate-400">Total Port FO:</span>
-            <span className="font-bold text-cyan-400 font-mono">{usedPorts}/{totalPorts} ({portOkupansiPct}% Okupansi)</span>
           </div>
         </div>
 

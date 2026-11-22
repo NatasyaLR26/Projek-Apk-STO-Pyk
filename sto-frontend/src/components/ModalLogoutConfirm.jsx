@@ -46,25 +46,22 @@ export default function ModalLogoutConfirm({ isOpen, onClose, onConfirm }) {
           <X className="w-4 h-4" />
         </button>
 
-        {/* Icon Turn-Off / LogOut dengan Pulse Ring */}
+        {/* Icon Turn-Off / Warning Pulse Ring */}
         <div className="relative mx-auto w-16 h-16 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-2xl bg-rose-500/20 animate-ping opacity-60 pointer-events-none" />
-          <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-600 to-rose-700 text-white flex items-center justify-center shadow-lg shadow-rose-950/50 border border-rose-400/40">
-            <Power className="w-7 h-7" />
+          <div className="absolute inset-0 rounded-2xl bg-amber-500/30 animate-ping opacity-75 pointer-events-none duration-1000" />
+          <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-600 via-rose-700 to-amber-600 text-white flex items-center justify-center shadow-lg shadow-rose-950/60 border-2 border-amber-400/60 animate-pulse">
+            <Power className="w-7 h-7 text-amber-200" />
           </div>
         </div>
 
-        {/* Judul & Penjelasan */}
-        <div className="space-y-1.5 pt-1">
-          <h3 className="text-lg font-black tracking-tight text-white">
-            Konfirmasi Keluar Sistem
+        {/* Teks Minimalis Tanpa Pemborosan Kata */}
+        <div className="pt-1">
+          <h3 className="text-base font-bold text-white tracking-tight">
+            Apakah ingin keluar?
           </h3>
-          <p className="text-xs text-slate-300 leading-relaxed max-w-xs mx-auto">
-            Apakah Anda yakin ingin keluar dari <strong className="text-white">Fiber Ops STO Payakumbuh</strong>? Sesi kerja Anda akan diakhiri secara aman.
-          </p>
         </div>
 
-        {/* Tombol Aksi: Batal vs Ya, Keluar */}
+        {/* Tombol Aksi: Batal vs Ya */}
         <div className="grid grid-cols-2 gap-2.5 pt-2">
           <button
             type="button"
@@ -76,10 +73,9 @@ export default function ModalLogoutConfirm({ isOpen, onClose, onConfirm }) {
           <button
             type="button"
             onClick={onConfirm}
-            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black text-xs shadow-lg shadow-rose-950/50 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black text-xs shadow-lg shadow-rose-950/50 flex items-center justify-center transition cursor-pointer active:scale-95"
           >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Ya, Keluar</span>
+            Ya
           </button>
         </div>
       </div>

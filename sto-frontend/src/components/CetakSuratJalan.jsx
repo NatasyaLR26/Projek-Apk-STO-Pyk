@@ -59,7 +59,12 @@ export default function CetakSuratJalan({ initialRequestId = null }) {
     });
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = ' ';
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1500);
   };
 
   return (

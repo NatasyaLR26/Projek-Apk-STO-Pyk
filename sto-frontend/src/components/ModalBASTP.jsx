@@ -94,32 +94,52 @@ export default function ModalBASTP({ task, onClose }) {
       foto_opm: tItem.foto_opm || existing?.foto_opm || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80',
       foto_rumah: tItem.foto_rumah || tItem.foto_bukti || existing?.foto_rumah || 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80',
       jenis_kerja: tItem.jenis_kerja || task.jenis_kerja || 'Pasang Baru (PSB)',
-      reconciliation: existing?.reconciliation || [
-        {
-          nama_barang: 'Kabel Dropcore 1 Core (FO)',
-          jumlah_diambil: 150,
-          jumlah_terpakai: 120,
-          jumlah_sisa: 30,
-          satuan: 'meter'
-        },
-        {
-          nama_barang: 'Modem ONT GPON Wi-Fi (ZTE F670L)',
-          jumlah_diambil: 1,
-          jumlah_terpakai: 1,
-          jumlah_sisa: 0,
-          satuan: 'unit',
-          sn: tItem.sn_ont || existing?.sn_ont || `ZTEGC8B90${String(tItem.id || idx + 1).padStart(3, '0')}`
+      reconciliation: (() => {
+        const rawRec = tItem.reconciliation || existing?.reconciliation;
+        if (Array.isArray(rawRec) && rawRec.length > 0) {
+          return rawRec.map(item => {
+            // Jika teknisi memilih tidak ada sisa barang, kunci sisa = 0 dan terpakai = diambil
+            const hasLeftover = tItem.kelebihan_material?.ada || existing?.kelebihan_material?.ada || false;
+            if (!hasLeftover) {
+              return {
+                ...item,
+                jumlah_terpakai: item.jumlah_diambil,
+                jumlah_sisa: 0
+              };
+            }
+            return item;
+          });
         }
-      ]
+        return [
+          {
+            nama_barang: 'Kabel Dropcore 1 Core (FO)',
+            jumlah_diambil: 150,
+            jumlah_terpakai: 150,
+            jumlah_sisa: 0,
+            satuan: 'meter'
+          },
+          {
+            nama_barang: 'Modem ONT GPON Wi-Fi (ZTE F670L)',
+            jumlah_diambil: 1,
+            jumlah_terpakai: 1,
+            jumlah_sisa: 0,
+            satuan: 'unit',
+            sn: tItem.sn_ont || existing?.sn_ont || `ZTEGC8B90${String(tItem.id || idx + 1).padStart(3, '0')}`
+          }
+        ];
+      })()
     };
   };
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = ' ';
     if (typeof document !== 'undefined') {
       document.body.classList.add('bastp-print-mode');
     }
     window.print();
     setTimeout(() => {
+      document.title = originalTitle;
       if (typeof document !== 'undefined') {
         document.body.classList.remove('bastp-print-mode');
       }

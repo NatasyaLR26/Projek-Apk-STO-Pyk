@@ -105,20 +105,15 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
         details.forEach(d => {
           const item = barang.find(b => Number(b.id) === Number(d.barang_id));
           if (item) {
-            // Dropcore default terpakai misal 80% dari tarikan, modem 100%
+            // Material default terpasang 100% (sisa 0), kecuali teknisi mencatat ada retur/sisa
             const qtyMinta = Number(d.jumlah_minta) || 1;
-            const terpakai = item.nama_barang.toLowerCase().includes('dropcore')
-              ? Math.max(1, Math.round(qtyMinta * 0.85))
-              : qtyMinta;
-            const sisa = Math.max(0, qtyMinta - terpakai);
-
             initialList.push({
               barang_id: item.id,
               nama_barang: item.nama_barang,
               satuan: item.satuan,
               jumlah_diambil: qtyMinta,
-              jumlah_terpakai: terpakai,
-              jumlah_sisa: sisa,
+              jumlah_terpakai: qtyMinta,
+              jumlah_sisa: 0,
               sn: item.nama_barang.toLowerCase().includes('ont') || item.nama_barang.toLowerCase().includes('modem') ? snOnt : null
             });
           }
@@ -134,8 +129,8 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
           nama_barang: 'Kabel Dropcore 1 Core (FO)',
           satuan: 'meter',
           jumlah_diambil: 150,
-          jumlah_terpakai: 120,
-          jumlah_sisa: 30,
+          jumlah_terpakai: 150,
+          jumlah_sisa: 0,
           sn: null
         },
         {
@@ -262,6 +257,19 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
     if (submitting || isCompressing || isCompressingKelebihan) return; // Cegah double submit dari klik cepat
     setSubmitting(true);
 
+    // Rekonsiliasi Realistis: Jika teknisi memilih TIDAK ADA material berlebih,
+    // pastikan seluruh barang terpasang penuh (jumlah_terpakai = jumlah_diambil, jumlah_sisa = 0)
+    const reconciledList = materialList.map(item => {
+      if (!adaKelebihanMaterial) {
+        return {
+          ...item,
+          jumlah_terpakai: item.jumlah_diambil,
+          jumlah_sisa: 0
+        };
+      }
+      return item;
+    });
+
     const closingPayload = {
       fotoBuktiUrl: fotoRumah || fotoSn || preview,
       foto_sn: fotoSn,
@@ -279,7 +287,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
         rincian: adaKelebihanMaterial ? (rincianKelebihan || 'Material berlebih siap diretur ke STO') : 'Tidak ada material berlebih (terpakai pas)',
         foto: adaKelebihanMaterial ? fotoKelebihan : null
       },
-      reconciliation: materialList,
+      reconciliation: reconciledList,
       bastp_number: `BASTP/TA-PYK/2026/${String(tugasId).padStart(4, '0')}`
     };
 

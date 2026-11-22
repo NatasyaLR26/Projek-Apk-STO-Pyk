@@ -136,7 +136,12 @@ export default function AuditReportPage() {
   });
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = ' ';
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1500);
   };
 
   const completedCount = enrichedTasks.filter(t => ['done', 'selesai', 'closed'].includes(String(t.status || '').toLowerCase())).length;

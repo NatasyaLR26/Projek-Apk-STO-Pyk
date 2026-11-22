@@ -69,11 +69,14 @@ export default function CetakSuratPermohonan({ initialRequestId = null }) {
     });
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = ' ';
     if (typeof document !== 'undefined') {
       document.body.classList.add('spmg-print-mode');
     }
     window.print();
     setTimeout(() => {
+      document.title = originalTitle;
       if (typeof document !== 'undefined') {
         document.body.classList.remove('spmg-print-mode');
       }

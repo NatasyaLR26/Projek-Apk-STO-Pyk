@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Palette, Check } from 'lucide-react';
+import { Palette } from 'lucide-react';
 
 export const PARTICLE_THEMES = {
   burgundy: {
@@ -177,21 +177,20 @@ export default function ParticleBackground({ activeColor = 'burgundy', onColorCh
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
       <canvas ref={canvasRef} className="w-full h-full block" />
 
-      {/* Compact Floating Color Switcher Dropdown */}
+      {/* Compact Floating Color Switcher (Collapsed by default, Teksless Color Shapes Only) */}
       {showSelector && (
         <div className="absolute top-4 right-4 z-20 pointer-events-auto">
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border border-slate-700/80 backdrop-blur-xl shadow-xl transition-all active:scale-95 text-xs text-slate-200 cursor-pointer"
-              title="Pilih Warna Partikel"
+              className="p-2.5 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border border-slate-700/80 backdrop-blur-xl shadow-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center relative group"
+              title="Warna Partikel"
             >
+              <Palette className="w-4 h-4 text-slate-300 group-hover:text-white transition" />
               <span
-                className="w-3.5 h-3.5 rounded-full border border-white/60 shadow-sm flex-shrink-0"
+                className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 shadow-sm"
                 style={{ backgroundColor: activeTheme.dotColor }}
               />
-              <Palette className="w-3.5 h-3.5 text-slate-400" />
-              <span className="hidden sm:inline font-medium text-[11px]">{activeTheme.label}</span>
             </button>
 
             {dropdownOpen && (
@@ -202,32 +201,25 @@ export default function ParticleBackground({ activeColor = 'burgundy', onColorCh
                   onClick={() => setDropdownOpen(false)}
                 />
 
-                {/* Dropdown Menu */}
-                <div className="absolute right-0 top-full mt-2 w-44 z-40 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl p-1.5 space-y-1 animate-in fade-in zoom-in-95">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2.5 py-1">
-                    Tema Partikel
-                  </div>
+                {/* Color Shapes Popover (Pure Shapes, No Text) */}
+                <div className="absolute right-0 top-full mt-2 z-40 bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl p-2 flex items-center gap-2 animate-in fade-in zoom-in-95">
                   {Object.keys(PARTICLE_THEMES).map((key) => {
                     const item = PARTICLE_THEMES[key];
                     const isSelected = selectedColor === key;
                     return (
                       <button
                         key={key}
+                        type="button"
                         onClick={() => handleSelectColor(key)}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition cursor-pointer ${
+                        className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-burgundy-600/30 text-white font-semibold border border-burgundy-500/40'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900 shadow-lg'
+                            : 'hover:scale-105 opacity-80 hover:opacity-100'
                         }`}
+                        style={{ backgroundColor: item.dotColor }}
+                        title={item.label}
                       >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-3 h-3 rounded-full border border-white/40 flex-shrink-0"
-                            style={{ backgroundColor: item.dotColor }}
-                          />
-                          <span className="text-[11px]">{item.label}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-burgundy-400" />}
+                        {isSelected && <span className="w-2 h-2 rounded-full bg-white shadow-sm" />}
                       </button>
                     );
                   })}

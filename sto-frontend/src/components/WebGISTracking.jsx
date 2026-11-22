@@ -51,57 +51,134 @@ export default function WebGISTracking({ initialSelectedTaskId = null, onEditOdp
     return matchSearch && matchStatus;
   });
 
-  // Statistik Geospasial ODP & Okupansi Port
-  const totalOdp = odp.length;
-  const totalIdlePorts = odp.reduce(
-    (acc, curr) => acc + Math.max(0, (Number(curr.kapasitas_port) || 8) - (Number(curr.port_terpakai) || 0)),
-    0
-  );
-  const penuhCount = odp.filter(
-    (o) => o.status === 'Penuh' || (Number(o.kapasitas_port) || 8) - (Number(o.port_terpakai) || 0) <= 0
+  // Statistik Geospasial ODP & Okupansi Port Realtime Dari Tabel WebGIS
+  const totalOdp = odp.length || 0;
+  const odpTersedia = odp.filter(
+    (o) => o.status === 'Tersedia' || (!o.status && (Number(o.kapasitas_port || 8) - Number(o.port_terpakai || 0) > 0))
   ).length;
-  const optimasiCount = odp.filter(
-    (o) => o.status === 'Maintenance' || Number(o.redaman_dbm) <= -24
+  const odpPenuh = odp.filter(
+    (o) => o.status === 'Penuh' || (Number(o.kapasitas_port || 8) - Number(o.port_terpakai || 0) <= 0)
   ).length;
+  const odpMaint = odp.filter(
+    (o) => o.status === 'Maintenance' || o.status === 'Optimasi' || Number(o.redaman_dbm) <= -24
+  ).length;
+  const calcTotalOdp = totalOdp > 0 ? totalOdp : 1;
+
+  const odpRadius = 38;
+  const odpCircumference = 2 * Math.PI * odpRadius;
+  const tersediaStroke = (odpTersedia / calcTotalOdp) * odpCircumference;
+  const penuhStroke = (odpPenuh / calcTotalOdp) * odpCircumference;
+  const maintStroke = (odpMaint / calcTotalOdp) * odpCircumference;
+
+  const tersediaPercent = totalOdp > 0 ? Math.round((odpTersedia / totalOdp) * 100) : 0;
+  const penuhPercent = totalOdp > 0 ? Math.round((odpPenuh / totalOdp) * 100) : 0;
+  const maintPercent = totalOdp > 0 ? Math.max(0, 100 - tersediaPercent - penuhPercent) : 0;
+
+  const totalPorts = odp.reduce((acc, curr) => acc + (Number(curr.kapasitas_port) || 8), 0);
+  const usedPorts = odp.reduce((acc, curr) => acc + (Number(curr.port_terpakai) || 0), 0);
+  const totalIdlePorts = Math.max(0, totalPorts - usedPorts);
+  const portOkupansiPct = totalPorts > 0 ? Math.round((usedPorts / totalPorts) * 100) : 0;
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      {/* 4 Kartu KPI Atas (Telecom OSS Standard) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Card 1: Total ODP */}
-        <div className={`card-interactive cursor-pointer p-3.5 rounded-2xl border transition-all ${
+      {/* Status ODP & Ringkasan Geospasial Realtime Di Atas Peta WebGIS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Kolom 1: Donut Chart Status ODP Realtime Dari Tabel WebGIS */}
+        <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between overflow-hidden ${
           isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TOTAL ODP</div>
-          <div className={`text-xl sm:text-2xl font-black mt-0.5 font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalOdp} Titik</div>
-          <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Tersebar di Payakumbuh</div>
+          <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <Radio className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Status ODP Realtime</span>
+            </span>
+            <span className="text-[10px] font-mono font-bold text-cyan-400 px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30">
+              {totalOdp} Titik
+            </span>
+          </div>
+
+          <div className="flex items-center justify-center gap-3 py-1">
+            <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r={odpRadius} fill="transparent" stroke={isDark ? '#1e293b' : '#f1f5f9'} strokeWidth="12" />
+                <circle cx="50" cy="50" r={odpRadius} fill="transparent" stroke="#10b981" strokeWidth="12" strokeDasharray={`${tersediaStroke} ${odpCircumference}`} strokeDashoffset="0" className="transition-all duration-700" />
+                <circle cx="50" cy="50" r={odpRadius} fill="transparent" stroke="#f43f5e" strokeWidth="12" strokeDasharray={`${penuhStroke} ${odpCircumference}`} strokeDashoffset={`-${tersediaStroke}`} className="transition-all duration-700" />
+                <circle cx="50" cy="50" r={odpRadius} fill="transparent" stroke="#f59e0b" strokeWidth="12" strokeDasharray={`${maintStroke} ${odpCircumference}`} strokeDashoffset={`-${tersediaStroke + penuhStroke}`} className="transition-all duration-700" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                <span className="text-sm font-black text-white font-mono leading-none">{totalIdlePorts}</span>
+                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">Port Idle</span>
+              </div>
+            </div>
+
+            <div className="space-y-1 shrink-0 text-[10px]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span>Tersedia:</span>
+                </span>
+                <strong className="font-mono text-emerald-400">{odpTersedia} ({tersediaPercent}%)</strong>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                  <span>Penuh:</span>
+                </span>
+                <strong className="font-mono text-rose-400">{odpPenuh} ({penuhPercent}%)</strong>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  <span>Maintenance:</span>
+                </span>
+                <strong className="font-mono text-amber-400">{odpMaint} ({maintPercent}%)</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px]">
+            <span className="text-slate-400">Total Port FO:</span>
+            <span className="font-bold text-cyan-400 font-mono">{usedPorts}/{totalPorts} ({portOkupansiPct}% Okupansi)</span>
+          </div>
         </div>
 
-        {/* Card 2: Port Tersedia */}
-        <div className={`card-interactive cursor-pointer p-3.5 rounded-2xl border transition-all ${
-          isDark ? 'bg-slate-950/70 border-emerald-950/40 backdrop-blur-xl shadow-lg' : 'bg-emerald-50/70 border-emerald-200 shadow-sm'
-        }`}>
-          <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">PORT TERSEDIA</div>
-          <div className="text-xl sm:text-2xl font-black mt-0.5 text-emerald-600 dark:text-emerald-400 font-mono">{totalIdlePorts} Port Idle</div>
-          <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-emerald-700/80'}`}>Siap Pasang Baru</div>
-        </div>
+        {/* Kolom 2: 4 Kartu KPI Atas */}
+        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {/* Card 1: Total ODP */}
+          <div className={`card-interactive cursor-pointer p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+            isDark ? 'bg-slate-950/70 border-slate-800/80 backdrop-blur-xl shadow-lg' : 'bg-white border-slate-200 shadow-sm'
+          }`}>
+            <div className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>TOTAL ODP</div>
+            <div className={`text-lg sm:text-xl font-black mt-0.5 font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalOdp} Titik</div>
+            <div className={`text-[9px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Tersebar STO Pyk</div>
+          </div>
 
-        {/* Card 3: ODP Penuh */}
-        <div className={`card-interactive cursor-pointer p-3.5 rounded-2xl border transition-all ${
-          isDark ? 'bg-slate-950/70 border-rose-950/40 backdrop-blur-xl shadow-lg' : 'bg-rose-50/70 border-rose-200 shadow-sm'
-        }`}>
-          <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">ODP PENUH</div>
-          <div className="text-xl sm:text-2xl font-black mt-0.5 text-rose-600 dark:text-rose-400 font-mono">{penuhCount} Titik</div>
-          <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-rose-700/80'}`}>Okupansi 100%</div>
-        </div>
+          {/* Card 2: Port Tersedia */}
+          <div className={`card-interactive cursor-pointer p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+            isDark ? 'bg-slate-950/70 border-emerald-950/40 backdrop-blur-xl shadow-lg' : 'bg-emerald-50/70 border-emerald-200 shadow-sm'
+          }`}>
+            <div className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">PORT TERSEDIA</div>
+            <div className="text-lg sm:text-xl font-black mt-0.5 text-emerald-600 dark:text-emerald-400 font-mono">{totalIdlePorts} Port</div>
+            <div className={`text-[9px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-emerald-700/80'}`}>Siap Pasang Baru</div>
+          </div>
 
-        {/* Card 4: Perlu Optimasi */}
-        <div className={`card-interactive cursor-pointer p-3.5 rounded-2xl border transition-all ${
-          isDark ? 'bg-slate-950/70 border-amber-950/40 backdrop-blur-xl shadow-lg' : 'bg-amber-50/70 border-amber-200 shadow-sm'
-        }`}>
-          <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">PERLU OPTIMASI</div>
-          <div className="text-xl sm:text-2xl font-black mt-0.5 text-amber-600 dark:text-amber-400 font-mono">{optimasiCount} Titik</div>
-          <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-amber-700/80'}`}>Redaman &gt; -24 dBm</div>
+          {/* Card 3: ODP Penuh */}
+          <div className={`card-interactive cursor-pointer p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+            isDark ? 'bg-slate-950/70 border-rose-950/40 backdrop-blur-xl shadow-lg' : 'bg-rose-50/70 border-rose-200 shadow-sm'
+          }`}>
+            <div className="text-[9px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">ODP PENUH</div>
+            <div className="text-lg sm:text-xl font-black mt-0.5 text-rose-600 dark:text-rose-400 font-mono">{odpPenuh} Titik</div>
+            <div className={`text-[9px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-rose-700/80'}`}>Okupansi 100%</div>
+          </div>
+
+          {/* Card 4: Perlu Optimasi */}
+          <div className={`card-interactive cursor-pointer p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+            isDark ? 'bg-slate-950/70 border-amber-950/40 backdrop-blur-xl shadow-lg' : 'bg-amber-50/70 border-amber-200 shadow-sm'
+          }`}>
+            <div className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">PERLU OPTIMASI</div>
+            <div className="text-lg sm:text-xl font-black mt-0.5 text-amber-600 dark:text-amber-400 font-mono">{odpMaint} Titik</div>
+            <div className={`text-[9px] mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-amber-700/80'}`}>Redaman &gt; -24 dBm</div>
+          </div>
         </div>
       </div>
 

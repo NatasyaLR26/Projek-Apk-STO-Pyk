@@ -378,13 +378,18 @@ html.light .skeleton-shimmer {
   animation: pulseSubtle 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
 
-/* Print styling for official STO Audit Report & BASTP */
+/* Print styling for official STO Audit Report & BASTP (Zero Page Margin to Strip Browser URLs/Headers) */
 @page {
   size: A4 portrait;
-  margin: 6mm 8mm 6mm 8mm;
+  margin: 0 !important;
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 0 !important;
+  }
+
   /* Hilangkan URL / link yang otomatis dicetak oleh header browser */
   a[href]:after {
     content: none !important;
@@ -393,11 +398,13 @@ html.light .skeleton-shimmer {
     text-decoration: none !important;
     color: inherit !important;
   }
-  body {
+  html, body {
     background-color: #ffffff !important;
     color: #0f172a !important;
     margin: 0 !important;
     padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .no-print {
     display: none !important;
@@ -481,11 +488,11 @@ html.light .skeleton-shimmer {
     color: #0f172a !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    padding: 0 0 2mm 0 !important;
+    padding: 6mm 8mm 4mm 8mm !important;
     margin: 0 !important;
     border: none !important;
-    /* Kunci tinggi maksimal tepat 1 lembar A4 proporsional (275mm) */
-    max-height: 275mm !important;
+    /* Kunci tinggi maksimal tepat 1 lembar A4 proporsional */
+    max-height: 285mm !important;
     overflow: hidden !important;
   }
 
@@ -513,9 +520,9 @@ html.light .skeleton-shimmer {
     position: static !important;
     display: block !important;
     width: 100% !important;
-    max-height: 270mm !important;
+    max-height: 280mm !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 6mm 8mm 4mm 8mm !important;
     background: #ffffff !important;
     color: #0f172a !important;
     overflow: hidden !important;

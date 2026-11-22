@@ -327,7 +327,7 @@ export default function Login({ onTriggerSplash }) {
             <form onSubmit={handleLogin} className="space-y-4 animate-in fade-in duration-200">
               <div>
                 <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  Email Pegawai Telkom
+                  Email
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -526,7 +526,7 @@ export default function Login({ onTriggerSplash }) {
 
         {/* Footer Info */}
         <p className="text-center text-[10px] text-slate-500 mt-4">
-          PT Telkom Akses • Sentral Telepon Otomatis (STO) Payakumbuh
+          Telkom Akses • Sentral Telepon Otomatis Payakumbuh
         </p>
       </div>
 
