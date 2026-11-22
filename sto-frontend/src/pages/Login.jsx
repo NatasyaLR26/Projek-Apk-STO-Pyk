@@ -41,7 +41,7 @@ export default function Login({ onTriggerSplash }) {
   const [particleColor, setParticleColor] = useState('burgundy');
 
   const { toggleTheme, isDark } = useTheme();
-  const { users, setCurrentUser, addUser, showToast } = useApp();
+  const { users, currentUser, setCurrentUser, addUser, showToast } = useApp();
   const navigate = useNavigate();
 
   // Auto-redirect jika pengguna SUDAH login (mencegah tombol Back browser kembali ke form login tanpa logout)

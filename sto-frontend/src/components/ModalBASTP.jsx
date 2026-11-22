@@ -37,8 +37,6 @@ export default function ModalBASTP({ task, onClose }) {
   const { isDark } = useTheme();
   const { tugas = [] } = useApp();
 
-  if (!task) return null;
-
   // 1. Deteksi apakah ini penugasan borongan kolektif (Batch Multi-Pelanggan)
   const isBatch = Boolean(
     (Array.isArray(task?.tugas_ids) && task.tugas_ids.length > 1) ||
@@ -70,6 +68,8 @@ export default function ModalBASTP({ task, onClose }) {
     // Single customer (kasus standar: 1 orang saja)
     return [task];
   }, [task, isBatch, tugas]);
+
+  if (!task) return null;
 
   // 3. Helper data BASTP per tiket/pelanggan
   const getBastpData = (tItem, idx) => {
