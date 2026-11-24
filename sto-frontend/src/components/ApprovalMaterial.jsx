@@ -74,13 +74,19 @@ function ApprovalMaterial({ hideHeader = false }) {
 
   const handleReject = async (id) => {
     if (processingId) return;
+    const reason = window.prompt(
+      'Masukkan catatan arahan untuk teknisi:',
+      'Kebutuhan material perlu disesuaikan kembali. Silakan periksa jenis/kuantitas kabel atau perangkat ONT dan ajukan ulang.'
+    );
+    if (reason === null) return; // Pimpinan membatalkan aksi tolak
+
     setProcessingId(id);
     setPesan('');
     setError('');
 
     try {
-      await rejectMaterial(id);
-      setPesan(`Permohonan #${id} berhasil ditolak.`);
+      await rejectMaterial(id, reason.trim() || 'Kebutuhan material perlu disesuaikan. Silakan periksa kembali dan ajukan ulang.');
+      setPesan(`Permohonan #${id} telah ditolak dan arahan perbaikan berhasil dikirim ke teknisi.`);
     } catch (err) {
       setError(err?.message || 'Gagal menolak permohonan material');
     } finally {

@@ -61,9 +61,15 @@ export default function CetakSuratJalan({ initialRequestId = null }) {
   const handlePrint = () => {
     const originalTitle = document.title;
     document.title = ' ';
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('sj-print-mode');
+    }
     window.print();
     setTimeout(() => {
       document.title = originalTitle;
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('sj-print-mode');
+      }
     }, 1500);
   };
 
@@ -118,7 +124,7 @@ export default function CetakSuratJalan({ initialRequestId = null }) {
 
       {/* Official Printable Sheet */}
       {activeRequest ? (
-        <div className={`p-4 sm:p-8 rounded-2xl border ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'} shadow-2xl print-card`}>
+        <div className={`printable-sj-sheet p-4 sm:p-8 rounded-2xl border ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'} shadow-2xl print-card`}>
           
           {/* Header */}
           <div className="border-b-2 border-burgundy-600 pb-4 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">

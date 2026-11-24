@@ -71,6 +71,7 @@ export default function GudangDashboard() {
     updateBarang,
     tambahStokBarang,
     deleteBarang,
+    ontSerials = [],
     showToast,
     sidebarCollapsed
   } = useApp();
@@ -350,30 +351,45 @@ export default function GudangDashboard() {
     });
 
     // 3. ONT yang masih ready stock di rak gudang (Status: Di Gudang)
+    // HANYA jika barang ONT/Modem ada di master barang gudang dan memiliki stok > 0
     const ontItem = barang.find(b => b.nama_barang?.toLowerCase().includes('ont') || b.nama_barang?.toLowerCase().includes('modem'));
-    const stockGudangCount = ontItem ? ontItem.stok : 11;
-    for (let i = 1; i <= Math.min(stockGudangCount, 4); i++) {
-      list.push({
-        id: `ONT-WH-${i}`,
-        sn: `ZTEGC8B902${String(i).padStart(2, '0')}`,
-        model: 'Modem ONT ZTE F670L Dual Band',
-        status: 'Di Gudang',
-        pelanggan_nama: '-',
-        pelanggan_telp: '-',
-        lokasi: 'Rak Logistik Sentral STO',
-        odp_id: '-',
-        odpFormatted: '-',
-        redaman_dbm: '-',
-        bastp_no: '-',
-        teknisi: 'Petugas Gudang (Siti Rahmawati)',
-        waktu: 'Ready di Rak'
-      });
+    if (ontItem && Number(ontItem.stok) > 0) {
+      const stockGudangCount = Number(ontItem.stok);
+      const limit = Math.min(stockGudangCount, 4);
+      for (let i = 1; i <= limit; i++) {
+        list.push({
+          id: `ONT-WH-${i}`,
+          sn: `ZTEGC8B902${String(i).padStart(2, '0')}`,
+          model: ontItem.nama_barang || 'Modem ONT ZTE F670L Dual Band',
+          status: 'Di Gudang',
+          pelanggan_nama: '-',
+          pelanggan_telp: '-',
+          lokasi: 'Rak Logistik Sentral STO',
+          odp_id: '-',
+          odpFormatted: '-',
+          redaman_dbm: '-',
+          bastp_no: '-',
+          teknisi: 'Petugas Gudang (Siti Rahmawati)',
+          waktu: 'Ready di Rak'
+        });
+      }
     }
 
-    // 4. Nomor seri yang baru didaftarkan melalui InputBarangGudang
+    // 4. Nomor seri yang baru didaftarkan melalui InputBarangGudang / state realtime ontSerials
     try {
-      const stored = JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
-      stored.forEach(s => {
+      const serialSource = (Array.isArray(ontSerials) && ontSerials.length > 0)
+        ? ontSerials
+        : JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
+
+      serialSource.forEach(s => {
+        // Validasi: pastikan model barang masih aktif ada di gudang. Jika barang dihapus, serial otomatis hilang dari audit!
+        const modelExists = barang.some(b => {
+          const bName = String(b.nama_barang || '').toLowerCase().trim();
+          const sModel = String(s.model || '').toLowerCase().trim();
+          return bName === sModel || sModel.includes(bName) || bName.includes(sModel);
+        });
+        if (!modelExists) return;
+
         if (!list.some(item => item.sn === s.sn)) {
           list.push({
             id: `ONT-SOP-${s.id || s.sn}`,
@@ -395,7 +411,7 @@ export default function GudangDashboard() {
     } catch { /* ignore */ }
 
     return list;
-  }, [tugas, releasedRequests, users, barang, pelanggan, odpList]);
+  }, [tugas, releasedRequests, users, barang, ontSerials, pelanggan, odpList]);
 
   // Filtered ONT List untuk pencarian & status tab
   const filteredOntList = React.useMemo(() => {

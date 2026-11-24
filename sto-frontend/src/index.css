@@ -467,6 +467,57 @@ html.light .skeleton-shimmer {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+
+  /* Surat Jalan Gudang (SJ) 1 Page A4 Print Mode */
+  body.sj-print-mode aside,
+  body.sj-print-mode header,
+  body.sj-print-mode nav,
+  body.sj-print-mode .no-print {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+  }
+
+  body.sj-print-mode .printable-sj-sheet {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-height: 280mm !important;
+    margin: 0 !important;
+    padding: 6mm 8mm 4mm 8mm !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Laporan Audit Lapangan 1 Page A4 Print Mode */
+  body.audit-print-mode aside,
+  body.audit-print-mode header,
+  body.audit-print-mode nav,
+  body.audit-print-mode .no-print {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+  }
+
+  body.audit-print-mode .printable-audit-sheet {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-height: 285mm !important;
+    margin: 0 !important;
+    padding: 6mm 8mm 4mm 8mm !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 }
 
 /* Utility to hide scrollbars while keeping horizontal/vertical scrollability */

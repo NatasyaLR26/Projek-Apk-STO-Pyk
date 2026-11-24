@@ -77,11 +77,16 @@ export function AppProvider({ children }) {
 
   // 2. Current Active User (Session)
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('user') || localStorage.getItem('sto_currentUser');
-    if (saved) {
-      try { return JSON.parse(saved); } catch { /* ignore */ }
-    }
-    return initialUsers[0]; // Pimpinan Robby Permana Putra
+    try {
+      const saved = localStorage.getItem('user') || localStorage.getItem('sto_currentUser');
+      if (saved && saved !== 'null' && saved !== 'undefined') {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.id && parsed.role) {
+          return parsed;
+        }
+      }
+    } catch { /* ignore */ }
+    return null; // Pengguna baru atau link pertama dibuka WAJIB masuk ke halaman Login
   });
 
   // 3. Database Tables
@@ -142,6 +147,18 @@ export function AppProvider({ children }) {
       } catch {}
     }
     return isSupabaseConfigured() ? [] : initialDetailPermohonan;
+  });
+
+  // Database Nomor Seri ONT (Audit Lifecycle Realtime)
+  const [ontSerials, setOntSerials] = useState(() => {
+    try {
+      const stored = localStorage.getItem('sto_ont_serials');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
   });
 
   // GPS Tracking dinonaktifkan sesuai kebutuhan produksi
@@ -246,8 +263,13 @@ export function AppProvider({ children }) {
   // Sync to LocalStorage (local state fallback cache)
   useEffect(() => {
     try {
-      localStorage.setItem('sto_currentUser', JSON.stringify(currentUser));
-      if (currentUser) localStorage.setItem('user', JSON.stringify(currentUser));
+      if (currentUser) {
+        localStorage.setItem('sto_currentUser', JSON.stringify(currentUser));
+        localStorage.setItem('user', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('sto_currentUser');
+        localStorage.removeItem('user');
+      }
     } catch {}
   }, [currentUser]);
 
@@ -676,6 +698,60 @@ export function AppProvider({ children }) {
           } else if (curUser?.role === 'teknisi') {
             showToast(`✅ Permohonan material disetujui Pimpinan! Silakan ambil barang ke Gudang STO.`, 'success');
           }
+        }
+      })
+      .on('broadcast', { event: 'permohonan_rejected' }, ({ payload }) => {
+        if (payload && payload.id) {
+          setPermohonan((prev) => prev.map(p => Number(p.id) === Number(payload.id) ? {
+            ...p,
+            status: 'Rejected',
+            catatan_pimpinan: payload.catatan_pimpinan
+          } : p));
+          const curUser = JSON.parse(localStorage.getItem('user') || 'null');
+          if (curUser?.role === 'teknisi' && (!payload.teknisi_id || Number(curUser.id) === Number(payload.teknisi_id))) {
+            showToast(`⚠️ Permohonan #${payload.id} DITOLAK Pimpinan: "${payload.catatan_pimpinan || 'Coba periksa lagi material'}". Silakan ajukan ulang!`, 'error');
+            playNotificationChime();
+          }
+        }
+      })
+      .on('broadcast', { event: 'barang_tambah' }, ({ payload }) => {
+        if (payload && payload.id) {
+          setBarang(prev => [payload, ...prev.filter(b => Number(b.id) !== Number(payload.id))]);
+        }
+      })
+      .on('broadcast', { event: 'barang_update' }, ({ payload }) => {
+        if (payload && payload.id) {
+          setBarang(prev => prev.map(b => Number(b.id) === Number(payload.id) ? { ...b, ...payload } : b));
+        }
+      })
+      .on('broadcast', { event: 'barang_hapus' }, ({ payload }) => {
+        if (payload && payload.id) {
+          setBarang(prev => prev.filter(b => Number(b.id) !== Number(payload.id)));
+          if (payload.nama_barang) {
+            setOntSerials(prev => {
+              const next = prev.filter(s => s.model?.toLowerCase() !== payload.nama_barang?.toLowerCase());
+              try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
+              return next;
+            });
+          }
+        }
+      })
+      .on('broadcast', { event: 'ont_serials_sync' }, ({ payload }) => {
+        if (Array.isArray(payload)) {
+          setOntSerials(prev => {
+            const next = [...payload, ...prev.filter(p => !payload.some(n => n.sn === p.sn))];
+            try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
+            return next;
+          });
+        }
+      })
+      .on('broadcast', { event: 'ont_serial_deleted' }, ({ payload }) => {
+        if (payload && payload.sn) {
+          setOntSerials(prev => {
+            const next = prev.filter(s => s.sn !== payload.sn);
+            try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
+            return next;
+          });
         }
       })
       .on('broadcast', { event: 'material_released' }, ({ payload }) => {
@@ -1291,6 +1367,8 @@ export function AppProvider({ children }) {
 
   const rejectMaterial = useCallback(async (permohonanId, reason = "Ditolak oleh Pimpinan") => {
     const parsedId = parseInt(permohonanId, 10);
+    const targetPermohonan = permohonan.find(p => Number(p.id) === parsedId);
+
     setPermohonan(prev => prev.map(p => {
       if (Number(p.id) === parsedId) {
         return { ...p, status: "Rejected", catatan_pimpinan: reason };
@@ -1310,14 +1388,23 @@ export function AppProvider({ children }) {
 
     if (!backendHandled && isSupabaseConfigured()) {
       try {
-        await supabase.from('permohonan').update({ status: 'Rejected' }).eq('id', parsedId);
+        await supabase.from('permohonan').update({ status: 'Rejected', catatan_pimpinan: reason }).eq('id', parsedId);
       } catch (err) {
         console.warn('Supabase reject error:', err);
       }
     }
 
-    showToast(`Permohonan #${parsedId} DITOLAK.`, "error");
-  }, [showToast]);
+    // Siarkan sinyal realtime ke teknisi pemohon
+    broadcastLiveSignal('permohonan_rejected', {
+      id: parsedId,
+      tugas_id: targetPermohonan?.tugas_id,
+      teknisi_id: targetPermohonan?.teknisi_id,
+      teknisi_nama: targetPermohonan?.teknisi_nama,
+      catatan_pimpinan: reason
+    });
+
+    showToast(`Permohonan #${parsedId} DITOLAK. Notifikasi arahan dikirim ke teknisi.`, "error");
+  }, [permohonan, broadcastLiveSignal, showToast]);
 
   // SOP 4: Gudang merilis barang dan sistem melakukan pemotongan stok otomatis
   const releaseMaterial = useCallback(async (permohonanId, sn = null) => {
@@ -1795,8 +1882,11 @@ export function AppProvider({ children }) {
       }
     }
 
+    // Siarkan sinyal realtime ke seluruh client
+    broadcastLiveSignal('barang_update', { id: parsedId, ...payload });
+
     showToast("Data barang berhasil diperbarui!", "success");
-  }, [showToast]);
+  }, [showToast, broadcastLiveSignal]);
 
   const tambahStokBarang = useCallback(async (id, jumlah) => {
     const parsedId = parseInt(id, 10);
@@ -1832,8 +1922,12 @@ export function AppProvider({ children }) {
       }
     }
 
+    if (targetItem) {
+      broadcastLiveSignal('barang_update', { id: parsedId, stok: targetItem.stok });
+    }
+
     showToast(`Stok ${targetItem?.nama_barang || 'barang'} bertambah +${parsedJumlah} ${targetItem?.satuan || 'pcs'}!`, "success");
-  }, [showToast]);
+  }, [showToast, broadcastLiveSignal]);
 
   // CRUD Gudang (Barang dengan Pencegahan Duplikasi Item)
   const addBarang = useCallback(async (item) => {
@@ -1850,6 +1944,7 @@ export function AppProvider({ children }) {
         stok: newStok,
         satuan: item.satuan || existing.satuan
       });
+      broadcastLiveSignal('barang_update', { id: existing.id, stok: newStok });
       showToast(`Stok '${existing.nama_barang}' berhasil ditambah +${incomingStok} ${existing.satuan} (Total sekarang: ${newStok})!`, "success");
       return { ...existing, stok: newStok };
     }
@@ -1874,6 +1969,7 @@ export function AppProvider({ children }) {
         backendHandled = true;
         const realId = res.data?.data?.id || res.data?.data?.barang?.id;
         if (realId) {
+          newItem.id = realId;
           setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: realId } : b));
         }
       }
@@ -1891,6 +1987,7 @@ export function AppProvider({ children }) {
         }]).select();
 
         if (data && data.length > 0) {
+          newItem.id = data[0].id;
           setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: data[0].id } : b));
         }
       } catch (err) {
@@ -1898,13 +1995,25 @@ export function AppProvider({ children }) {
       }
     }
 
+    broadcastLiveSignal('barang_tambah', newItem);
     showToast(`Barang '${cleanName}' berhasil ditambahkan ke inventaris!`, "success");
     return newItem;
-  }, [barang, updateBarang, showToast]);
+  }, [barang, updateBarang, showToast, broadcastLiveSignal]);
 
   const deleteBarang = useCallback(async (id) => {
     const parsedId = parseInt(id, 10);
+    const targetItem = barang.find(b => Number(b.id) === parsedId);
+
     setBarang(prev => prev.filter(b => Number(b.id) !== parsedId));
+
+    // Bersihkan SN audit jika item yang dihapus memiliki nomor seri / ONT
+    if (targetItem?.nama_barang) {
+      setOntSerials(prev => {
+        const next = prev.filter(s => s.model?.toLowerCase() !== targetItem.nama_barang?.toLowerCase());
+        try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
 
     // 1. Sync ke Express Backend API (Single Source of Truth)
     let backendHandled = false;
@@ -1926,8 +2035,32 @@ export function AppProvider({ children }) {
       }
     }
 
+    // Siarkan realtime penghapusan barang & audit SN terkait
+    broadcastLiveSignal('barang_hapus', { id: parsedId, nama_barang: targetItem?.nama_barang });
+
     showToast("Barang dihapus dari inventaris gudang!", "info");
-  }, [showToast]);
+  }, [barang, showToast, broadcastLiveSignal]);
+
+  // Manajemen Serial Number ONT Realtime
+  const addOntSerials = useCallback((entries) => {
+    if (!Array.isArray(entries) || entries.length === 0) return;
+    setOntSerials(prev => {
+      const next = [...entries, ...prev.filter(p => !entries.some(n => n.sn === p.sn))];
+      try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    broadcastLiveSignal('ont_serials_sync', entries);
+  }, [broadcastLiveSignal]);
+
+  const deleteOntSerial = useCallback((sn) => {
+    if (!sn) return;
+    setOntSerials(prev => {
+      const next = prev.filter(s => s.sn !== sn);
+      try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    broadcastLiveSignal('ont_serial_deleted', { sn });
+  }, [broadcastLiveSignal]);
 
   // CRUD Penugasan / Tiket (Tugas)
   const updateTugas = useCallback(async (id, updatedFields) => {
@@ -2529,6 +2662,9 @@ export function AppProvider({ children }) {
     updateBarang,
     tambahStokBarang,
     deleteBarang,
+    ontSerials,
+    addOntSerials,
+    deleteOntSerial,
     resetToFactoryDefault,
     // Memoized helpers for child components
     openTasks,
@@ -2585,6 +2721,9 @@ export function AppProvider({ children }) {
     updateBarang,
     tambahStokBarang,
     deleteBarang,
+    ontSerials,
+    addOntSerials,
+    deleteOntSerial,
     resetToFactoryDefault,
     openTasks,
     myActiveTasks,

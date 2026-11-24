@@ -13,6 +13,32 @@ import AuditReportPage from './pages/AuditReportPage';
 import DetailTiketTelegram from './pages/DetailTiketTelegram';
 import MagicLogin from './pages/MagicLogin';
 
+// Komponen Pelindung Rute (Strict Protected Route)
+// Menjamin jika link dibagikan ke orang lain / dibuka di browser baru, WAJIB ke halaman Login terlebih dahulu
+function ProtectedRoute({ children, allowedRoles }) {
+  const { currentUser } = useApp();
+  const rawUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+  let activeUser = currentUser;
+  if (!activeUser && rawUser) {
+    try {
+      const parsed = JSON.parse(rawUser);
+      if (parsed && parsed.id && parsed.role) activeUser = parsed;
+    } catch {}
+  }
+
+  if (!activeUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(activeUser.role)) {
+    if (activeUser.role === 'teknisi') return <Navigate to="/dashboard-teknisi" replace />;
+    if (activeUser.role === 'gudang') return <Navigate to="/dashboard-gudang" replace />;
+    return <Navigate to="/dashboard-pimpinan" replace />;
+  }
+
+  return children;
+}
+
 function AppContent() {
   const { notification, setNotification, currentUser } = useApp();
   const [showSplash, setShowSplash] = useState(() => {
@@ -73,13 +99,41 @@ function AppContent() {
             )
           }
         />
-        <Route path="/dashboard-pimpinan" element={<DashboardPimpinan />} />
-        <Route path="/dashboard-teknisi" element={<DashboardTeknisi />} />
-        <Route path="/dashboard-gudang" element={<GudangDashboard />} />
-        <Route path="/laporan-audit" element={<AuditReportPage />} />
+        <Route
+          path="/dashboard-pimpinan"
+          element={
+            <ProtectedRoute allowedRoles={['pimpinan']}>
+              <DashboardPimpinan />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard-teknisi"
+          element={
+            <ProtectedRoute allowedRoles={['teknisi']}>
+              <DashboardTeknisi />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard-gudang"
+          element={
+            <ProtectedRoute allowedRoles={['gudang']}>
+              <GudangDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/laporan-audit"
+          element={
+            <ProtectedRoute allowedRoles={['pimpinan']}>
+              <AuditReportPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/tiket/:id" element={<DetailTiketTelegram />} />
         <Route path="/magic-login" element={<MagicLogin />} />
-        <Route path="*" element={<Navigate to={activeDashboard || "/"} replace />} />
+        <Route path="*" element={<Navigate to={activeDashboard || "/login"} replace />} />
       </Routes>
 
       <Snackbar

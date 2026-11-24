@@ -32,7 +32,9 @@ import {
   Lock,
   Barcode,
   Zap,
-  Layers
+  Layers,
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 
 /**
@@ -267,6 +269,11 @@ export default function DashboardTeknisi() {
     });
   }, [permohonan, tugas, currentTechId]);
 
+  // Permohonan yang ditolak pimpinan dan butuh perbaikan / pengajuan ulang
+  const rejectedRequests = useMemo(() => {
+    return myRequests.filter(p => p.status === 'Rejected');
+  }, [myRequests]);
+
     const activeTasksRef = useRef(activeTasks);
   activeTasksRef.current = activeTasks;
 
@@ -319,6 +326,54 @@ export default function DashboardTeknisi() {
               </span>
             </div>
           </div>
+
+          {/* Banner Peringatan Penolakan Permohonan Material oleh Pimpinan */}
+          {rejectedRequests.length > 0 && (
+            <div className="p-4 sm:p-5 rounded-3xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-200 animate-in fade-in duration-300 shadow-xl shadow-rose-950/20 space-y-3">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 rounded-2xl bg-rose-600 text-white shrink-0 shadow-md shadow-rose-600/30">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-black text-rose-300">
+                      ⚠️ PERHATIAN: {rejectedRequests.length} Permohonan Pengambilan Material DITOLAK oleh Pimpinan
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-600/30 text-rose-200 border border-rose-500/40">
+                      Perlu Diajukan Ulang
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-2.5">
+                    {rejectedRequests.map(rej => (
+                      <div key={rej.id} className="p-3.5 rounded-2xl bg-slate-950/80 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                            <span className="text-rose-400 font-mono">Permohonan #{rej.id}</span>
+                            <span className="text-slate-500">•</span>
+                            <span>Tiket #{rej.tugas_id || '-'}</span>
+                          </div>
+                          <div className="text-rose-200 text-xs mt-1 bg-rose-950/40 p-2 rounded-xl border border-rose-500/20">
+                            <strong>👉 Arahan Pimpinan:</strong> "{rej.catatan_pimpinan || 'Coba periksa lagi material yang diajukan dan sesuaikan kebutuhan lapangan.'}"
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModalTugasId(rej.tugas_id);
+                            handleSetActiveMenu('surat-permohonan');
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-linear-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs shrink-0 cursor-pointer shadow-lg shadow-rose-900/30 transition active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Periksa &amp; Ajukan Ulang</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* TAB 1: AMBIL TIKET / PEKERJAAN */}
           {activeMenu === 'tiket' && (
@@ -1086,12 +1141,15 @@ export default function DashboardTeknisi() {
                     const details = detailPermohonan.filter(d => Number(d.permohonan_id) === Number(req.id));
                     const isApproved = req.status === 'Approved';
                     const isReleased = req.status === 'Released';
+                    const isRejected = req.status === 'Rejected';
 
                     return (
                       <div
                         key={req.id}
                         className={`p-5 rounded-3xl border transition-all ${
-                          isReleased
+                          isRejected
+                            ? isDark ? 'bg-slate-900/90 border-rose-500/50 shadow-md shadow-rose-950/30' : 'bg-rose-50/60 border-rose-300 shadow-sm'
+                            : isReleased
                             ? isDark ? 'bg-slate-900/80 border-emerald-500/40' : 'bg-white border-emerald-500/40 shadow-sm'
                             : isApproved
                             ? isDark ? 'bg-slate-900/80 border-amber-500/50' : 'bg-white border-amber-500/50 shadow-sm'
@@ -1120,16 +1178,31 @@ export default function DashboardTeknisi() {
                             )}
                           </div>
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap inline-flex items-center gap-1 shrink-0 ${
-                            isReleased
+                            isRejected
+                              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                              : isReleased
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : isApproved
                               ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                               : 'bg-slate-800 text-slate-400 border border-slate-700'
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isReleased ? 'bg-emerald-400' : isApproved ? 'bg-amber-400' : 'bg-slate-400'}`} />
-                            {isReleased ? 'Material Diserahkan' : isApproved ? 'Siap Diambil di Gudang' : 'Menunggu Otorisasi'}
+                            <span className={`w-1.5 h-1.5 rounded-full ${isRejected ? 'bg-rose-400 animate-ping' : isReleased ? 'bg-emerald-400' : isApproved ? 'bg-amber-400' : 'bg-slate-400'}`} />
+                            {isRejected ? 'Ditolak Pimpinan' : isReleased ? 'Material Diserahkan' : isApproved ? 'Siap Diambil di Gudang' : 'Menunggu Otorisasi'}
                           </span>
                         </div>
+
+                        {/* Kotak Arahan Pimpinan jika Ditolak */}
+                        {isRejected && (
+                          <div className={`p-3 rounded-2xl text-xs ${isDark ? 'bg-rose-950/40 border border-rose-500/30' : 'bg-rose-100/60 border border-rose-300'} text-rose-300 space-y-1`}>
+                            <div className="font-bold flex items-center gap-1.5 text-rose-400 text-xs">
+                              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                              <span>Catatan &amp; Arahan Pimpinan:</span>
+                            </div>
+                            <p className="text-xs text-rose-200">
+                              "{req.catatan_pimpinan || 'Coba periksa lagi material yang diajukan dan sesuaikan kebutuhan lapangan.'}"
+                            </p>
+                          </div>
+                        )}
 
                         {/* Items Requested */}
                         <div className={`p-3 rounded-2xl text-xs ${isDark ? 'bg-slate-950 border border-slate-850' : 'bg-slate-50 border border-slate-200'} space-y-1`}>
@@ -1147,25 +1220,39 @@ export default function DashboardTeknisi() {
 
                         {/* Tombol Aksi */}
                         <div className="flex gap-2 pt-1">
-                          <button
-                            type="button"
-                            disabled={!isApproved && !isReleased}
-                            onClick={() => {
-                              if (isApproved || isReleased) {
-                                setSelectedCetakReqId(req.id);
-                                handleSetActiveMenu('cetak-surat');
-                              }
-                            }}
-                            title={!isApproved && !isReleased ? 'Menunggu otorisasi pimpinan sebelum mencetak bukti pengambilan' : 'Cetak Bukti Pengambilan Material'}
-                            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                              !isApproved && !isReleased
-                                ? 'bg-slate-800/50 text-slate-500 border border-slate-800 opacity-50 cursor-not-allowed'
-                                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer active:scale-95'
-                            }`}
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span>Cetak Bukti Pengambilan</span>
-                          </button>
+                          {isRejected ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalTugasId(req.tugas_id || task?.id);
+                                handleSetActiveMenu('surat-permohonan');
+                              }}
+                              className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-900/30 cursor-pointer active:scale-95 transition"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>Periksa &amp; Ajukan Ulang</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={!isApproved && !isReleased}
+                              onClick={() => {
+                                if (isApproved || isReleased) {
+                                  setSelectedCetakReqId(req.id);
+                                  handleSetActiveMenu('cetak-surat');
+                                }
+                              }}
+                              title={!isApproved && !isReleased ? 'Menunggu otorisasi pimpinan sebelum mencetak bukti pengambilan' : 'Cetak Bukti Pengambilan Material'}
+                              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                                !isApproved && !isReleased
+                                  ? 'bg-slate-800/50 text-slate-500 border border-slate-800 opacity-50 cursor-not-allowed'
+                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer active:scale-95'
+                              }`}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>Cetak Bukti Pengambilan</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     );

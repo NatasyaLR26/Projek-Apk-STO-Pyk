@@ -23,7 +23,7 @@ const DEFAULT_PRESETS = [
 
 export default function InputBarangGudang() {
   const { isDark } = useTheme();
-  const { barang = [], addBarang, showToast } = useApp();
+  const { barang = [], addBarang, addOntSerials, showToast } = useApp();
 
   // Daftar gabungan material untuk dropdown gulir (dari database master barang + preset Telkom)
   const availableItems = useMemo(() => {
@@ -179,6 +179,9 @@ export default function InputBarangGudang() {
           waktu: now
         }));
         localStorage.setItem('sto_ont_serials', JSON.stringify([...newEntries, ...existingSnStorage]));
+        if (typeof addOntSerials === 'function') {
+          addOntSerials(newEntries);
+        }
       }
 
       showToast(`Material "${finalNama}" (+${stokCount} ${form.satuan}) berhasil disimpan!`, 'success');

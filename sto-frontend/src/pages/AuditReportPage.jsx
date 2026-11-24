@@ -138,9 +138,15 @@ export default function AuditReportPage() {
   const handlePrint = () => {
     const originalTitle = document.title;
     document.title = ' ';
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('audit-print-mode');
+    }
     window.print();
     setTimeout(() => {
       document.title = originalTitle;
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('audit-print-mode');
+      }
     }, 1500);
   };
 
@@ -264,7 +270,7 @@ export default function AuditReportPage() {
         </div>
 
         {/* Official Audit Document Container (Print-ready) */}
-        <div className={`${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-md'} border rounded-2xl p-6 sm:p-8 shadow-2xl print-card`}>
+        <div className={`printable-audit-sheet ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-md'} border rounded-2xl p-6 sm:p-8 shadow-2xl print-card`}>
           
           {/* Official Telkom Akses Header / Kop Surat (Shown when printing and on screen) */}
           <div className="border-b-2 border-burgundy-600 pb-4 mb-6 flex items-start justify-between">
