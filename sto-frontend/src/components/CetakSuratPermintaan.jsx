@@ -6,7 +6,12 @@ export default function CetakSuratPermintaan({ task, items = [], onClose }) {
   const { isDark } = useTheme();
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = ' ';
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1500);
   };
 
   const currentDate = new Date().toLocaleDateString('id-ID', {

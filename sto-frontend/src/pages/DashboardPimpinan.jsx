@@ -417,7 +417,12 @@ function DashboardPimpinan() {
               ) : activeMenu === 'laporan-kerja' ? (
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    const origTitle = document.title;
+                    document.title = ' ';
+                    window.print();
+                    setTimeout(() => { document.title = origTitle; }, 1500);
+                  }}
                   className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 shadow-sm transition cursor-pointer active:scale-95 whitespace-nowrap w-full sm:w-auto"
                 >
                   <Printer className="w-3.5 h-3.5" />

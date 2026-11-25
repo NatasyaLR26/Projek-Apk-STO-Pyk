@@ -13,20 +13,19 @@ import AuditReportPage from './pages/AuditReportPage';
 import DetailTiketTelegram from './pages/DetailTiketTelegram';
 import MagicLogin from './pages/MagicLogin';
 
-// Komponen Pelindung Rute (Strict Protected Route)
-// Menjamin jika link dibagikan ke orang lain / dibuka di browser baru, WAJIB ke halaman Login terlebih dahulu
+// Komponen Pelindung Rute
 function ProtectedRoute({ children, allowedRoles }) {
   const { currentUser } = useApp();
-  const rawUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-  let activeUser = currentUser;
-  if (!activeUser && rawUser) {
+  const sessionUser = typeof window !== 'undefined' ? (() => {
     try {
-      const parsed = JSON.parse(rawUser);
-      if (parsed && parsed.id && parsed.role) activeUser = parsed;
-    } catch {}
-  }
+      const s = sessionStorage.getItem('sto_active_user');
+      return s ? JSON.parse(s) : null;
+    } catch { return null; }
+  })() : null;
 
-  if (!activeUser) {
+  const activeUser = currentUser || sessionUser;
+
+  if (!activeUser || !activeUser.role) {
     return <Navigate to="/login" replace />;
   }
 
@@ -42,13 +41,19 @@ function ProtectedRoute({ children, allowedRoles }) {
 function AppContent() {
   const { notification, setNotification, currentUser } = useApp();
   const [showSplash, setShowSplash] = useState(() => {
-    // Show splash screen on first visit in the browser session
-    const seen = sessionStorage.getItem('sto_splash_seen');
-    return !seen;
+    try {
+      if (window.location.pathname === '/magic-login') return false;
+      const seen = sessionStorage.getItem('sto_splash_seen');
+      return !seen;
+    } catch {
+      return true;
+    }
   });
 
   const handleSplashFinish = () => {
-    sessionStorage.setItem('sto_splash_seen', 'true');
+    try {
+      sessionStorage.setItem('sto_splash_seen', 'true');
+    } catch {}
     setShowSplash(false);
   };
 
@@ -56,11 +61,11 @@ function AppContent() {
     setShowSplash(true);
   };
 
-  // Evaluasi sesi aktif: mencegah tombol Back browser kembali ke login tanpa logout
+  // Evaluasi sesi aktif dari sessionStorage agar saat F5/refresh tetap berada di dashboard aktif
   const getAuthenticatedDashboard = () => {
     try {
-      const rawUser = localStorage.getItem('user');
-      const activeUser = currentUser || (rawUser ? JSON.parse(rawUser) : null);
+      const s = sessionStorage.getItem('sto_active_user');
+      const activeUser = currentUser || (s ? JSON.parse(s) : null);
       if (activeUser && activeUser.role) {
         if (activeUser.role === 'teknisi') return '/dashboard-teknisi';
         if (activeUser.role === 'gudang') return '/dashboard-gudang';
@@ -75,7 +80,7 @@ function AppContent() {
   return (
     <>
       {showSplash && (
-        <SplashScreen onFinish={handleSplashFinish} duration={1900} />
+        <SplashScreen onFinish={handleSplashFinish} duration={1000} />
       )}
 
       <Routes>

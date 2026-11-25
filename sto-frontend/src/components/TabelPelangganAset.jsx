@@ -873,7 +873,12 @@ export default function TabelPelangganAset({ isGudangView = false }) {
               <button
                 type="button"
                 onClick={() => {
+                  const origTitle = document.title;
+                  document.title = ' ';
                   window.print();
+                  setTimeout(() => {
+                    document.title = origTitle;
+                  }, 1500);
                   showToast('Surat tugas penarikan aset siap dicetak!', 'success');
                 }}
                 className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md cursor-pointer"

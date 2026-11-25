@@ -352,28 +352,35 @@ export default function GudangDashboard() {
 
     // 3. ONT yang masih ready stock di rak gudang (Status: Di Gudang)
     // HANYA jika barang ONT/Modem ada di master barang gudang dan memiliki stok > 0
-    const ontItem = barang.find(b => b.nama_barang?.toLowerCase().includes('ont') || b.nama_barang?.toLowerCase().includes('modem'));
-    if (ontItem && Number(ontItem.stok) > 0) {
+    const activeOntItems = barang.filter(b => {
+      const name = (b.nama_barang || '').toLowerCase();
+      return (name.includes('ont') || name.includes('modem')) && Number(b.stok) > 0;
+    });
+
+    activeOntItems.forEach((ontItem, itemIdx) => {
       const stockGudangCount = Number(ontItem.stok);
       const limit = Math.min(stockGudangCount, 4);
       for (let i = 1; i <= limit; i++) {
-        list.push({
-          id: `ONT-WH-${i}`,
-          sn: `ZTEGC8B902${String(i).padStart(2, '0')}`,
-          model: ontItem.nama_barang || 'Modem ONT ZTE F670L Dual Band',
-          status: 'Di Gudang',
-          pelanggan_nama: '-',
-          pelanggan_telp: '-',
-          lokasi: 'Rak Logistik Sentral STO',
-          odp_id: '-',
-          odpFormatted: '-',
-          redaman_dbm: '-',
-          bastp_no: '-',
-          teknisi: 'Petugas Gudang (Siti Rahmawati)',
-          waktu: 'Ready di Rak'
-        });
+        const itemSn = `ZTEGC8B902${String(i + (itemIdx * 4)).padStart(2, '0')}`;
+        if (!list.some(existing => existing.sn === itemSn)) {
+          list.push({
+            id: `ONT-WH-${ontItem.id}-${i}`,
+            sn: itemSn,
+            model: ontItem.nama_barang || 'Modem ONT ZTE F670L Dual Band',
+            status: 'Di Gudang',
+            pelanggan_nama: '-',
+            pelanggan_telp: '-',
+            lokasi: 'Rak Logistik Sentral STO',
+            odp_id: '-',
+            odpFormatted: '-',
+            redaman_dbm: '-',
+            bastp_no: '-',
+            teknisi: 'Petugas Gudang (Siti Rahmawati)',
+            waktu: 'Ready di Rak'
+          });
+        }
       }
-    }
+    });
 
     // 4. Nomor seri yang baru didaftarkan melalui InputBarangGudang / state realtime ontSerials
     try {
@@ -382,19 +389,20 @@ export default function GudangDashboard() {
         : JSON.parse(localStorage.getItem('sto_ont_serials') || '[]');
 
       serialSource.forEach(s => {
-        // Validasi: pastikan model barang masih aktif ada di gudang. Jika barang dihapus, serial otomatis hilang dari audit!
-        const modelExists = barang.some(b => {
+        // Validasi: pastikan model barang masih aktif ada di gudang dengan stok > 0.
+        // Jika di gudang barang dihapus, serial otomatis HILANG seketika dari tabel audit!
+        const matchingBarang = barang.find(b => {
           const bName = String(b.nama_barang || '').toLowerCase().trim();
           const sModel = String(s.model || '').toLowerCase().trim();
           return bName === sModel || sModel.includes(bName) || bName.includes(sModel);
         });
-        if (!modelExists) return;
+        if (!matchingBarang || Number(matchingBarang.stok) <= 0) return;
 
         if (!list.some(item => item.sn === s.sn)) {
           list.push({
             id: `ONT-SOP-${s.id || s.sn}`,
             sn: s.sn,
-            model: s.model || 'Modem ONT ZTE F670L Dual Band',
+            model: s.model || matchingBarang.nama_barang || 'Modem ONT ZTE F670L Dual Band',
             status: (s.status === 'Di Perjalanan' || s.status === 'Dibawa Teknisi') ? 'Dibawa Teknisi' : (s.status || 'Di Gudang'),
             pelanggan_nama: s.pelanggan || '-',
             pelanggan_telp: '-',

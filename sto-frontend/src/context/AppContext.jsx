@@ -76,9 +76,10 @@ export function AppProvider({ children }) {
   const [lastSyncedAt, setLastSyncedAt] = useState(() => localStorage.getItem('sto_lastSyncedAt') || null);
 
   // 2. Current Active User (Session)
+  // Membaca sesi aktif dari sessionStorage agar saat halaman di-refresh (F5) tetap login di halaman aktif
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('user') || localStorage.getItem('sto_currentUser');
+      const saved = sessionStorage.getItem('sto_active_user');
       if (saved && saved !== 'null' && saved !== 'undefined') {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.id && parsed.role) {
@@ -86,7 +87,7 @@ export function AppProvider({ children }) {
         }
       }
     } catch { /* ignore */ }
-    return null; // Pengguna baru atau link pertama dibuka WAJIB masuk ke halaman Login
+    return null; // Link dibuka pertama kali lewat share/tab baru wajib login
   });
 
   // 3. Database Tables
@@ -95,7 +96,18 @@ export function AppProvider({ children }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = initialUsers.map(initU => {
+            const found = parsed.find(p => p.role === initU.role || p.email === initU.email || Number(p.id) === Number(initU.id));
+            return found ? { ...initU, ...found, email: initU.email, password: initU.password, nama_lengkap: initU.nama_lengkap } : initU;
+          });
+          parsed.forEach(p => {
+            if (!merged.some(m => m.email === p.email || Number(m.id) === Number(p.id))) {
+              merged.push(p);
+            }
+          });
+          return merged;
+        }
       } catch {}
     }
     return initialUsers;
@@ -260,13 +272,15 @@ export function AppProvider({ children }) {
     }, 4000);
   }, []);
 
-  // Sync to LocalStorage (local state fallback cache)
+  // Sync Session ke sessionStorage & LocalStorage
   useEffect(() => {
     try {
       if (currentUser) {
+        sessionStorage.setItem('sto_active_user', JSON.stringify(currentUser));
         localStorage.setItem('sto_currentUser', JSON.stringify(currentUser));
         localStorage.setItem('user', JSON.stringify(currentUser));
       } else {
+        sessionStorage.removeItem('sto_active_user');
         localStorage.removeItem('sto_currentUser');
         localStorage.removeItem('user');
       }
@@ -354,10 +368,13 @@ export function AppProvider({ children }) {
 
       if (Array.isArray(resUsers.data) && resUsers.data.length > 0) {
         setUsers((prev) => {
-          if (prev && prev.length === resUsers.data.length && prev[0]?.id === resUsers.data[0]?.id) {
-            return prev;
-          }
-          return resUsers.data;
+          const merged = [...resUsers.data];
+          (prev || []).forEach(p => {
+            if (!merged.some(m => m.email?.toLowerCase().trim() === p.email?.toLowerCase().trim())) {
+              merged.push(p);
+            }
+          });
+          return merged;
         });
       }
 
@@ -831,11 +848,26 @@ export function AppProvider({ children }) {
         { event: '*', schema: 'public', table: 'barang' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setBarang((prev) => [...prev.filter(b => b.id !== payload.new.id), payload.new]);
+            setBarang((prev) => [...prev.filter(b => Number(b.id) !== Number(payload.new.id)), payload.new]);
           } else if (payload.eventType === 'UPDATE') {
-            setBarang((prev) => prev.map(b => b.id === payload.new.id ? { ...b, ...payload.new } : b));
+            setBarang((prev) => prev.map(b => Number(b.id) === Number(payload.new.id) ? { ...b, ...payload.new } : b));
           } else if (payload.eventType === 'DELETE') {
-            setBarang((prev) => prev.filter(b => b.id !== payload.old.id));
+            const delId = payload.old?.id;
+            setBarang((prev) => {
+              const targetItem = prev.find(b => Number(b.id) === Number(delId));
+              if (targetItem?.nama_barang) {
+                setOntSerials((curr) => {
+                  const next = curr.filter(s => {
+                    const sModel = (s.model || '').toLowerCase().trim();
+                    const dName = (targetItem.nama_barang || '').toLowerCase().trim();
+                    return sModel !== dName && !sModel.includes(dName) && !dName.includes(sModel);
+                  });
+                  try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
+                  return next;
+                });
+              }
+              return prev.filter(b => Number(b.id) !== Number(delId));
+            });
           }
         }
       )
@@ -880,6 +912,8 @@ export function AppProvider({ children }) {
   }, [users, showToast]);
 
   const logout = useCallback(() => {
+    sessionStorage.removeItem('sto_active_user');
+    sessionStorage.removeItem('sto_splash_seen');
     localStorage.removeItem('user');
     localStorage.removeItem('sto_currentUser');
     localStorage.removeItem('sto_active_tab_pimpinan');
@@ -1862,24 +1896,20 @@ export function AppProvider({ children }) {
     if (updatedFields.stok !== undefined) payload.stok = parseInt(updatedFields.stok, 10);
     if (updatedFields.satuan !== undefined) payload.satuan = updatedFields.satuan;
 
-    // 1. Sync ke Express Backend API (Single Source of Truth)
-    let backendHandled = false;
-    try {
-      const res = await api.put(`/barang/${parsedId}`, payload);
-      if (res.data?.success) {
-        backendHandled = true;
-      }
-    } catch (apiErr) {
-      console.warn('[updateBarang] Backend API notice:', apiErr.message);
-    }
-
-    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
-    if (!backendHandled && isSupabaseConfigured()) {
+    // 1. Sinkronisasi langsung ke Supabase Cloud (Realtime Single Source of Truth)
+    if (isSupabaseConfigured() && Object.keys(payload).length > 0) {
       try {
         await supabase.from('barang').update(payload).eq('id', parsedId);
       } catch (err) {
         console.warn('Supabase update barang error:', err);
       }
+    }
+
+    // 2. Sinkronisasi ke Express Backend API jika aktif
+    try {
+      await api.put(`/barang/${parsedId}`, payload);
+    } catch (apiErr) {
+      console.warn('[updateBarang] Backend API notice:', apiErr.message);
     }
 
     // Siarkan sinyal realtime ke seluruh client
@@ -1961,24 +1991,8 @@ export function AppProvider({ children }) {
 
     setBarang(prev => [newItem, ...prev]);
 
-    // Jalur Utama: Sync ke Express Backend API (Express meng-insert ke Supabase & siar ke Telegram)
-    let backendHandled = false;
-    try {
-      const res = await api.post('/barang', newItem);
-      if (res.data?.success) {
-        backendHandled = true;
-        const realId = res.data?.data?.id || res.data?.data?.barang?.id;
-        if (realId) {
-          newItem.id = realId;
-          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: realId } : b));
-        }
-      }
-    } catch (apiErr) {
-      console.warn('[addBarang] Backend API notice:', apiErr.message);
-    }
-
-    // Fallback Supabase jika backend offline
-    if (!backendHandled && isSupabaseConfigured()) {
+    // 1. Simpan langsung ke Supabase Cloud (Realtime Single Source of Truth)
+    if (isSupabaseConfigured()) {
       try {
         const { data } = await supabase.from('barang').insert([{
           nama_barang: newItem.nama_barang,
@@ -1987,12 +2001,20 @@ export function AppProvider({ children }) {
         }]).select();
 
         if (data && data.length > 0) {
-          newItem.id = data[0].id;
-          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: data[0].id } : b));
+          const realId = data[0].id;
+          newItem.id = realId;
+          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: realId } : b));
         }
       } catch (err) {
         console.warn('Supabase insert barang error:', err);
       }
+    }
+
+    // 2. Sync ke Express Backend API jika aktif
+    try {
+      await api.post('/barang', newItem);
+    } catch (apiErr) {
+      console.warn('[addBarang] Backend API notice:', apiErr.message);
     }
 
     broadcastLiveSignal('barang_tambah', newItem);
@@ -2009,30 +2031,30 @@ export function AppProvider({ children }) {
     // Bersihkan SN audit jika item yang dihapus memiliki nomor seri / ONT
     if (targetItem?.nama_barang) {
       setOntSerials(prev => {
-        const next = prev.filter(s => s.model?.toLowerCase() !== targetItem.nama_barang?.toLowerCase());
+        const next = prev.filter(s => {
+          const sModel = (s.model || '').toLowerCase().trim();
+          const targetName = (targetItem.nama_barang || '').toLowerCase().trim();
+          return sModel !== targetName && !sModel.includes(targetName) && !targetName.includes(sModel);
+        });
         try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
         return next;
       });
     }
 
-    // 1. Sync ke Express Backend API (Single Source of Truth)
-    let backendHandled = false;
-    try {
-      const res = await api.delete(`/barang/${parsedId}`);
-      if (res.data?.success) {
-        backendHandled = true;
-      }
-    } catch (apiErr) {
-      console.warn('[deleteBarang] Backend API notice:', apiErr.message);
-    }
-
-    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
-    if (!backendHandled && isSupabaseConfigured()) {
+    // 1. Hapus langsung dari Supabase Cloud (Realtime Single Source of Truth)
+    if (isSupabaseConfigured()) {
       try {
         await supabase.from('barang').delete().eq('id', parsedId);
       } catch (err) {
         console.warn('Supabase delete barang error:', err);
       }
+    }
+
+    // 2. Sync ke Express Backend API jika aktif
+    try {
+      await api.delete(`/barang/${parsedId}`);
+    } catch (apiErr) {
+      console.warn('[deleteBarang] Backend API notice:', apiErr.message);
     }
 
     // Siarkan realtime penghapusan barang & audit SN terkait

@@ -12,7 +12,7 @@ const AKHLAK_VALUES = [
   { letter: 'K', name: 'Kolaboratif', desc: 'Membangun kerja sama yang sinergis' },
 ];
 
-export default function SplashScreen({ onFinish, duration = 2200 }) {
+export default function SplashScreen({ onFinish, duration = 1000 }) {
   const [progress, setProgress] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
@@ -28,9 +28,9 @@ export default function SplashScreen({ onFinish, duration = 2200 }) {
         setIsFadingOut(true);
         setTimeout(() => {
           if (onFinish) onFinish();
-        }, 350);
+        }, 200);
       }
-    }, 25);
+    }, 15);
 
     return () => clearInterval(interval);
   }, [duration, onFinish]);
@@ -39,7 +39,7 @@ export default function SplashScreen({ onFinish, duration = 2200 }) {
     setIsFadingOut(true);
     setTimeout(() => {
       if (onFinish) onFinish();
-    }, 200);
+    }, 150);
   };
 
   return (
@@ -68,28 +68,22 @@ export default function SplashScreen({ onFinish, duration = 2200 }) {
         <BrandLogo size="lg" className="transform scale-110" clickable={false} />
       </div>
 
-      {/* Text Branding */}
+      {/* Branding */}
       <div className="text-center px-4 mb-4">
-        <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center justify-center gap-2 mb-1">
-          <span>Fiber Ops</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-rose-600/30 border border-rose-500/50 text-rose-300 font-semibold tracking-normal">
-            Fiber Operasional
-          </span>
-        </h1>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 border border-slate-700/60 text-[10px] sm:text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
           <Radio className="w-3.5 h-3.5 animate-pulse text-rose-400" />
-          <span>PT Telkom Akses &bull; STO Payakumbuh</span>
+          <span>Telkom Akses &bull; Payakumbuh</span>
         </div>
         <p className="text-xs text-slate-400 max-w-sm mx-auto">
-          Integrasi Operasional Jaringan FO &amp; Logistik Terpadu
+          Integrasi Operasional Jaringan FO &amp; Logistik
         </p>
       </div>
 
-      {/* CORE VALUES BUMN: AKHLAK TELKOM GROUP (SIMPLE, COMPACT & SLEEK) */}
+      {/* AKHLAK BUMN */}
       <div className="w-full max-w-lg mx-auto my-3 text-center">
         <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-rose-950/40 border border-rose-500/30 text-[10px] font-bold text-rose-300 mb-2.5">
           <Sparkles className="w-3 h-3 text-rose-400" />
-          <span>Core Values BUMN • AKHLAK</span>
+          <span>AKHLAK</span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
           {AKHLAK_VALUES.map((item, idx) => (
