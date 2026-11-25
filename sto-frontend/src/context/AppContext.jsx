@@ -848,26 +848,11 @@ export function AppProvider({ children }) {
         { event: '*', schema: 'public', table: 'barang' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setBarang((prev) => [...prev.filter(b => Number(b.id) !== Number(payload.new.id)), payload.new]);
+            setBarang((prev) => [...prev.filter(b => b.id !== payload.new.id), payload.new]);
           } else if (payload.eventType === 'UPDATE') {
-            setBarang((prev) => prev.map(b => Number(b.id) === Number(payload.new.id) ? { ...b, ...payload.new } : b));
+            setBarang((prev) => prev.map(b => b.id === payload.new.id ? { ...b, ...payload.new } : b));
           } else if (payload.eventType === 'DELETE') {
-            const delId = payload.old?.id;
-            setBarang((prev) => {
-              const targetItem = prev.find(b => Number(b.id) === Number(delId));
-              if (targetItem?.nama_barang) {
-                setOntSerials((curr) => {
-                  const next = curr.filter(s => {
-                    const sModel = (s.model || '').toLowerCase().trim();
-                    const dName = (targetItem.nama_barang || '').toLowerCase().trim();
-                    return sModel !== dName && !sModel.includes(dName) && !dName.includes(sModel);
-                  });
-                  try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
-                  return next;
-                });
-              }
-              return prev.filter(b => Number(b.id) !== Number(delId));
-            });
+            setBarang((prev) => prev.filter(b => b.id !== payload.old.id));
           }
         }
       )
@@ -1254,8 +1239,18 @@ export function AppProvider({ children }) {
       });
     });
 
-    setPermohonan(prev => [...newPermohonans, ...prev]);
+    // Otomatis bersihkan permohonan yang berstatus Rejected untuk tugas terkait karena material sudah diperbarui
+    setPermohonan(prev => [
+      ...newPermohonans,
+      ...prev.filter(p => !(validTugasIds.includes(Number(p.tugas_id)) && p.status === 'Rejected'))
+    ]);
     setDetailPermohonan(prev => [...newDetails, ...prev]);
+
+    if (isSupabaseConfigured()) {
+      try {
+        supabase.from('permohonan').delete().in('tugas_id', validTugasIds).eq('status', 'Rejected').then(() => {}, () => {});
+      } catch {}
+    }
 
     const activeTechId = Number(currentUser?.id || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || '{}')?.id : null) || 2);
 
@@ -1371,6 +1366,8 @@ export function AppProvider({ children }) {
   // SOP 3: Pimpinan memberikan persetujuan (approval)
   const approveMaterial = useCallback(async (permohonanId) => {
     const parsedId = parseInt(permohonanId, 10);
+    const target = permohonan.find(p => Number(p.id) === parsedId);
+
     setPermohonan(prev => prev.map(p => {
       if (Number(p.id) === parsedId) {
         return { ...p, status: "Approved" };
@@ -1378,17 +1375,7 @@ export function AppProvider({ children }) {
       return p;
     }));
 
-    let backendHandled = false;
-    try {
-      const res = await api.patch(`/permohonan/${parsedId}/approve`);
-      if (res.data?.success) {
-        backendHandled = true;
-      }
-    } catch (apiErr) {
-      console.warn('[approveMaterial] Backend API notice:', apiErr.message);
-    }
-
-    if (!backendHandled && isSupabaseConfigured()) {
+    if (isSupabaseConfigured()) {
       try {
         await supabase.from('permohonan').update({ status: 'Approved' }).eq('id', parsedId);
       } catch (err) {
@@ -1396,8 +1383,21 @@ export function AppProvider({ children }) {
       }
     }
 
+    try {
+      await api.patch(`/permohonan/${parsedId}/approve`);
+    } catch (apiErr) {
+      console.warn('[approveMaterial] Backend API notice:', apiErr.message);
+    }
+
+    // Broadcast permohonan_approved via Supabase WebSocket ke seluruh teknisi
+    broadcastLiveSignal('permohonan_approved', {
+      id: parsedId,
+      tugas_id: target?.tugas_id,
+      teknisi_id: target?.teknisi_id
+    });
+
     showToast(`Permohonan #${parsedId} DISETUJUI. Diteruskan ke Gudang untuk rilis barang!`, "success");
-  }, [showToast]);
+  }, [permohonan, broadcastLiveSignal, showToast]);
 
   const rejectMaterial = useCallback(async (permohonanId, reason = "Ditolak oleh Pimpinan") => {
     const parsedId = parseInt(permohonanId, 10);
@@ -1633,8 +1633,14 @@ export function AppProvider({ children }) {
     }
 
     const proof = isPayloadObject
-      ? (argPhotoOrPayload.foto_bukti || argPhotoOrPayload.fotoBuktiUrl || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80")
-      : (argPhotoOrPayload || "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80");
+      ? (argPhotoOrPayload.fotoBuktiUrl || argPhotoOrPayload.foto_rumah || argPhotoOrPayload.foto_sn || argPhotoOrPayload.foto_bukti || "")
+      : (argPhotoOrPayload || "");
+
+    const fotoSn = isPayloadObject ? (argPhotoOrPayload.foto_sn || "") : "";
+    const fotoOpm = isPayloadObject ? (argPhotoOrPayload.foto_opm || "") : "";
+    const fotoRumah = isPayloadObject ? (argPhotoOrPayload.foto_rumah || proof || "") : proof;
+    const kelebihanMaterial = isPayloadObject ? argPhotoOrPayload.kelebihan_material : null;
+    const fotoSisa = kelebihanMaterial?.foto || (isPayloadObject ? argPhotoOrPayload.foto_sisa : null);
 
     const userNote = isPayloadObject ? (argPhotoOrPayload.catatan || "") : catatanHasil;
     const odpId = isPayloadObject ? (argPhotoOrPayload.odp_id || "ODP-PYK-FA/014") : "ODP-PYK-FA/014";
@@ -1659,9 +1665,15 @@ export function AppProvider({ children }) {
       pelanggan_nama: pelangganNama,
       waktu_closing: formattedDate,
       catatan_teknisi: userNote,
+      foto_bukti: proof,
+      foto_sn: fotoSn,
+      foto_opm: fotoOpm,
+      foto_rumah: fotoRumah,
+      foto_sisa: fotoSisa,
+      kelebihan_material: kelebihanMaterial,
       reconciliation: reconciliation.map(r => ({
         ...r,
-        status: 'TERPASANG DI PELANGGAN (CONSUMED)'
+        status: (Number(r.jumlah_sisa) > 0) ? 'SEBAGIAN TERPASANG & RETUR' : 'TERPASANG DI PELANGGAN (CONSUMED)'
       }))
     };
 
@@ -1672,6 +1684,12 @@ export function AppProvider({ children }) {
           ...t,
           status: "Done",
           foto_bukti: proof,
+          foto_sn: fotoSn,
+          foto_opm: fotoOpm,
+          foto_rumah: fotoRumah,
+          foto_sisa: fotoSisa,
+          kelebihan_material: kelebihanMaterial,
+          reconciliation: reconciliation,
           catatan_selesai: userNote,
           waktu_selesai: formattedDate,
           odp_id: odpId,
@@ -1896,20 +1914,24 @@ export function AppProvider({ children }) {
     if (updatedFields.stok !== undefined) payload.stok = parseInt(updatedFields.stok, 10);
     if (updatedFields.satuan !== undefined) payload.satuan = updatedFields.satuan;
 
-    // 1. Sinkronisasi langsung ke Supabase Cloud (Realtime Single Source of Truth)
-    if (isSupabaseConfigured() && Object.keys(payload).length > 0) {
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
+    try {
+      const res = await api.put(`/barang/${parsedId}`, payload);
+      if (res.data?.success) {
+        backendHandled = true;
+      }
+    } catch (apiErr) {
+      console.warn('[updateBarang] Backend API notice:', apiErr.message);
+    }
+
+    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         await supabase.from('barang').update(payload).eq('id', parsedId);
       } catch (err) {
         console.warn('Supabase update barang error:', err);
       }
-    }
-
-    // 2. Sinkronisasi ke Express Backend API jika aktif
-    try {
-      await api.put(`/barang/${parsedId}`, payload);
-    } catch (apiErr) {
-      console.warn('[updateBarang] Backend API notice:', apiErr.message);
     }
 
     // Siarkan sinyal realtime ke seluruh client
@@ -1991,8 +2013,24 @@ export function AppProvider({ children }) {
 
     setBarang(prev => [newItem, ...prev]);
 
-    // 1. Simpan langsung ke Supabase Cloud (Realtime Single Source of Truth)
-    if (isSupabaseConfigured()) {
+    // Jalur Utama: Sync ke Express Backend API (Express meng-insert ke Supabase & siar ke Telegram)
+    let backendHandled = false;
+    try {
+      const res = await api.post('/barang', newItem);
+      if (res.data?.success) {
+        backendHandled = true;
+        const realId = res.data?.data?.id || res.data?.data?.barang?.id;
+        if (realId) {
+          newItem.id = realId;
+          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: realId } : b));
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[addBarang] Backend API notice:', apiErr.message);
+    }
+
+    // Fallback Supabase jika backend offline
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         const { data } = await supabase.from('barang').insert([{
           nama_barang: newItem.nama_barang,
@@ -2001,20 +2039,12 @@ export function AppProvider({ children }) {
         }]).select();
 
         if (data && data.length > 0) {
-          const realId = data[0].id;
-          newItem.id = realId;
-          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: realId } : b));
+          newItem.id = data[0].id;
+          setBarang(prev => prev.map(b => b.id === newId ? { ...b, id: data[0].id } : b));
         }
       } catch (err) {
         console.warn('Supabase insert barang error:', err);
       }
-    }
-
-    // 2. Sync ke Express Backend API jika aktif
-    try {
-      await api.post('/barang', newItem);
-    } catch (apiErr) {
-      console.warn('[addBarang] Backend API notice:', apiErr.message);
     }
 
     broadcastLiveSignal('barang_tambah', newItem);
@@ -2031,30 +2061,30 @@ export function AppProvider({ children }) {
     // Bersihkan SN audit jika item yang dihapus memiliki nomor seri / ONT
     if (targetItem?.nama_barang) {
       setOntSerials(prev => {
-        const next = prev.filter(s => {
-          const sModel = (s.model || '').toLowerCase().trim();
-          const targetName = (targetItem.nama_barang || '').toLowerCase().trim();
-          return sModel !== targetName && !sModel.includes(targetName) && !targetName.includes(sModel);
-        });
+        const next = prev.filter(s => s.model?.toLowerCase() !== targetItem.nama_barang?.toLowerCase());
         try { localStorage.setItem('sto_ont_serials', JSON.stringify(next)); } catch {}
         return next;
       });
     }
 
-    // 1. Hapus langsung dari Supabase Cloud (Realtime Single Source of Truth)
-    if (isSupabaseConfigured()) {
+    // 1. Sync ke Express Backend API (Single Source of Truth)
+    let backendHandled = false;
+    try {
+      const res = await api.delete(`/barang/${parsedId}`);
+      if (res.data?.success) {
+        backendHandled = true;
+      }
+    } catch (apiErr) {
+      console.warn('[deleteBarang] Backend API notice:', apiErr.message);
+    }
+
+    // 2. Sync ke Supabase HANYA jika Backend offline (cegah dual-write)
+    if (!backendHandled && isSupabaseConfigured()) {
       try {
         await supabase.from('barang').delete().eq('id', parsedId);
       } catch (err) {
         console.warn('Supabase delete barang error:', err);
       }
-    }
-
-    // 2. Sync ke Express Backend API jika aktif
-    try {
-      await api.delete(`/barang/${parsedId}`);
-    } catch (apiErr) {
-      console.warn('[deleteBarang] Backend API notice:', apiErr.message);
     }
 
     // Siarkan realtime penghapusan barang & audit SN terkait

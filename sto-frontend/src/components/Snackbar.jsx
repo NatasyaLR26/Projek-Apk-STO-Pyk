@@ -38,43 +38,51 @@ export default function Snackbar({ notification, onClose }) {
     switch (type) {
       case 'error':
         return {
-          bg: isDark ? 'bg-rose-950/90' : 'bg-rose-50',
-          border: isDark ? 'border-rose-700/60 shadow-rose-950/50' : 'border-rose-200 shadow-rose-200/50',
-          iconColor: 'text-rose-500',
-          textColor: isDark ? 'text-rose-100' : 'text-rose-900',
-          subColor: isDark ? 'text-rose-300' : 'text-rose-700',
-          barColor: 'bg-rose-500',
+          bg: isDark ? 'bg-slate-950/90 border-rose-500/50 shadow-rose-950/50' : 'bg-white/95 border-rose-300 shadow-rose-200/60',
+          badgeBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+          badgeText: 'GAGAL',
+          iconBg: 'bg-rose-500/20 text-rose-400 border border-rose-500/30',
+          textColor: isDark ? 'text-white' : 'text-slate-900',
+          subColor: isDark ? 'text-rose-200/90' : 'text-rose-900/90',
+          barColor: 'bg-gradient-to-r from-rose-600 to-red-500',
+          glow: 'shadow-rose-600/20',
           Icon: AlertCircle
         };
       case 'warning':
         return {
-          bg: isDark ? 'bg-amber-950/90' : 'bg-amber-50',
-          border: isDark ? 'border-amber-700/60 shadow-amber-950/50' : 'border-amber-200 shadow-amber-200/50',
-          iconColor: 'text-amber-500',
-          textColor: isDark ? 'text-amber-100' : 'text-amber-900',
-          subColor: isDark ? 'text-amber-300' : 'text-amber-700',
-          barColor: 'bg-amber-500',
+          bg: isDark ? 'bg-slate-950/90 border-amber-500/50 shadow-amber-950/50' : 'bg-white/95 border-amber-300 shadow-amber-200/60',
+          badgeBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+          badgeText: 'PERHATIAN',
+          iconBg: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+          textColor: isDark ? 'text-white' : 'text-slate-900',
+          subColor: isDark ? 'text-amber-200/90' : 'text-amber-900/90',
+          barColor: 'bg-gradient-to-r from-amber-600 to-yellow-500',
+          glow: 'shadow-amber-600/20',
           Icon: AlertTriangle
         };
       case 'info':
         return {
-          bg: isDark ? 'bg-slate-900/95' : 'bg-sky-50',
-          border: isDark ? 'border-blue-600/50 shadow-blue-950/50' : 'border-blue-200 shadow-blue-200/50',
-          iconColor: 'text-blue-500',
-          textColor: isDark ? 'text-blue-100' : 'text-blue-900',
-          subColor: isDark ? 'text-blue-300' : 'text-blue-700',
-          barColor: 'bg-blue-500',
+          bg: isDark ? 'bg-slate-950/90 border-blue-500/50 shadow-blue-950/50' : 'bg-white/95 border-blue-300 shadow-blue-200/60',
+          badgeBg: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+          badgeText: 'INFORMASI',
+          iconBg: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
+          textColor: isDark ? 'text-white' : 'text-slate-900',
+          subColor: isDark ? 'text-slate-300' : 'text-slate-700',
+          barColor: 'bg-gradient-to-r from-blue-600 to-cyan-500',
+          glow: 'shadow-blue-600/20',
           Icon: Info
         };
       case 'success':
       default:
         return {
-          bg: isDark ? 'bg-slate-900/95' : 'bg-emerald-50',
-          border: isDark ? 'border-emerald-600/50 shadow-emerald-950/50' : 'border-emerald-200 shadow-emerald-200/50',
-          iconColor: 'text-emerald-500',
-          textColor: isDark ? 'text-emerald-100' : 'text-emerald-900',
-          subColor: isDark ? 'text-emerald-300' : 'text-emerald-700',
-          barColor: 'bg-emerald-500',
+          bg: isDark ? 'bg-slate-950/90 border-emerald-500/50 shadow-emerald-950/50' : 'bg-white/95 border-emerald-300 shadow-emerald-200/60',
+          badgeBg: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+          badgeText: 'BERHASIL',
+          iconBg: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
+          textColor: isDark ? 'text-white' : 'text-slate-900',
+          subColor: isDark ? 'text-slate-300' : 'text-slate-700',
+          barColor: 'bg-gradient-to-r from-emerald-600 to-teal-400',
+          glow: 'shadow-emerald-600/20',
           Icon: CheckCircle2
         };
     }
@@ -84,25 +92,32 @@ export default function Snackbar({ notification, onClose }) {
   const StatusIcon = style.Icon;
 
   return (
-    <div className="fixed bottom-5 right-5 z-[9999] max-w-sm w-full animate-in fade-in slide-in-from-bottom-5 duration-300">
-      <div className={`relative overflow-hidden rounded-2xl border backdrop-blur-xl p-4 shadow-2xl ${style.bg} ${style.border}`}>
+    <div className="fixed top-5 right-5 z-[9999] max-w-sm sm:max-w-md w-[calc(100%-2.5rem)] animate-in fade-in slide-in-from-top-4 duration-300">
+      <div className={`relative overflow-hidden rounded-2xl border-2 backdrop-blur-2xl p-4 shadow-2xl ${style.glow} ${style.bg}`}>
         <div className="flex items-start gap-3">
-          <div className={`p-1.5 rounded-xl mt-0.5 ${isDark ? 'bg-white/10' : 'bg-black/5'} ${style.iconColor}`}>
-            <StatusIcon className="w-5 h-5" />
+          <div className={`p-2 rounded-xl mt-0.5 shrink-0 ${style.iconBg}`}>
+            <StatusIcon className="w-5 h-5 animate-pulse" />
           </div>
 
-          <div className="flex-1 text-xs">
-            <div className={`font-bold text-sm leading-tight ${style.textColor}`}>
-              {title}
+          <div className="flex-1 min-w-0 text-xs">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase border ${style.badgeBg}`}>
+                {style.badgeText}
+              </span>
+              <span className={`font-black text-xs truncate ${style.textColor}`}>
+                {title}
+              </span>
             </div>
-            <p className={`mt-0.5 leading-relaxed ${style.subColor}`}>
+            <p className={`text-[11px] font-medium leading-relaxed break-words ${style.subColor}`}>
               {notification.message}
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className={`p-1 rounded-lg transition ${isDark ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-black hover:bg-black/5'}`}
+            className={`p-1.5 rounded-xl transition cursor-pointer shrink-0 ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-100'
+            }`}
             title="Tutup Notifikasi"
           >
             <X className="w-4 h-4" />
@@ -110,7 +125,7 @@ export default function Snackbar({ notification, onClose }) {
         </div>
 
         {/* Progress Bar Countdown Timer */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/10">
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/10 dark:bg-white/5">
           <div
             className={`h-full transition-all duration-75 ${style.barColor}`}
             style={{ width: `${progress}%` }}

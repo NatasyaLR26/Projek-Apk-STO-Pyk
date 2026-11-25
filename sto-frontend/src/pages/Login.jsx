@@ -379,16 +379,16 @@ export default function Login({ onTriggerSplash }) {
             <form onSubmit={handleLogin} className="space-y-4 animate-in fade-in duration-200">
               <div>
                 <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  Email / Username
+                  Email
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    type="text"
+                    type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nama@gmail.com / username"
+                    placeholder="nama@gmail.com"
                     className={`w-full pl-10 pr-3.5 py-3 rounded-2xl text-xs font-medium border outline-none transition ${
                       isDark
                         ? 'bg-slate-950/80 border-slate-700 text-white focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'

@@ -89,9 +89,15 @@ function LaporanAudit({ hideHeader = false }) {
   const handlePrint = () => {
     const originalTitle = document.title;
     document.title = ' ';
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('audit-print-mode');
+    }
     window.print();
     setTimeout(() => {
       document.title = originalTitle;
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('audit-print-mode');
+      }
     }, 1500);
   };
 

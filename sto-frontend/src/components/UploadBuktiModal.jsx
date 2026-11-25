@@ -36,19 +36,6 @@ import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { compressImage, formatFileSize } from '../utils/imageCompressor';
 
-// Contoh foto dokumentasi lapangan standar Telkom Akses
-const CONTOH_FOTO_LAPANGAN = [
-  { label: 'Modem ONT & Indikator PON', url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&auto=format&fit=crop&q=80' },
-  { label: 'Penarikan Dropcore & ODP Tiang', url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80' },
-  { label: 'Hasil Ukur OPM (Redaman dBm)', url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80' },
-];
-
-// Contoh foto bukti fisik sisa / kelebihan material retur ke STO
-const CONTOH_FOTO_SISA = [
-  { label: 'Sisa Kabel Dropcore', url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80' },
-  { label: 'Aksesoris Klem & Roset Sisa', url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80' },
-];
-
 export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const { isDark } = useTheme();
   const { tugas, permohonan, detailPermohonan, barang, finishTugas, showToast } = useApp();
@@ -64,18 +51,12 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const [pelangganNama, setPelangganNama] = useState(task?.pelanggan_nama || 'Pelanggan Telkom');
   const [catatan, setCatatan] = useState('Pemasangan instalasi selesai. Redaman optimal (-18.5 dBm), lampu PON modem hijau solid, internet aktif.');
 
-  // 3 DOKUMENTASI FOTO WAJIB SESUAI SOP TELKOM AKSES (SN MODEM, REDAMAN OPM, RUMAH/PELANGGAN)
-  const [fotoSn, setFotoSn] = useState(
-    task?.foto_sn || 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&auto=format&fit=crop&q=80'
-  );
-  const [fotoOpm, setFotoOpm] = useState(
-    task?.foto_opm || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80'
-  );
-  const [fotoRumah, setFotoRumah] = useState(
-    task?.foto_rumah || task?.foto_bukti || 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80'
-  );
+  // 3 DOKUMENTASI FOTO WAJIB (HASIL KAMERA / UPLOAD TEKNISI, BEBAS FOTO DUMMY)
+  const [fotoSn, setFotoSn] = useState(task?.foto_sn || '');
+  const [fotoOpm, setFotoOpm] = useState(task?.foto_opm || '');
+  const [fotoRumah, setFotoRumah] = useState(task?.foto_rumah || task?.foto_bukti || '');
 
-  // State Kelebihan Material (Berdasarkan Tulisan & Foto Saja Sesuai SOP STO)
+  // State Kelebihan Material (Berdasarkan Tulisan & Foto Riil)
   const [adaKelebihanMaterial, setAdaKelebihanMaterial] = useState(false);
   const [rincianKelebihan, setRincianKelebihan] = useState('');
   const [fotoKelebihan, setFotoKelebihan] = useState('');
@@ -84,7 +65,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const [compressionStatsKelebihan, setCompressionStatsKelebihan] = useState(null);
 
   // 2. STATE FOTO DOKUMENTASI
-  const [preview, setPreview] = useState(CONTOH_FOTO_LAPANGAN[0].url);
+  const [preview, setPreview] = useState(task?.foto_rumah || task?.foto_bukti || '');
   const [submitting, setSubmitting] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionSlot, setCompressionSlot] = useState(null); // 'sn' | 'opm' | 'rumah' | null
@@ -252,6 +233,32 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
   const redamanVal = parseFloat(redamanDbm);
   const isRedamanValid = !isNaN(redamanVal) && redamanVal >= -24.0 && redamanVal <= -14.0;
 
+  // Handler ubah jumlah pemakaian per barang
+  const handleMaterialUsageChange = (index, terpakai) => {
+    setMaterialList(prev => {
+      const next = [...prev];
+      const target = next[index];
+      if (!target) return prev;
+      const totalDiambil = Number(target.jumlah_diambil) || 0;
+      const numTerpakai = Math.max(0, Math.min(totalDiambil, Number(terpakai) || 0));
+      const sisa = totalDiambil - numTerpakai;
+      next[index] = {
+        ...target,
+        jumlah_terpakai: numTerpakai,
+        jumlah_sisa: sisa
+      };
+
+      // Buat ringkasan otomatis untuk rincian kelebihan jika ada sisa
+      const sisaItems = next.filter(it => (Number(it.jumlah_sisa) || 0) > 0);
+      if (sisaItems.length > 0) {
+        const autoSummary = sisaItems.map(it => `${it.nama_barang}: sisa ${it.jumlah_sisa} ${it.satuan}`).join(', ');
+        setRincianKelebihan(autoSummary);
+        setAdaKelebihanMaterial(true);
+      }
+      return next;
+    });
+  };
+
   // SUBMIT KLOSING TIKET & REKONSILIASI MATERIAL
   const handleSubmitClosing = async () => {
     if (submitting || isCompressing || isCompressingKelebihan) return; // Cegah double submit dari klik cepat
@@ -275,6 +282,7 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
       foto_sn: fotoSn,
       foto_opm: fotoOpm,
       foto_rumah: fotoRumah,
+      foto_sisa: adaKelebihanMaterial ? fotoKelebihan : null,
       catatan,
       odp_id: odpId,
       port_odp: portOdp,
@@ -600,15 +608,61 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                 {/* Form Input Rincian Tulisan & Foto Jika Ada Kelebihan Material */}
                 {adaKelebihanMaterial && (
                   <div className="space-y-3.5 p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 animate-in fade-in duration-200">
+                    
+                    {/* Rekonsiliasi Per Item: Sesuaikan Terpakai & Sisa */}
+                    <div>
+                      <label className="block text-xs font-bold text-amber-400 mb-1.5">
+                        1. Penyesuaian Pemakaian Material Lapangan:
+                      </label>
+                      <div className="space-y-2">
+                        {materialList.map((m, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                              isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                            }`}
+                          >
+                            <div className="flex-1">
+                              <span className="font-bold text-xs block text-slate-200">{m.nama_barang}</span>
+                              <span className="text-[10px] text-slate-400">
+                                Diambil: <strong className="font-mono text-slate-300">{m.jumlah_diambil} {m.satuan}</strong>
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-slate-400">Terpakai:</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={m.jumlah_diambil}
+                                  value={m.jumlah_terpakai}
+                                  onChange={(e) => handleMaterialUsageChange(idx, e.target.value)}
+                                  className={`w-16 p-1 text-center font-mono font-bold text-xs rounded-lg border outline-none ${
+                                    isDark ? 'bg-slate-950 border-slate-700 text-emerald-400' : 'bg-slate-50 border-slate-300 text-emerald-600'
+                                  }`}
+                                />
+                                <span className="text-[10px] text-slate-400 font-mono">{m.satuan}</span>
+                              </div>
+
+                              <div className="px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 font-mono text-[10px] font-bold">
+                                Sisa: {m.jumlah_sisa || 0} {m.satuan}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     <div>
                       <label className="block text-xs font-bold text-amber-400 mb-1">
-                        1. Rincian Tertulis Material Berlebih / Sisa: *
+                        2. Catatan Tertulis Rincian Material Berlebih / Sisa: *
                       </label>
                       <textarea
                         rows={2}
                         value={rincianKelebihan}
                         onChange={(e) => setRincianKelebihan(e.target.value)}
-                        placeholder="Contoh: Sisa kabel dropcore ~10 meter digulung di mobil operasional untuk tiket perbaikan/gangguan, 2 pcs klem tiang..."
+                        placeholder="Contoh: Sisa kabel dropcore 25 meter digulung di mobil operasional untuk retur/penanganan gangguan..."
                         className={`w-full p-2.5 rounded-xl border outline-none text-xs ${
                           isDark ? 'bg-slate-900 border-slate-700 text-white focus:border-amber-500' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
                         }`}
@@ -617,52 +671,48 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
 
                     <div>
                       <label className="block text-xs font-bold text-amber-400 mb-1.5">
-                        2. Foto Bukti Fisik Barang Berlebih: *
+                        3. Foto Hasil Kamera / Upload Bukti Fisik Barang Berlebih: *
                       </label>
                       
                       {fotoKelebihan ? (
                         <div className="relative rounded-xl overflow-hidden border border-amber-500/40 h-36 w-full mb-2">
                           <img src={fotoKelebihan} alt="Bukti Kelebihan Material" className="w-full h-full object-cover" />
                           <div className="absolute top-2 right-2 flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setFotoKelebihan('')}
-                              className="px-2 py-1 rounded-lg bg-black/80 hover:bg-rose-600 text-white text-[10px] font-bold transition cursor-pointer"
-                            >
-                              Ganti Foto
-                            </button>
+                            <label className="px-2.5 py-1 rounded-lg bg-black/80 hover:bg-amber-600 text-white text-[10px] font-bold transition cursor-pointer">
+                              <span>Ganti Foto</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                disabled={isCompressingKelebihan || submitting}
+                                onChange={handleFileKelebihanChange}
+                                className="hidden"
+                              />
+                            </label>
                           </div>
                           <div className="absolute bottom-2 left-2 bg-black/75 backdrop-blur px-2 py-0.5 rounded text-[10px] text-amber-300 font-mono">
-                            Bukti Fisik Barang Berlebih
+                            Bukti Fisik Barang Berlebih (Kamera/Upload Real)
                           </div>
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2 text-[10px]">
-                            {CONTOH_FOTO_SISA.map((sample, idx) => (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => setFotoKelebihan(sample.url)}
-                                className="p-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold truncate transition cursor-pointer text-center"
-                              >
-                                {sample.label}
-                              </button>
-                            ))}
-                          </div>
-                          <label className={`block py-2 px-3 rounded-xl border text-center cursor-pointer transition ${
+                          <label className={`block py-3 px-4 rounded-xl border-2 border-dashed text-center cursor-pointer transition ${
                             isCompressingKelebihan
                               ? 'opacity-60 pointer-events-none'
-                              : isDark ? 'bg-slate-900 hover:bg-slate-800 text-amber-400 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-amber-600 border-slate-300'
+                              : isDark ? 'bg-slate-900/60 hover:bg-slate-900 text-amber-400 border-amber-500/40' : 'bg-amber-50/50 hover:bg-amber-100/50 text-amber-600 border-amber-300'
                           }`}>
-                            <span className="font-bold text-xs flex items-center justify-center gap-1.5">
+                            <span className="font-bold text-xs flex flex-col items-center justify-center gap-1.5">
                               {isCompressingKelebihan ? (
                                 <>
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                                  <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
                                   <span>Mengompresi Foto Sisa...</span>
                                 </>
                               ) : (
-                                <span>+ Ambil / Upload Foto Sisa Material</span>
+                                <>
+                                  <Camera className="w-5 h-5 text-amber-400" />
+                                  <span>Ambil Foto Kamera / Unggah Bukti Sisa Material</span>
+                                  <span className="text-[10px] text-slate-400 font-normal">Kamera HP atau Galeri Gambar Fisik</span>
+                                </>
                               )}
                             </span>
                             <input
@@ -737,8 +787,8 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
           {activeStep === 3 && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300">
-                <span className="font-bold text-rose-500 block mb-0.5">3 Foto Pembuktian Fisik Lapangan (Standar Telkom Akses):</span>
-                <span>Unggah foto barcode SN modem, foto hasil ukur redaman OPM (dBm), dan foto rumah/selfie teknisi bersama pelanggan.</span>
+                <span className="font-bold text-rose-500 block mb-0.5">3 Foto Pembuktian Fisik Lapangan (Hasil Kamera / Dokumen Asli):</span>
+                <span>Unggah foto barcode SN modem, foto layar hasil ukur redaman OPM (dBm), dan foto rumah/pelanggan asli di lapangan.</span>
               </div>
 
               {/* Grid 3 Slot Foto Dokumentasi */}
@@ -752,18 +802,29 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         <span>1. SN Barcode Modem</span>
                       </span>
                     </div>
-                    <div className="relative h-28 w-full rounded-xl overflow-hidden border border-slate-700 bg-black">
-                      <img src={fotoSn} alt="Foto SN Modem" className="w-full h-full object-cover" />
-                      <div className="absolute bottom-1 right-1 bg-black/80 backdrop-blur px-1.5 py-0.5 rounded text-[9px] text-purple-300 font-mono">
-                        SN: {snOnt || 'ONT'}
+                    {fotoSn ? (
+                      <div className="relative h-28 w-full rounded-xl overflow-hidden border border-purple-500/40 bg-black">
+                        <img src={fotoSn} alt="Foto SN Modem" className="w-full h-full object-cover" />
+                        <div className="absolute bottom-1 right-1 bg-black/80 backdrop-blur px-1.5 py-0.5 rounded text-[9px] text-purple-300 font-mono">
+                          SN: {snOnt || 'ONT'}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="h-28 w-full rounded-xl border-2 border-dashed border-purple-500/30 bg-purple-500/5 flex flex-col items-center justify-center p-2 text-center text-purple-400">
+                        <Barcode className="w-6 h-6 mb-1 opacity-70" />
+                        <span className="text-[10px] font-bold">Foto Barcode SN</span>
+                        <span className="text-[9px] text-slate-400">Belum diupload</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1.5 pt-1">
-                    <label className={`block py-1.5 px-2 rounded-xl text-center cursor-pointer text-[10px] font-bold border transition ${
-                      isCompressing && compressionSlot === 'sn' ? 'opacity-50 pointer-events-none' : 'bg-purple-600 hover:bg-purple-700 text-white border-purple-500'
+                  <div className="pt-1">
+                    <label className={`block py-2 px-2.5 rounded-xl text-center cursor-pointer text-[10px] font-bold border transition ${
+                      isCompressing && compressionSlot === 'sn' ? 'opacity-50 pointer-events-none' : 'bg-purple-600 hover:bg-purple-700 text-white border-purple-500 shadow-sm'
                     }`}>
-                      <span>{isCompressing && compressionSlot === 'sn' ? 'Mengompres...' : '+ Upload Foto Barcode'}</span>
+                      <span className="flex items-center justify-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>{isCompressing && compressionSlot === 'sn' ? 'Mengompres...' : (fotoSn ? 'Ganti Foto Barcode' : '+ Ambil / Upload Foto SN')}</span>
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -773,13 +834,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         className="hidden"
                       />
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setFotoSn('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&auto=format&fit=crop&q=80')}
-                      className="w-full py-1 rounded-lg text-[9px] font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
-                    >
-                      Template Dummy Barcode
-                    </button>
                   </div>
                 </div>
 
@@ -792,18 +846,29 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         <span>2. Redaman OPM (dBm)</span>
                       </span>
                     </div>
-                    <div className="relative h-28 w-full rounded-xl overflow-hidden border border-slate-700 bg-black">
-                      <img src={fotoOpm} alt="Foto Redaman OPM" className="w-full h-full object-cover" />
-                      <div className="absolute bottom-1 right-1 bg-black/80 backdrop-blur px-1.5 py-0.5 rounded text-[9px] text-emerald-300 font-mono">
-                        {redamanDbm} dBm
+                    {fotoOpm ? (
+                      <div className="relative h-28 w-full rounded-xl overflow-hidden border border-emerald-500/40 bg-black">
+                        <img src={fotoOpm} alt="Foto Redaman OPM" className="w-full h-full object-cover" />
+                        <div className="absolute bottom-1 right-1 bg-black/80 backdrop-blur px-1.5 py-0.5 rounded text-[9px] text-emerald-300 font-mono">
+                          {redamanDbm} dBm
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="h-28 w-full rounded-xl border-2 border-dashed border-emerald-500/30 bg-emerald-500/5 flex flex-col items-center justify-center p-2 text-center text-emerald-400">
+                        <Radio className="w-6 h-6 mb-1 opacity-70" />
+                        <span className="text-[10px] font-bold">Foto Pengukuran OPM</span>
+                        <span className="text-[9px] text-slate-400">Nilai: {redamanDbm} dBm</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1.5 pt-1">
-                    <label className={`block py-1.5 px-2 rounded-xl text-center cursor-pointer text-[10px] font-bold border transition ${
-                      isCompressing && compressionSlot === 'opm' ? 'opacity-50 pointer-events-none' : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500'
+                  <div className="pt-1">
+                    <label className={`block py-2 px-2.5 rounded-xl text-center cursor-pointer text-[10px] font-bold border transition ${
+                      isCompressing && compressionSlot === 'opm' ? 'opacity-50 pointer-events-none' : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-sm'
                     }`}>
-                      <span>{isCompressing && compressionSlot === 'opm' ? 'Mengompres...' : '+ Upload Foto OPM'}</span>
+                      <span className="flex items-center justify-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>{isCompressing && compressionSlot === 'opm' ? 'Mengompres...' : (fotoOpm ? 'Ganti Foto OPM' : '+ Ambil / Upload Foto OPM')}</span>
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -813,13 +878,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         className="hidden"
                       />
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setFotoOpm('https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80')}
-                      className="w-full py-1 rounded-lg text-[9px] font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
-                    >
-                      Template Dummy dBm
-                    </button>
                   </div>
                 </div>
 
@@ -832,18 +890,29 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         <span>3. Rumah & Pelanggan</span>
                       </span>
                     </div>
-                    <div className="relative h-28 w-full rounded-xl overflow-hidden border border-slate-700 bg-black">
-                      <img src={fotoRumah} alt="Foto Rumah / Pelanggan" className="w-full h-full object-cover" />
-                      <div className="absolute bottom-1 right-1 bg-black/80 backdrop-blur px-1.5 py-0.5 rounded text-[9px] text-white font-mono truncate max-w-[120px]">
-                        {pelangganNama}
+                    {fotoRumah ? (
+                      <div className="relative h-28 w-full rounded-xl overflow-hidden border border-sky-500/40 bg-black">
+                        <img src={fotoRumah} alt="Foto Rumah / Pelanggan" className="w-full h-full object-cover" />
+                        <div className="absolute bottom-1 right-1 bg-black/80 backdrop-blur px-1.5 py-0.5 rounded text-[9px] text-white font-mono truncate max-w-[120px]">
+                          {pelangganNama}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="h-28 w-full rounded-xl border-2 border-dashed border-sky-500/30 bg-sky-500/5 flex flex-col items-center justify-center p-2 text-center text-sky-400">
+                        <Camera className="w-6 h-6 mb-1 opacity-70" />
+                        <span className="text-[10px] font-bold">Foto Rumah Pelanggan</span>
+                        <span className="text-[9px] text-slate-400">{pelangganNama}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1.5 pt-1">
-                    <label className={`block py-1.5 px-2 rounded-xl text-center cursor-pointer text-[10px] font-bold border transition ${
-                      isCompressing && compressionSlot === 'rumah' ? 'opacity-50 pointer-events-none' : 'bg-sky-600 hover:bg-sky-700 text-white border-sky-500'
+                  <div className="pt-1">
+                    <label className={`block py-2 px-2.5 rounded-xl text-center cursor-pointer text-[10px] font-bold border transition ${
+                      isCompressing && compressionSlot === 'rumah' ? 'opacity-50 pointer-events-none' : 'bg-sky-600 hover:bg-sky-700 text-white border-sky-500 shadow-sm'
                     }`}>
-                      <span>{isCompressing && compressionSlot === 'rumah' ? 'Mengompres...' : '+ Upload Foto Rumah'}</span>
+                      <span className="flex items-center justify-center gap-1.5">
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>{isCompressing && compressionSlot === 'rumah' ? 'Mengompres...' : (fotoRumah ? 'Ganti Foto Rumah' : '+ Ambil / Upload Foto Rumah')}</span>
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -853,16 +922,6 @@ export default function UploadBuktiModal({ tugasId, onClose, onSuccess }) {
                         className="hidden"
                       />
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFotoRumah('https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80');
-                        setPreview('https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80');
-                      }}
-                      className="w-full py-1 rounded-lg text-[9px] font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
-                    >
-                      Template Dummy Rumah
-                    </button>
                   </div>
                 </div>
               </div>

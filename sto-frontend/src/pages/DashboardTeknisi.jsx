@@ -270,8 +270,27 @@ export default function DashboardTeknisi() {
   }, [permohonan, tugas, currentTechId]);
 
   // Permohonan yang ditolak pimpinan dan butuh perbaikan / pengajuan ulang
+  // Pemberitahuan otomatis HILANG jika material sudah diperbarui (Pending) atau disetujui pimpinan (Approved / Released)
   const rejectedRequests = useMemo(() => {
-    return myRequests.filter(p => p.status === 'Rejected');
+    return myRequests.filter(p => {
+      if (p.status !== 'Rejected') return false;
+
+      const pTaskIds = Array.isArray(p.tugas_ids) && p.tugas_ids.length > 0
+        ? p.tugas_ids.map(Number)
+        : (p.tugas_id ? [Number(p.tugas_id)] : []);
+
+      // Cek apakah untuk tiket ini sudah ada permohonan material baru / disetujui
+      const hasActiveOrApproved = myRequests.some(other => {
+        if (Number(other.id) === Number(p.id)) return false;
+        const otherTaskIds = Array.isArray(other.tugas_ids) && other.tugas_ids.length > 0
+          ? other.tugas_ids.map(Number)
+          : (other.tugas_id ? [Number(other.tugas_id)] : []);
+        const shareTask = pTaskIds.some(tid => otherTaskIds.includes(tid));
+        return shareTask && ['Pending', 'Approved', 'Released'].includes(other.status);
+      });
+
+      return !hasActiveOrApproved;
+    });
   }, [myRequests]);
 
     const activeTasksRef = useRef(activeTasks);

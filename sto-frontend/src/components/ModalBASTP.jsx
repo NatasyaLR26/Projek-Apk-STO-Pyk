@@ -21,6 +21,8 @@ import {
   Printer,
   X,
   CheckCircle2,
+  AlertTriangle,
+  Camera,
   Radio,
   Barcode,
   Calendar,
@@ -89,10 +91,12 @@ export default function ModalBASTP({ task, onClose }) {
       lokasi: cust.address || tItem.lokasi || 'Koto Nan IV, Payakumbuh',
       waktu_closing: tItem.waktu_selesai || existing?.waktu_closing || new Date().toISOString().slice(0, 16).replace('T', ' '),
       catatan_teknisi: tItem.catatan_selesai || tItem.catatan || existing?.catatan_teknisi || 'Instalasi selesai, sinyal optik stabil dan lolos uji QC Telkom.',
-      foto_bukti: tItem.foto_bukti || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-      foto_sn: tItem.foto_sn || existing?.foto_sn || 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&auto=format&fit=crop&q=80',
-      foto_opm: tItem.foto_opm || existing?.foto_opm || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80',
-      foto_rumah: tItem.foto_rumah || tItem.foto_bukti || existing?.foto_rumah || 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&auto=format&fit=crop&q=80',
+      foto_bukti: tItem.foto_bukti || existing?.foto_bukti || null,
+      foto_sn: tItem.foto_sn || existing?.foto_sn || tItem.bastp?.foto_sn || null,
+      foto_opm: tItem.foto_opm || existing?.foto_opm || tItem.bastp?.foto_opm || null,
+      foto_rumah: tItem.foto_rumah || tItem.foto_bukti || existing?.foto_rumah || tItem.bastp?.foto_rumah || null,
+      foto_sisa: tItem.foto_sisa || tItem.kelebihan_material?.foto || existing?.kelebihan_material?.foto || existing?.foto_sisa || null,
+      kelebihan_material: tItem.kelebihan_material || existing?.kelebihan_material || null,
       jenis_kerja: tItem.jenis_kerja || task.jenis_kerja || 'Pasang Baru (PSB)',
       reconciliation: (() => {
         const rawRec = tItem.reconciliation || existing?.reconciliation;
@@ -372,35 +376,58 @@ export default function ModalBASTP({ task, onClose }) {
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-0.5">
                       <div className="aspect-square w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/50 flex items-center justify-center">
-                        <img
-                          src={bastp.foto_sn}
-                          alt="SN Barcode Modem"
-                          className="w-full h-full object-cover"
-                        />
+                        {bastp.foto_sn ? (
+                          <img
+                            src={bastp.foto_sn}
+                            alt="SN Barcode Modem"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400">
+                            <Barcode className="w-6 h-6 text-purple-600 mb-0.5" />
+                            <span className="text-[8px] font-bold text-slate-700">Foto Barcode SN</span>
+                          </div>
+                        )}
                       </div>
                       <span className="block text-[8px] font-mono text-center text-slate-600 font-bold truncate">
                         SN: {bastp.sn_ont}
                       </span>
                     </div>
+
                     <div className="space-y-0.5">
                       <div className="aspect-square w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/50 flex items-center justify-center">
-                        <img
-                          src={bastp.foto_opm}
-                          alt="Redaman OPM"
-                          className="w-full h-full object-cover"
-                        />
+                        {bastp.foto_opm ? (
+                          <img
+                            src={bastp.foto_opm}
+                            alt="Redaman OPM"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400">
+                            <Radio className="w-6 h-6 text-emerald-600 mb-0.5" />
+                            <span className="text-[8px] font-bold text-slate-700">Layar Ukur OPM</span>
+                          </div>
+                        )}
                       </div>
                       <span className="block text-[8px] font-mono text-center text-emerald-700 font-bold">
                         OPM: {bastp.redaman_dbm} dBm
                       </span>
                     </div>
+
                     <div className="space-y-0.5">
                       <div className="aspect-square w-full rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/50 flex items-center justify-center">
-                        <img
-                          src={bastp.foto_rumah}
-                          alt="Rumah Pelanggan"
-                          className="w-full h-full object-cover"
-                        />
+                        {bastp.foto_rumah ? (
+                          <img
+                            src={bastp.foto_rumah}
+                            alt="Rumah Pelanggan"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400">
+                            <Camera className="w-6 h-6 text-sky-600 mb-0.5" />
+                            <span className="text-[8px] font-bold text-slate-700">Foto Pelanggan</span>
+                          </div>
+                        )}
                       </div>
                       <span className="block text-[8px] text-center text-slate-600 font-bold truncate">
                         Rumah &amp; Pelanggan
@@ -410,13 +437,51 @@ export default function ModalBASTP({ task, onClose }) {
                   <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-slate-200">
                     <span className="font-bold text-emerald-600 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
-                      <span>3 Foto Fisik Lolos Verifikasi Lapangan</span>
+                      <span>3 Dokumentasi Fisik Lapangan Terverifikasi</span>
                     </span>
                     <span className="text-slate-500 italic truncate max-w-[220px]" title={bastp.catatan_teknisi}>
                       "{bastp.catatan_teknisi}"
                     </span>
                   </div>
                 </div>
+
+                {/* DOKUMENTASI MATERIAL BERLEBIH / SISA (JIKA ADA) */}
+                {(bastp.kelebihan_material?.ada || (bastp.reconciliation && bastp.reconciliation.some(m => Number(m.jumlah_sisa) > 0))) && (
+                  <div className="p-2 rounded-xl border border-amber-300 bg-amber-50/70 text-[10px] space-y-1">
+                    <div className="flex items-center justify-between text-amber-900 font-bold">
+                      <span className="flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Kelebihan / Sisa Material Lapangan (Wajib Retur Sentral STO)</span>
+                      </span>
+                      <span className="text-[9px] px-2 py-0.2 rounded bg-amber-200/90 text-amber-950 border border-amber-400 font-bold">
+                        Status: Retur Logistik
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2 pt-0.5">
+                      {(bastp.foto_sisa || bastp.kelebihan_material?.foto) && (
+                        <div className="w-12 h-12 rounded-lg overflow-hidden border border-amber-400 shrink-0 bg-black">
+                          <img
+                            src={bastp.foto_sisa || bastp.kelebihan_material?.foto}
+                            alt="Bukti Fisik Sisa Material"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-700 italic text-[10px]">
+                          {bastp.kelebihan_material?.rincian || 'Material berlebih siap diserahkan kembali ke Sentral STO.'}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {bastp.reconciliation?.filter(m => Number(m.jumlah_sisa) > 0).map((m, idx) => (
+                            <span key={idx} className="px-1.5 py-0.5 rounded bg-white text-slate-800 border border-amber-300 font-mono text-[9px] shadow-xs">
+                              {m.nama_barang}: <strong className="text-amber-700">{m.jumlah_sisa} {m.satuan}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* KOLOM TANDA TANGAN 3 PIHAK */}
                 <div className="grid grid-cols-3 gap-3 pt-2 border-t-2 border-slate-300 text-center text-xs print-text-dark">

@@ -8,9 +8,15 @@ export default function CetakSuratPermintaan({ task, items = [], onClose }) {
   const handlePrint = () => {
     const originalTitle = document.title;
     document.title = ' ';
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('permintaan-print-mode');
+    }
     window.print();
     setTimeout(() => {
       document.title = originalTitle;
+      if (typeof document !== 'undefined') {
+        document.body.classList.remove('permintaan-print-mode');
+      }
     }, 1500);
   };
 
@@ -61,7 +67,7 @@ export default function CetakSuratPermintaan({ task, items = [], onClose }) {
         </div>
 
         {/* Lembar Cetak Standar Telkom Akses (Print Area) */}
-        <div className="p-6 sm:p-8 bg-white text-slate-900 text-xs font-sans space-y-4 print:p-0 print:m-0">
+        <div className="printable-permintaan-sheet p-6 sm:p-8 bg-white text-slate-900 text-xs font-sans space-y-4 print:p-0 print:m-0">
           
           {/* Header Kop Surat */}
           <div className="border-b-2 border-red-700 pb-3 flex justify-between items-start">
